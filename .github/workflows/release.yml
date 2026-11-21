@@ -37,7 +37,7 @@ jobs:
           done
       - name: Windows agent
         if: needs.windows.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows
           path: bin
