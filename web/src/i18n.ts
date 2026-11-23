@@ -18,11 +18,13 @@ import enUpd from './locales/en.upd.json';
 import ruAudit from './locales/ru.audit.json';
 import ruSettings from './locales/ru.settings.json';
 import ruAccess from './locales/ru.access.json';
+import ruConn from './locales/ru.conn.json';
 import ruSec from './locales/ru.sec.json';
 import ruDisk from './locales/ru.disk.json';
 import enAudit from './locales/en.audit.json';
 import enSettings from './locales/en.settings.json';
 import enAccess from './locales/en.access.json';
+import enConn from './locales/en.conn.json';
 import enSec from './locales/en.sec.json';
 import enDisk from './locales/en.disk.json';
 import ruUsers from './locales/ru.users.json';
@@ -54,8 +56,8 @@ export type Locale = 'ru' | 'en';
 export type Vars = Record<string, string | number>;
 
 const dictionaries: Record<Locale, Record<string, string>> = {
-  ru: { ...ru, ...ruServer, ...ruTerm, ...ruMgmt, ...ruFiles, ...ruNet, ...ruFw, ...ruUpd, ...ruAudit, ...ruSettings, ...ruAccess, ...ruSec, ...ruDisk, ...ruUsers, ...ruMobile, ...ruMobA, ...ruMobB, ...ruMobC, ...ruMobD, ...ruAddsrv, ...ruDesk, ...ruWin, ...ruAssist, ...ruPult, ...ruKeys },
-  en: { ...en, ...enServer, ...enTerm, ...enMgmt, ...enFiles, ...enNet, ...enFw, ...enUpd, ...enAudit, ...enSettings, ...enAccess, ...enSec, ...enDisk, ...enUsers, ...enMobile, ...enMobA, ...enMobB, ...enMobC, ...enMobD, ...enAddsrv, ...enDesk, ...enWin, ...enAssist, ...enPult, ...enKeys },
+  ru: { ...ru, ...ruServer, ...ruTerm, ...ruMgmt, ...ruFiles, ...ruNet, ...ruFw, ...ruUpd, ...ruAudit, ...ruSettings, ...ruAccess, ...ruConn, ...ruSec, ...ruDisk, ...ruUsers, ...ruMobile, ...ruMobA, ...ruMobB, ...ruMobC, ...ruMobD, ...ruAddsrv, ...ruDesk, ...ruWin, ...ruAssist, ...ruPult, ...ruKeys },
+  en: { ...en, ...enServer, ...enTerm, ...enMgmt, ...enFiles, ...enNet, ...enFw, ...enUpd, ...enAudit, ...enSettings, ...enAccess, ...enConn, ...enSec, ...enDisk, ...enUsers, ...enMobile, ...enMobA, ...enMobB, ...enMobC, ...enMobD, ...enAddsrv, ...enDesk, ...enWin, ...enAssist, ...enPult, ...enKeys },
 };
 const STORAGE_KEY = 'linager.lang';
 const DEFAULT_LOCALE: Locale = 'ru';

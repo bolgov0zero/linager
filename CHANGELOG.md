@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0-beta.1
+
+The application port and the section "Connection". Migration 00019 (the port an agent connected to). **Update the agents** to follow a change of the agent port (0.10.0-beta.1 or newer); older agents keep working, they just do not move.
+
+- New: **the application port**, a third port of the server for the Linager application: TLS 1.3 with the certificate of the agent port, the same API as the admin panel. The reverse proxy headers are dropped on it, so a client cannot name its own address. The installation wizard asks for it (`--app-port`, no default), `server.yaml` gets `app.listen`. On a server installed earlier it is off until set in the panel.
+- New: **Settings, "Connection"**: the fingerprint of the certificate and the two ports, the agent port and the application port, changed without a restart (a new port is opened before the old one is closed, a busy port leaves everything as it was). The values are kept in the database and win over `server.yaml`; a reinstall with `--force` takes the answers of the wizard.
+- New: **a change of the agent port moves the agents by themselves.** The server keeps the old port open and sends every agent the new one (`server.move`, signed); an agent tries the new address first, goes back to the old one after three failed attempts and ignores that port for an hour. The old port closes when every agent has moved (progress "N of M" in the panel), or with the button "Close the old port". While an online agent older than 0.10.0-beta.1 exists the change is refused and the agents are listed. Audit: `connection.update`, `connection.close_old`.
+- Change: the install dialogs, SSH install and install links use the current agent port.
+- Docs: [connection](docs/en/connection.md) / [подключение](docs/ru/connection.md); the installation docs got `--app-port`.
+
 ## 0.9.1
 
 Web interface, the audit log and the Windows agent. No database migration. **Update the Windows agents** for the "Programs" tab (an old agent shows the tab with a request to update it).

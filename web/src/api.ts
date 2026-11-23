@@ -455,6 +455,26 @@ export type LiveEvent =
   | { type: 'dashboard' }; // membership/order changed or a server was added or removed
 
 /** status 0 means the request never reached the server. */
+/** An agent in the connection settings; `supported` tells whether it follows a change of the agent port. */
+export interface ConnAgent { id: string; name: string; version: string; online: boolean; supported: boolean }
+/** The agent port is being changed: agents move to the new port by themselves while the old one stays open. */
+export interface ConnMove { from: number; to: number; moved: number; total: number; pending: ConnAgent[] }
+/** Settings, "Connection": the port of the agents and the port of the desktop application. */
+export interface ConnectionState {
+  agent_port: number;
+  /** 0: the application listener is off. */
+  app_port: number;
+  host: string;
+  fingerprint: string;
+  /** The first agent version that follows a change of the agent port. */
+  min_agent: string;
+  admin_port: number;
+  app_up: boolean;
+  move: ConnMove | null;
+  /** Online agents that cannot follow: while there are any, the agent port cannot be changed. */
+  blockers: ConnAgent[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly serverMessage: string | undefined;
@@ -605,6 +625,10 @@ export const api = {
   accessRetention: (days: number) => request<AccessState>('PUT', 'api/access/retention', { days }),
   accessLog: (filter: AccessLogFilter, before = 0) =>
     request<{ rows: AccessLogRow[] }>('GET', `api/access/log?filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
+
+  connection: () => request<ConnectionState>('GET', 'api/connection'),
+  connectionSave: (agentPort: number, appPort: number) => request<ConnectionState>('PUT', 'api/connection', { agent_port: agentPort, app_port: appPort }),
+  connectionCloseOld: () => request<ConnectionState>('POST', 'api/connection/close-old'),
 
   dashboard: () => request<{ items: ServerCard[] }>('GET', 'api/dashboard'),
   groups: () => request<Group[]>('GET', 'api/groups'),

@@ -9,6 +9,7 @@
   import GroupsSection from './GroupsSection.svelte';
   import UsersSection from './UsersSection.svelte';
   import AccessSection from './AccessSection.svelte';
+  import ConnectionSection from './ConnectionSection.svelte';
 
   import { SETTINGS_SECTIONS, type SettingsSection } from './sections';
 
@@ -68,6 +69,8 @@
         <SnippetsSection {onauthlost} />
       {:else if section === 'access'}
         <AccessSection {onauthlost} />
+      {:else if section === 'connection'}
+        <ConnectionSection {onauthlost} />
       {:else if section === 'updates'}
         <UpdatesPage embedded onchanged={onupdateschanged} />
       {:else}

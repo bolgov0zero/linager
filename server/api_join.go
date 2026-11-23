@@ -119,7 +119,7 @@ func (a *Admin) joinCreate(w http.ResponseWriter, r *http.Request, u *store.User
 			return
 		}
 	}
-	_, port, _ := net.SplitHostPort(a.Cfg.Agents.Listen)
+	port := a.agentPort()
 	pin, err := spkiPin(a.Keys.TLSDER)
 	if err != nil || port == "" {
 		jsonErr(w, http.StatusInternalServerError, "internal error")

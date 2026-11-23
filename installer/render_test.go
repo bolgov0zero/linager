@@ -102,3 +102,49 @@ func TestMergeCaddyfile(t *testing.T) {
 		t.Fatalf("re-running must replace the managed block:\n%s", again)
 	}
 }
+
+func TestRenderedAppPort(t *testing.T) {
+	p := &ServerParams{AgentPort: 9443, AppPort: 9444, AdminMode: "proxy", AdminPort: 8080, DSN: "postgres://x", DataDir: "/var/lib/linager"}
+	var c config.Server
+	if err := yaml.Unmarshal([]byte(RenderServerConfig(p, nil)), &c); err != nil || c.App.Listen != "0.0.0.0:9444" {
+		t.Fatalf("app.listen: %v %+v", err, c.App)
+	}
+	p.AppPort = 0
+	if strings.Contains(RenderServerConfig(p, nil), "app:") {
+		t.Fatal("without an application port the file has no app block")
+	}
+}
+
+// fakeConsole answers nothing: it stands for a run driven by flags.
+type fakeConsole struct{}
+
+func (fakeConsole) Interactive() bool                   { return false }
+func (fakeConsole) Ask(Form) (map[string]string, error) { return nil, nil }
+func (fakeConsole) Steps([]string)                      {}
+func (fakeConsole) Event(Event)                         {}
+func (fakeConsole) Wait(Waiting)                        {}
+func (fakeConsole) Lang() Lang                          { return ParseLang("en") }
+
+func TestServerParamsNeedAnApplicationPort(t *testing.T) {
+	base := ServerOpts{AgentPort: 39443, AdminMode: "proxy", AdminPort: 39080, AdminUser: "admin"}
+	_, err := collectServerParams(fakeConsole{}, base)
+	if err == nil || !strings.Contains(err.Error(), "--app-port") {
+		t.Fatalf("the application port is required, got %v", err)
+	}
+	same := base
+	same.AppPort = base.AgentPort
+	if _, err := collectServerParams(fakeConsole{}, same); err == nil {
+		t.Fatal("the application port must differ from the agent port")
+	}
+	same.AppPort = base.AdminPort
+	if _, err := collectServerParams(fakeConsole{}, same); err == nil {
+		t.Fatal("the application port must differ from the admin port")
+	}
+	ok := base
+	ok.AppPort = 39444
+	ok.PasswordFile = ""
+	p, err := collectServerParams(fakeConsole{}, ok)
+	if err != nil || p.AppPort != 39444 {
+		t.Fatalf("valid ports: %v %+v", err, p)
+	}
+}

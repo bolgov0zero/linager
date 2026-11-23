@@ -3,6 +3,7 @@
 - [Installation](install.md)
 - [Reverse proxy](proxy.md)
 - [Admin panel access](access.md)
+- [Connection: agent and application ports](connection.md)
 - [Agent modules and configuration](modules.md)
 - [Updates, backups, rollback](updates.md)
 - [The Console view](console.md)

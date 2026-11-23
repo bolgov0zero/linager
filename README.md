@@ -235,6 +235,7 @@ Details and known limits: [docs/en/security.md](docs/en/security.md). To report 
 | Installation | [install](docs/en/install.md) | [установка](docs/ru/install.md) |
 | Reverse proxy (Caddy, nginx, NPM) | [proxy](docs/en/proxy.md) | [прокси](docs/ru/proxy.md) |
 | Admin panel access | [access](docs/en/access.md) | [доступ к админке](docs/ru/access.md) |
+| Agent and application ports | [connection](docs/en/connection.md) | [подключение](docs/ru/connection.md) |
 | Agent modules and configuration | [modules](docs/en/modules.md) | [модули](docs/ru/modules.md) |
 | Updates, backups, rollback | [updates](docs/en/updates.md) | [обновления](docs/ru/updates.md) |
 | Terminal menu (`linager`) | [menu](docs/en/menu.md) | [меню](docs/ru/menu.md) |

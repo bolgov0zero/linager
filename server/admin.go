@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,7 @@ type Admin struct {
 	Cfg     *config.Server
 	Trust   *ProxyTrust
 	Access  *AccessGuard
+	Conn    *Connection // the ports (nil in tests that do not start the listeners)
 	SSH     *SSHInstaller
 	sshL    *ipLimiter
 	Static  fs.FS // built frontend (may be nil in tests)
@@ -148,6 +150,9 @@ func (a *Admin) Handler() http.Handler {
 	a.route(mux, "POST /api/updates/server", "admin", a.updatesServer)
 	a.route(mux, "POST /api/updates/agents", "admin", a.updatesAgents)
 	a.route(mux, "GET /api/audit", "admin", a.auditList)
+	a.route(mux, "GET /api/connection", "admin", a.connGet)
+	a.route(mux, "PUT /api/connection", "admin", a.connPut)
+	a.route(mux, "POST /api/connection/close-old", "admin", a.connCloseOld)
 	a.route(mux, "GET /api/access", "admin", a.accessGet)
 	a.route(mux, "PUT /api/access", "admin", a.accessPut)
 	a.route(mux, "POST /api/access/check", "admin", a.accessCheck)
@@ -493,10 +498,7 @@ func (a *Admin) me(w http.ResponseWriter, r *http.Request, u *store.User) {
 // certificate and the names/IPs that certificate was issued for. The agent port is not behind the admin reverse proxy,
 // so the page picks the host itself (usually the one the administrator opened the panel with).
 func (a *Admin) connectInfo(w http.ResponseWriter, _ *http.Request, _ *store.User) {
-	port := ""
-	if _, p, err := net.SplitHostPort(a.Cfg.Agents.Listen); err == nil {
-		port = p
-	}
+	port := a.agentPort()
 	hosts := a.Cfg.Agents.Hosts
 	if hosts == nil {
 		hosts = []string{}
@@ -761,4 +763,13 @@ func totpSetupPath(p string) bool {
 		return true
 	}
 	return false
+}
+
+// agentPort is the port the agents connect to now (the one set in the panel wins over server.yaml).
+func (a *Admin) agentPort() string {
+	if a.Conn != nil {
+		return strconv.Itoa(a.Conn.State().AgentPort)
+	}
+	_, p, _ := net.SplitHostPort(a.Cfg.Agents.Listen)
+	return p
 }

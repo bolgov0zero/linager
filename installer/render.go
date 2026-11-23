@@ -11,6 +11,7 @@ import (
 // ServerParams are the answers needed to install the server.
 type ServerParams struct {
 	AgentPort     int
+	AppPort       int    // the desktop application listener; 0 leaves it out of the file
 	AdminMode     string // "caddy" or "proxy"
 	Domain        string // caddy mode
 	PublicPort    int    // caddy mode, HTTPS port of Caddy (default 443)
@@ -81,6 +82,10 @@ func RenderServerConfig(p *ServerParams, hosts []string) string {
 		if p.UpdateChannel == "beta" {
 			b.WriteString("  channel: beta\n")
 		}
+	}
+	if p.AppPort > 0 {
+		b.WriteString("app:\n")
+		fmt.Fprintf(&b, "  listen: \"0.0.0.0:%d\"\n", p.AppPort)
 	}
 	b.WriteString("agents:\n")
 	fmt.Fprintf(&b, "  listen: \"0.0.0.0:%d\"\n", p.AgentPort)

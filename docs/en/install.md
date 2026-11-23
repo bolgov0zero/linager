@@ -32,6 +32,7 @@ Questions (the ports are required, there are no default values):
 | Question | Description |
 |---|---|
 | Port for clients | clients connect here directly over TLS |
+| Application port | the Linager application connects here over TLS ([connection](connection.md)) |
 | Admin panel access | `Caddy on this server` or `Own reverse proxy` |
 | Domain, HTTPS port | Caddy only: Let's Encrypt, requires open ports 80 and 443 and a DNS record |
 | Admin panel port (HTTP) | own proxy only: your proxy connects here |
@@ -80,8 +81,8 @@ Security:
 ## Unattended (automation)
 
 ```bash
-sudo linager install server --no-tui --agent-port 9443 --admin-mode proxy --admin-port 8080 --admin-user admin
-sudo linager install server --no-tui --agent-port 9443 --admin-mode caddy --domain linager.example.com
+sudo linager install server --no-tui --agent-port 9443 --app-port 9444 --admin-mode proxy --admin-port 8080 --admin-user admin
+sudo linager install server --no-tui --agent-port 9443 --app-port 9444 --admin-mode caddy --domain linager.example.com
 sudo linager install agent  --no-tui --server 10.0.0.5:9443 --fingerprint SHA256:...
 ```
 

@@ -180,7 +180,7 @@ var hostRe = regexp.MustCompile(`^[A-Za-z0-9.\-]+$`)
 func (a *AgentPort) serverAddr(r *http.Request) string {
 	host, port, err := net.SplitHostPort(r.Host)
 	if err != nil {
-		host, port = strings.Trim(r.Host, "[]"), a.ListenPort
+		host, port = strings.Trim(r.Host, "[]"), a.ListenPort()
 	}
 	if ip, perr := netip.ParseAddr(host); perr == nil {
 		host = ip.String()
@@ -188,7 +188,7 @@ func (a *AgentPort) serverAddr(r *http.Request) string {
 		host = "localhost"
 	}
 	if port == "" {
-		port = a.ListenPort
+		port = a.ListenPort()
 	}
 	return net.JoinHostPort(host, port)
 }

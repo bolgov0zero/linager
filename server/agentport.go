@@ -12,9 +12,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -40,10 +42,13 @@ type AgentPort struct {
 	Log     *slog.Logger
 	// CertLifetime is the validity of renewed agent certificates (0 = the default).
 	CertLifetime time.Duration
-	// ListenPort is the port of the agent listener, for the install script when a request names none.
-	ListenPort string
+	// listenPort is the port of the agent listener, for the install script when a request names none; it changes
+	// when the administrator moves the agent port (SetListenPort).
+	listenPort atomic.Value
 	// Live, when set, tells the admin panel that something changed on the dashboard.
-	Live    *Live
+	Live *Live
+	// Conn follows which port the agents use while the agent port changes (nil in tests).
+	Conn    *Connection
 	enrollL *ipLimiter
 	joinL   *ipLimiter
 }
@@ -51,6 +56,15 @@ type AgentPort struct {
 // NewAgentPort builds the handler set.
 func NewAgentPort(db *store.Store, keys *Keys, hub *Hub, metrics *Metrics, updates *Updates, log *slog.Logger) *AgentPort {
 	return &AgentPort{DB: db, Keys: keys, Hub: hub, Metrics: metrics, Updates: updates, Log: log, enrollL: newLimiter(20, 10*time.Minute), joinL: newLimiter(40, 10*time.Minute)}
+}
+
+// SetListenPort sets the port the install scripts use when the request names none.
+func (a *AgentPort) SetListenPort(p string) { a.listenPort.Store(p) }
+
+// ListenPort is that port.
+func (a *AgentPort) ListenPort() string {
+	p, _ := a.listenPort.Load().(string)
+	return p
 }
 
 // TLSConfig is the agent listener configuration: TLS 1.3, client certificate optional
@@ -319,6 +333,13 @@ func (a *AgentPort) ws(w http.ResponseWriter, r *http.Request) {
 	a.Metrics.Hostname(ctx, id, h.Hostname)
 	if a.Updates != nil {
 		a.Updates.AgentHello(ctx, id, h.AgentVersion)
+	}
+	if a.Conn != nil {
+		local := 0
+		if la, ok := r.Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
+			local = portOf(la.String())
+		}
+		a.Conn.AgentConnected(ctx, id, h.AgentVersion, local)
 	}
 	a.Log.Info("agent connected", "server", srv.Name, "version", h.AgentVersion)
 	certLife := a.CertLifetime

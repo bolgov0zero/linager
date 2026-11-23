@@ -20,6 +20,13 @@ type State struct {
 	ServerID    string `json:"server_id"`
 	CmdPubkey   []byte `json:"cmd_pubkey"`
 	Fingerprint string `json:"-"`
+	// Next is the address the server asked the agent to move to (host:port). It is tried first; the first
+	// connection that works makes it Server, and a few failures drop it again (BadPort remembers the port so the
+	// server's next request for it is ignored for a while).
+	Next      string `json:"next,omitempty"`
+	NextTries int    `json:"next_tries,omitempty"`
+	BadPort   int    `json:"bad_port,omitempty"`
+	BadUntil  int64  `json:"bad_until,omitempty"` // unix seconds
 }
 
 // Files inside the data directory.
@@ -81,4 +88,15 @@ func loadState(dir string) (*State, tls.Certificate, error) {
 	}
 	pair, err := tls.X509KeyPair(certPEM, keyPEM)
 	return &st, pair, err
+}
+
+// saveStateOnly rewrites state.json (the certificate is not touched). The file is replaced atomically.
+func saveStateOnly(dir string, st *State) error {
+	b, _ := json.Marshal(st)
+	p := filepath.Join(dir, stateFile)
+	tmp := p + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, p)
 }

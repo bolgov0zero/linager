@@ -235,6 +235,7 @@ flowchart LR
 | Установка | [установка](docs/ru/install.md) | [install](docs/en/install.md) |
 | Обратный прокси (Caddy, nginx, NPM) | [прокси](docs/ru/proxy.md) | [proxy](docs/en/proxy.md) |
 | Доступ к админке | [доступ к админке](docs/ru/access.md) | [access](docs/en/access.md) |
+| Порты агентов и приложения | [подключение](docs/ru/connection.md) | [connection](docs/en/connection.md) |
 | Модули агента и конфигурация | [модули](docs/ru/modules.md) | [modules](docs/en/modules.md) |
 | Обновления, бэкапы, откат | [обновления](docs/ru/updates.md) | [updates](docs/en/updates.md) |
 | Меню в терминале (`linager`) | [меню](docs/ru/menu.md) | [menu](docs/en/menu.md) |

@@ -36,6 +36,11 @@ type Server struct {
 	SSHInstall struct {
 		AllowedNetworks []string `yaml:"allowed_networks"`
 	} `yaml:"ssh_install"`
+	// App is the listener of the desktop application: TLS with the certificate of the agent port, the same API as the
+	// admin panel. It is optional: an installation without it works as before (the port is set in the settings).
+	App struct {
+		Listen string `yaml:"listen"` // host:port; empty = off
+	} `yaml:"app"`
 	Agents struct {
 		Listen string   `yaml:"listen"` // host:port, port is mandatory
 		Hosts  []string `yaml:"hosts"`  // names/IPs placed into the agent TLS certificate
@@ -100,6 +105,14 @@ func (c *Server) Validate() error {
 	}
 	if c.Admin.Listen == c.Agents.Listen {
 		return errors.New("admin.listen and agents.listen must differ")
+	}
+	if c.App.Listen != "" {
+		if err := validListen(c.App.Listen); err != nil {
+			return fmt.Errorf("app.listen: %w", err)
+		}
+		if c.App.Listen == c.Admin.Listen || c.App.Listen == c.Agents.Listen {
+			return errors.New("app.listen must differ from admin.listen and agents.listen")
+		}
 	}
 	if v := c.Agents.CertLifetime; v != "" {
 		if d, err := time.ParseDuration(v); err != nil || d < time.Minute {

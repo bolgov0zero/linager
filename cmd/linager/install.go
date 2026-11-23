@@ -36,6 +36,7 @@ func newInstallCmd() *cobra.Command {
 	f.BoolVar(&o.NoTUI, "no-tui", false, "plain line output, never ask questions")
 	f.BoolVar(&o.Server.Force, "force", false, "reinstall over an existing installation")
 	f.IntVar(&o.Server.AgentPort, "agent-port", 0, "server: port for clients (required, no default)")
+	f.IntVar(&o.Server.AppPort, "app-port", 0, "server: port for the desktop application (required, no default)")
 	f.StringVar(&o.Server.AdminMode, "admin-mode", "", "server: caddy (Caddy on this host, Let's Encrypt) or proxy (own reverse proxy)")
 	f.StringVar(&o.Server.Domain, "domain", "", "server, caddy mode: admin panel domain")
 	f.IntVar(&o.Server.PublicPort, "public-port", 0, "server, caddy mode: HTTPS port (default 443)")

@@ -32,6 +32,7 @@ sudo sh install.sh
 | Вопрос | Пояснение |
 |---|---|
 | Порт для клиентов | клиенты подключаются сюда напрямую по TLS |
+| Порт приложения | сюда подключается приложение Linager по TLS ([подключение](connection.md)) |
 | Доступ к админке | `Caddy на этом сервере` или `Свой обратный прокси` |
 | Домен, порт HTTPS | только для Caddy: Let's Encrypt, нужны открытые порты 80 и 443 и DNS-запись |
 | Порт админки (HTTP) | только для своего прокси: сюда обращается ваш прокси |
@@ -80,8 +81,8 @@ wget -nv -O- --no-check-certificate --pinnedpubkey 'sha256//…' 'https://panel.
 ## Без вопросов (автоматизация)
 
 ```bash
-sudo linager install server --no-tui --agent-port 9443 --admin-mode proxy --admin-port 8080 --admin-user admin
-sudo linager install server --no-tui --agent-port 9443 --admin-mode caddy --domain linager.example.com
+sudo linager install server --no-tui --agent-port 9443 --app-port 9444 --admin-mode proxy --admin-port 8080 --admin-user admin
+sudo linager install server --no-tui --agent-port 9443 --app-port 9444 --admin-mode caddy --domain linager.example.com
 sudo linager install agent  --no-tui --server 10.0.0.5:9443 --fingerprint SHA256:...
 ```
 

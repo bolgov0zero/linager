@@ -102,7 +102,8 @@ type SSHDeps struct {
 
 // SSHInstaller owns the sessions.
 type SSHInstaller struct {
-	deps SSHDeps
+	portMu sync.RWMutex // guards deps.Port, which changes when the agent port is moved
+	deps   SSHDeps
 	// deny says which target addresses are refused; allowed, when not empty, limits them to some networks.
 	deny    func(netip.Addr) bool
 	allowed []netip.Prefix
@@ -880,7 +881,7 @@ func (s *sshSession) reachable(ctx context.Context, host string) bool {
 	if !addrRe.MatchString(host) {
 		return false
 	}
-	_, code, err := s.run(ctx, "timeout 5 bash -c "+shq("exec 3<>/dev/tcp/"+strings.Trim(host, "[]")+"/"+s.in.deps.Port), "", 12*time.Second, nil)
+	_, code, err := s.run(ctx, "timeout 5 bash -c "+shq("exec 3<>/dev/tcp/"+strings.Trim(host, "[]")+"/"+s.in.port()), "", 12*time.Second, nil)
 	return err == nil && code == 0
 }
 
@@ -890,14 +891,14 @@ func (s *sshSession) checkReach(ctx context.Context) bool {
 		for _, h := range cands {
 			if s.reachable(ctx, h) {
 				s.mu.Lock()
-				s.server = net.JoinHostPort(strings.Trim(h, "[]"), s.in.deps.Port)
+				s.server = net.JoinHostPort(strings.Trim(h, "[]"), s.in.port())
 				s.mu.Unlock()
 				s.setStep(6, "done", s.server, "")
 				return true
 			}
 		}
-		s.setStep(6, "failed", strings.Join(cands, ", ")+" :"+s.in.deps.Port, "port_unreachable")
-		ans, err := s.askGate("address", map[string]any{"candidates": cands, "port": s.in.deps.Port})
+		s.setStep(6, "failed", strings.Join(cands, ", ")+" :"+s.in.port(), "port_unreachable")
+		ans, err := s.askGate("address", map[string]any{"candidates": cands, "port": s.in.port()})
 		if err != nil {
 			return false
 		}
@@ -1170,4 +1171,18 @@ func (s *sshSession) addStep(id string) int {
 	defer s.mu.Unlock()
 	s.steps = append(s.steps, sshStep{ID: id, State: "pending"})
 	return len(s.steps) - 1
+}
+
+// port is the agent port the new host connects to.
+func (in *SSHInstaller) port() string {
+	in.portMu.RLock()
+	defer in.portMu.RUnlock()
+	return in.deps.Port
+}
+
+// SetPort follows a change of the agent port.
+func (in *SSHInstaller) SetPort(p string) {
+	in.portMu.Lock()
+	in.deps.Port = p
+	in.portMu.Unlock()
 }

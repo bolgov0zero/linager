@@ -35,3 +35,23 @@ func TestDefaults(t *testing.T) {
 		t.Fatalf("unexpected defaults: %+v", c)
 	}
 }
+
+func TestAppListenIsOptionalAndChecked(t *testing.T) {
+	c := &Server{}
+	c.Database.DSN = "postgres://x"
+	c.Admin.Listen, c.Agents.Listen = "0.0.0.0:8080", "0.0.0.0:9443"
+	c.applyDefaults()
+	if err := c.Validate(); err != nil {
+		t.Fatalf("an installation without app.listen must stay valid: %v", err)
+	}
+	for _, bad := range []string{"9444", "0.0.0.0:0", "0.0.0.0:8080", "0.0.0.0:9443"} {
+		c.App.Listen = bad
+		if err := c.Validate(); err == nil {
+			t.Errorf("app.listen %q must be refused", bad)
+		}
+	}
+	c.App.Listen = "0.0.0.0:9444"
+	if err := c.Validate(); err != nil {
+		t.Fatalf("a good app.listen: %v", err)
+	}
+}

@@ -27,7 +27,13 @@ const (
 	// with TypeCertRenewed. Both sides ignore the messages when they do not know them.
 	TypeCertRenew   = "cert.renew"
 	TypeCertRenewed = "cert.renewed"
+	// TypeServerMove tells an agent that the agent port of the server changed. The agent tries the new port
+	// and falls back to the old one when it does not work. An agent that does not know the message ignores it.
+	TypeServerMove = "server.move"
 )
+
+// MoveMinAgent is the first agent version that follows TypeServerMove.
+const MoveMinAgent = "0.10.0-beta.1"
 
 // Values of the X-Linager-Reason header on a refused agent connection.
 const (
@@ -38,6 +44,11 @@ const (
 // CertRenewed carries a freshly issued agent certificate.
 type CertRenewed struct {
 	CertPEM string `json:"cert_pem"`
+}
+
+// ServerMove names the new port of the agent listener; the host stays the one the agent already uses.
+type ServerMove struct {
+	Port int `json:"port"`
 }
 
 // MaxSkew is how far a message timestamp may differ from the local clock.

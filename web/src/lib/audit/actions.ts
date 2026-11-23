@@ -21,6 +21,7 @@ export const KNOWN_ACTIONS: ReadonlySet<string> = new Set([
   'dashboard.add', 'dashboard.remove', 'dashboard.reorder',
   'group.create', 'group.rename', 'group.delete', 'group.assign',
   'access.update', 'access.retention', 'access.reset',
+  'connection.update', 'connection.close_old',
   'assistant.type', 'disk.scan', 'disk.clean', 'docker.check', 'group.reorder', 'join.create', 'join.revoke', 'network.dns', 'server.note', 'user.access', 'user.password_reset', 'security.fail2ban.ban', 'security.fail2ban.unban', 'security.fail2ban.settings', 'security.key.remove', 'ssh.check', 'ssh.install', 'enroll.join', 'win.users.add', 'win.users.update', 'win.users.passwd', 'win.users.delete', 'win.users.logoff', 'win.network.apply', 'win.network.rollback',
 ]);
 
@@ -51,6 +52,7 @@ export const ACTION_GROUPS: Option[] = [
   { value: 'metrics.', key: 'audit.group.metrics' },
   { value: 'dashboard.', key: 'audit.group.dashboard' },
   { value: 'access.', key: 'audit.group.access' },
+  { value: 'connection.', key: 'audit.group.connection' },
 ];
 
 /** Result filter. Denial results (bad_key, locked, rate_limited) are all shown as "denied". */

@@ -22,13 +22,13 @@ import (
 
 // ServerOpts are values given by flags; zero values are asked interactively.
 type ServerOpts struct {
-	AgentPort, AdminPort, PublicPort int
-	AdminMode, Domain, AdminUser     string
-	PasswordFile                     string
-	ExtraHosts                       []string
-	ConfigPath                       string
-	LogPath                          string
-	Force                            bool
+	AgentPort, AppPort, AdminPort, PublicPort int
+	AdminMode, Domain, AdminUser              string
+	PasswordFile                              string
+	ExtraHosts                                []string
+	ConfigPath                                string
+	LogPath                                   string
+	Force                                     bool
 }
 
 type step struct {
@@ -92,7 +92,7 @@ func portErr(l Lang, v string) error {
 // collectServerParams merges flags and interactive answers.
 func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 	l := c.Lang()
-	p := &ServerParams{AgentPort: o.AgentPort, AdminPort: o.AdminPort, PublicPort: o.PublicPort, AdminMode: o.AdminMode,
+	p := &ServerParams{AgentPort: o.AgentPort, AppPort: o.AppPort, AdminPort: o.AdminPort, PublicPort: o.PublicPort, AdminMode: o.AdminMode,
 		Domain: o.Domain, AdminUser: o.AdminUser, ExtraHosts: o.ExtraHosts, ConfigPath: o.ConfigPath, DataDir: DataDir, Force: o.Force,
 		CaddyCfgPath: "/etc/caddy/Caddyfile"}
 	if o.PasswordFile != "" {
@@ -110,6 +110,9 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 	}
 	if o.AgentPort > 0 {
 		set("agentport", fmt.Sprint(o.AgentPort))
+	}
+	if o.AppPort > 0 {
+		set("appport", fmt.Sprint(o.AppPort))
 	}
 	set("mode", o.AdminMode)
 	set("domain", o.Domain)
@@ -131,6 +134,17 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 		{Key: "agentport", Label: tr(l, "srv.agentport"), Hint: tr(l, "srv.agentport.h"), Kind: KindNumber, Required: true,
 			Visible:  func(map[string]string) bool { return need("agentport") },
 			Validate: func(v string, _ map[string]string) error { return portErr(l, v) }},
+		{Key: "appport", Label: tr(l, "srv.appport"), Hint: tr(l, "srv.appport.h"), Kind: KindNumber, Required: true,
+			Visible: func(map[string]string) bool { return need("appport") },
+			Validate: func(v string, a map[string]string) error {
+				if err := portErr(l, v); err != nil {
+					return err
+				}
+				if v == a["agentport"] || v == known["agentport"] {
+					return errors.New(tr(l, "err.portsame"))
+				}
+				return nil
+			}},
 		{Key: "mode", Label: tr(l, "srv.mode"), Kind: KindChoice, Default: "caddy",
 			Options: []Option{{"caddy", tr(l, "srv.mode.caddy")}, {"proxy", tr(l, "srv.mode.proxy")}},
 			Visible: func(map[string]string) bool { return need("mode") }},
@@ -156,7 +170,7 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 				if err := portErr(l, v); err != nil {
 					return err
 				}
-				if v == a["agentport"] || v == known["agentport"] {
+				if v == a["agentport"] || v == known["agentport"] || v == a["appport"] || v == known["appport"] {
 					return errors.New(tr(l, "err.portsame"))
 				}
 				return nil
@@ -197,6 +211,9 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 		if get("agentport") == "" {
 			missing = append(missing, "--agent-port")
 		}
+		if get("appport") == "" {
+			missing = append(missing, "--app-port")
+		}
 		if get("mode") == "" {
 			missing = append(missing, "--admin-mode")
 		}
@@ -211,6 +228,7 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 		}
 	}
 	p.AgentPort, _ = ValidPort(get("agentport"))
+	p.AppPort, _ = ValidPort(get("appport"))
 	p.AdminMode = get("mode")
 	if p.AdminMode != "caddy" && p.AdminMode != "proxy" {
 		return nil, fmt.Errorf("invalid --admin-mode %q (caddy or proxy)", p.AdminMode)
@@ -232,11 +250,14 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 	} else {
 		p.AdminPort, _ = ValidPort(get("adminport"))
 	}
-	if p.AgentPort == 0 || p.AdminPort == 0 {
+	if p.AgentPort == 0 || p.AppPort == 0 || p.AdminPort == 0 {
 		return nil, errors.New(tr(l, "err.port"))
 	}
-	if p.AgentPort == p.AdminPort {
+	if p.AgentPort == p.AdminPort || p.AppPort == p.AgentPort || p.AppPort == p.AdminPort {
 		return nil, errors.New(tr(l, "err.portsame"))
+	}
+	if !PortFree(p.AppPort) {
+		return nil, errors.New(tr(l, "err.portbusy", p.AppPort))
 	}
 	if !PortFree(p.AgentPort) {
 		return nil, errors.New(tr(l, "err.portbusy", p.AgentPort))
@@ -288,7 +309,7 @@ func ServerFlow(o ServerOpts) Flow {
 		}
 		run, closeLog := NewRunner(o.LogPath)
 		defer closeLog()
-		run.Logf("=== linager install server %s mode=%s agent-port=%d", time.Now().Format(time.RFC3339), p.AdminMode, p.AgentPort)
+		run.Logf("=== linager install server %s mode=%s agent-port=%d app-port=%d", time.Now().Format(time.RFC3339), p.AdminMode, p.AgentPort, p.AppPort)
 
 		var fp string
 		var hosts []string
@@ -489,7 +510,8 @@ func createAdmin(ctx context.Context, p *ServerParams) error {
 		if p.Force {
 			p.PasswordGen = false // existing administrator is kept untouched
 			p.Password = ""
-			return nil
+			// the ports of the wizard win over the ones the panel stored earlier
+			return db.DeleteSetting(ctx, "connection")
 		}
 		return errors.New("an administrator already exists")
 	}
@@ -558,6 +580,7 @@ func serverSummary(l Lang, p *ServerParams, hosts []string, fp, logPath string) 
 	}
 	s.Lines = append(s.Lines,
 		KV{Label: tr(l, "sum.agentport"), Value: fmt.Sprint(p.AgentPort)},
+		KV{Label: tr(l, "sum.appport"), Value: fmt.Sprint(p.AppPort)},
 		KV{Label: tr(l, "sum.fp"), Value: fp, Mono: true},
 		KV{Label: tr(l, "sum.client"), Value: fmt.Sprintf("linager install agent --server %s:%d --fingerprint %s", host, p.AgentPort, fp), Mono: true},
 		KV{Label: tr(l, "sum.log"), Value: logPath},
@@ -568,7 +591,7 @@ func serverSummary(l Lang, p *ServerParams, hosts []string, fp, logPath string) 
 		s.Notes = append(s.Notes, tr(l, "note.proxy", fmt.Sprintf("%s:%d", host, p.AdminPort)))
 	}
 	if exec := (&Runner{log: io.Discard}); exec.Run(context.Background(), "", "systemctl", "is-active", "--quiet", "nftables") == nil {
-		s.Notes = append(s.Notes, tr(l, "note.nft", p.AgentPort))
+		s.Notes = append(s.Notes, tr(l, "note.nft", p.AgentPort, p.AppPort))
 	}
 	return s
 }

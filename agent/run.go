@@ -92,7 +92,15 @@ func Run(ctx context.Context, o RunOptions) error {
 			st, cert = s2, c2
 		}
 		started := time.Now()
+		tryingNext := st.Next != ""
 		err := session(ctx, o, st, cert, key, buf, reg)
+		if tryingNext && st.Next != "" && ctx.Err() == nil && !errors.Is(err, errMoved) { // the new address did not work
+			if back, serr := failMove(o.DataDir, st, time.Now()); serr != nil {
+				o.Log.Error("move: state not saved", "err", serr)
+			} else if back {
+				o.Log.Warn("the new server port does not work, staying on the old one", "err", err)
+			}
+		}
 		switch {
 		case errors.Is(err, ErrRevoked), errors.Is(err, ErrUninstalled), ctx.Err() != nil:
 			if ctx.Err() != nil && err == nil {
@@ -137,7 +145,11 @@ func reconnectPause(backoff, sessionLasted time.Duration) time.Duration {
 func session(ctx context.Context, o RunOptions, st *State, cert tls.Certificate, key ed25519.PrivateKey, buf *sampleBuffer, reg *Registry) error {
 	hc := &http.Client{Transport: &http.Transport{TLSClientConfig: pinnedTLS(st.ServerFP, &cert)}}
 	leaf, _ := leafOf(cert)
-	ws, resp, err := websocket.Dial(ctx, "wss://"+st.Server+"/v1/ws", &websocket.DialOptions{HTTPClient: hc})
+	target := st.Server
+	if st.Next != "" { // the server asked the agent to move: the new address is tried first
+		target = st.Next
+	}
+	ws, resp, err := websocket.Dial(ctx, "wss://"+target+"/v1/ws", &websocket.DialOptions{HTTPClient: hc})
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			switch resp.Header.Get("X-Linager-Reason") {
@@ -199,6 +211,13 @@ func session(ctx context.Context, o RunOptions, st *State, cert tls.Certificate,
 	defer reg.SetEmitter(nil)
 	if ConfirmUpdate(o.DataDir, func(m string, a ...any) { o.Log.Info(m, a...) }) { // the new version is connected: cancel the rollback
 		reg.emitUpdate(protocol.UpdateEvent{Version: o.AgentVersion, Step: 6, Total: 6, ID: "confirm", State: protocol.UpdateDone})
+	}
+	if st.Next != "" { // the new address answers and the server knows this agent: it becomes the main one
+		if err := promoteMove(o.DataDir, st); err != nil {
+			o.Log.Error("move: state not saved", "err", err)
+		} else {
+			o.Log.Info("moved to the new server port", "server", st.Server)
+		}
 	}
 	o.Log.Info("connected", "server", st.Server)
 
@@ -343,6 +362,20 @@ func session(ctx context.Context, o RunOptions, st *State, cert tls.Certificate,
 				default:
 				}
 				o.Log.Info("agent certificate renewed", "valid_until", nl.NotAfter.Format(time.RFC3339))
+				continue
+			}
+			if env.Type == protocol.TypeServerMove {
+				var m protocol.ServerMove
+				if json.Unmarshal(env.Payload, &m) != nil {
+					continue
+				}
+				switch started, err := startMove(o.DataDir, st, m.Port, time.Now()); {
+				case err != nil:
+					o.Log.Error("move: state not saved", "err", err)
+				case started:
+					o.Log.Info("the server changed its agent port, reconnecting", "port", m.Port)
+					return errMoved
+				}
 				continue
 			}
 			if env.Type == protocol.TypeAgentRemove {

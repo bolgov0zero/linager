@@ -81,6 +81,17 @@ func (h *Hub) Online(id string) bool {
 	return h.conns[id] != nil
 }
 
+// OnlineIDs lists the connected agents.
+func (h *Hub) OnlineIDs() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	ids := make([]string, 0, len(h.conns))
+	for id := range h.conns {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // Send signs and sends a command to a connected agent.
 func (h *Hub) Send(ctx context.Context, id, typ string, payload any) error {
 	h.mu.RLock()
