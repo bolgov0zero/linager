@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
 )
 
@@ -35,5 +36,34 @@ func TestStripForwarded(t *testing.T) {
 	}
 	if got.Get("User-Agent") != "linager-app" {
 		t.Error("other headers must stay")
+	}
+}
+
+// "Only through a trusted proxy" cannot apply to the application port (a direct connection by design): it used to
+// refuse every sign-in of the application with a plain 403 on a server that had that restriction on.
+func TestAccessOnTheApplicationPort(t *testing.T) {
+	_, ar, err := compileAccess(AccessConfig{Mode: AccessBlack, OnlyProxy: true, Black: []AccessRule{{CIDR: "203.0.113.9"}}, Proxies: []AccessRule{{CIDR: "10.0.0.1"}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer := netip.MustParseAddr("198.51.100.7")
+	if v := ar.decide(peer, ""); v.Allowed || v.Reason != reasonOnlyProxy {
+		t.Fatalf("the panel: a direct connection is refused: %+v", v)
+	}
+	if v := ar.decideDirect(peer); !v.Allowed {
+		t.Fatalf("the application port: only_proxy does not apply: %+v", v)
+	}
+	if v := ar.decideDirect(netip.MustParseAddr("203.0.113.9")); v.Allowed || v.Reason != reasonInBlack {
+		t.Fatalf("the black list still judges the real address: %+v", v)
+	}
+	_, white, _ := compileAccess(AccessConfig{Mode: AccessWhite, OnlyProxy: true, White: []AccessRule{{CIDR: "198.51.100.0/24"}}}, nil)
+	if v := white.decideDirect(peer); !v.Allowed || v.Reason != reasonInWhite {
+		t.Fatalf("the white list: %+v", v)
+	}
+	if v := white.decideDirect(netip.MustParseAddr("192.0.2.1")); v.Allowed {
+		t.Fatalf("an address outside the white list: %+v", v)
+	}
+	if !ar.onlyProxy {
+		t.Fatal("decideDirect must not change the rules")
 	}
 }

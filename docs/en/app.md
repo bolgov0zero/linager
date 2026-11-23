@@ -23,6 +23,17 @@ Inside the application a local server listens on `127.0.0.1`. Every path on it s
 
 The interface (`app/frontend`, Svelte) does not depend on Wails, so it can also be opened in a browser: `make -C app headless` prints the address.
 
+## Getting the application
+
+There are no ready files in the releases yet, the application is built from the sources (Go, Node.js and the Xcode Command Line Tools are needed):
+
+```bash
+make -C app bundle   # app/bin/Linager.app
+make -C app zip      # app/bin/Linager-macos-arm64.zip (x86_64 on Intel), to hand it to another Mac
+```
+
+The build is signed ad hoc only, not by a developer, and not notarized. Open it from the context menu the first time (right click, "Open"). If macOS says the file is damaged (it does with a zip downloaded from the network), remove the quarantine: `xattr -dr com.apple.quarantine Linager.app`.
+
 ## Building and running
 
 ```bash

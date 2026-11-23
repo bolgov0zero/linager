@@ -16,6 +16,7 @@ Both ports use one certificate, so the section shows one fingerprint (SHA-256). 
 A separate port: a direct TLS connection without a reverse proxy. The installation wizard always asks for it (`--app-port` without questions). On a server installed earlier the port is not set: enter it in "Connection". An empty field switches the port off.
 
 - Reverse proxy headers (`X-Forwarded-For`, `X-Real-IP`, `Forwarded` and the like) are dropped on this port: a client cannot name its own address. The admin access restriction and the sign-in limits see the real address of the connection.
+- The admin access restriction ("Admin access") applies to this port too: the white and black lists judge the real address of the connection. The rule "only through a proxy" does not apply to it: the port is direct by design.
 - Open the port in the firewall (the wizard reminds you when nftables is active).
 - The value set in "Connection" is kept in the database and wins over `server.yaml` (the service cannot write to `/etc/linager`). The wizard writes it to `server.yaml`: `app.listen: "0.0.0.0:PORT"`.
 

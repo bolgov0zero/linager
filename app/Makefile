@@ -3,7 +3,7 @@ VERSION ?= dev
 # macOS: the framework needs 12 or newer; without it the linker warns about every object file
 export MACOSX_DEPLOYMENT_TARGET ?= 12.0
 
-.PHONY: frontend test build run headless clean
+.PHONY: frontend test build bundle zip run headless clean
 
 frontend:
 	cd frontend && npm ci && npm run build && touch dist/.gitkeep
@@ -14,6 +14,13 @@ test: frontend
 
 build: frontend
 	mkdir -p bin && go build -ldflags "-X main.version=$(VERSION)" -o bin/linager-app .
+
+# macOS: bin/Linager.app (ad-hoc signed, not by a developer: see docs/ru/app.md) and a zip to hand over
+bundle: build
+	./build/macos/bundle.sh $(VERSION)
+
+zip: bundle
+	cd bin && ditto -c -k --keepParent Linager.app Linager-macos-$$(uname -m).zip
 
 # the window of the application (a connection to a server is asked for on the first start)
 run: build

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0-beta.3
+
+- Fix: **the application could not sign in on a server with the access restriction "only through a proxy"**: the application port is a direct connection, and every request to it was refused with a plain 403. The rule does not apply to the application port any more; the white and black lists still judge the real address of the connection. **Update the server.**
+- Fix (application): the 2FA step is a screen of its own (the code is reduced to digits, so "123 456" works, it signs in at the sixth digit, a recovery code can be used); a sign-in that succeeded is no longer reported as failed when the keychain cannot be written; an unexpected answer of the server is shown with its HTTP status.
+- Change (application): sign-in with a passkey is not offered (the window of the application is not the site a passkey belongs to); it goes away with `web/`.
+
 ## 0.10.0-beta.2
 
 The desktop application, stage 1. The server and the agent are unchanged: this release carries the sources and the docs of the application (`app/`), the application itself is not in the release files yet. No database migration.

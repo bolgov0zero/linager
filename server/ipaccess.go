@@ -242,6 +242,15 @@ func listed(nets []netip.Prefix, a netip.Addr) bool {
 	return false
 }
 
+// decideDirect judges a connection to the application port. That port is a direct TLS connection by design, there is
+// no proxy in front of it, so "only through a trusted proxy" cannot apply to it; the white and black lists still
+// judge the real address of the connection (the forwarding headers are dropped on that port).
+func (ar *accessRules) decideDirect(peer netip.Addr) verdict {
+	d := *ar
+	d.onlyProxy = false
+	return d.decide(peer, "")
+}
+
 // decide judges a connection by the peer address and the X-Forwarded-For header.
 func (ar *accessRules) decide(peer netip.Addr, xff string) verdict {
 	peerTrusted := peer.IsValid() && inNets(ar.proxies, peer)
@@ -563,7 +572,13 @@ func (a *Admin) accessGuard(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		v := g.snap.Load().rules.decide(peer, xff)
+		rules := g.snap.Load().rules
+		var v verdict
+		if isDirect(r) {
+			v = rules.decideDirect(peer)
+		} else {
+			v = rules.decide(peer, xff)
+		}
 		if !v.Allowed {
 			if g.due(g.lastDeny, v.IP, denyLogEvery) {
 				g.record(r, v, peer, store.AccessDenied, "", v.Reason)
@@ -577,4 +592,16 @@ func (a *Admin) accessGuard(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+type ctxDirect struct{}
+
+// markDirect tells the access guard that the request came to the application port, not through a proxy.
+func markDirect(r *http.Request) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), ctxDirect{}, true))
+}
+
+func isDirect(r *http.Request) bool {
+	v, _ := r.Context().Value(ctxDirect{}).(bool)
+	return v
 }

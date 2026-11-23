@@ -201,3 +201,4 @@ kbd{font-size:10.5px;padding:0 5px;border:1px solid var(--border-h);border-radiu
 .view .tile-v small{margin-left:3px}
 .spacer{flex:1}
 @media (max-width:900px){.top-actions .btn span{display:none}}
+.stack{display:grid;gap:14px}.stack[hidden]{display:none}

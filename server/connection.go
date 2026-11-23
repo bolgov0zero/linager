@@ -161,7 +161,7 @@ func stripForwarded(next http.Handler) http.Handler {
 		for _, h := range []string{"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host", "X-Forwarded-Port", "X-Real-Ip", "Forwarded"} {
 			r.Header.Del(h)
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, markDirect(r))
 	})
 }
 

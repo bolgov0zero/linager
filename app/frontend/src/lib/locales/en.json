@@ -76,5 +76,13 @@
   "term.reconnect": "Connect again",
   "unit.d": "d",
   "unit.h": "h",
-  "unit.min": "m"
+  "unit.min": "m",
+  "login.2fa.title": "2FA code",
+  "login.2fa.for": "The password is right. Enter the code from the authenticator app for {login}.",
+  "login.2fa.submit": "Confirm",
+  "login.recovery": "Recovery code",
+  "login.useTotp": "Use the code from the app",
+  "login.useRecovery": "I have no app: use a recovery code",
+  "login.err.code": "The code was not accepted. Check the time on this computer and try again.",
+  "login.err.locked": "Too many attempts or the account is locked for a while. Wait a little."
 }
