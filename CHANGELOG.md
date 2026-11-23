@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.1
+
+Web interface, the audit log and the Windows agent. No database migration. **Update the Windows agents** for the "Programs" tab (an old agent shows the tab with a request to update it).
+
+- Change: **the audit log speaks in words.** The actions that showed as raw keys (`disk.scan`, `disk.clean`, `docker.check`, `network.dns`, `join.create`, `join.revoke`, `group.reorder`, `server.note`, `user.access`, `assistant.type`, Fail2ban, SSH install, the Windows actions `win.*` and others) have a readable text in both languages. The text is chosen in the browser by the key, so the old records are readable too. A test compares every action the server writes with the list of known keys and the two languages, so a new action without a text does not pass.
+- New: **filters in the Console**: a panel that slides up at the bottom of the side list, **OS** (all, Linux, Windows) and **Status** (all, online, offline). They apply to the list and to the numbers on the mode buttons and are remembered in the browser.
+- Change: **dialogs are floating windows** (a computer; on a phone they stay sheets). No dimmed backdrop, the page behind stays alive; a dialog moves by its header and cannot be dragged out of the screen, a click on it brings it to the front, Escape closes only the front one, several dialogs can be open at once. Done once in `Modal.svelte`, so all of them changed together.
+- Change: **the top bar has no "live · time" indicator** any more (the dot and the clock).
+- New: **the "Programs" tab of a Windows computer** (the module `programs`, the operator right `programs`): installed programs, view only. The agent reads the Uninstall keys of the registry (the computer in the 64 and 32 bit views and the loaded profiles), leaves out system components and Windows updates and shows a program once; name, version, publisher, install date, size, for whom; search and sorting. Nothing is started or removed.
+- New: **the Assistant display mode "Stretch to the whole window"**: the picture fills the window and takes its proportions (the resolution of the computer is not changed; the pointer is mapped per axis). The RDP form already had "Adjust the resolution to the window" (on by default), nothing changed there.
+
 ## 0.9.0
 
 Keys: a personal encrypted file of logins and passwords for RDP and for the sign-in screen and UAC of the Assistant. No database migration. **Update the agents too:** the Windows agent types the text on the sign-in screen (an old agent shows the key button but answers that typing is not supported). The steps of it are the betas 0.9.0-beta.1 to 0.9.0-beta.4 below; the docs are `docs/en/keys.md`, `docs/ru/keys.md`.

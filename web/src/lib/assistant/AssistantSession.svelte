@@ -1,6 +1,6 @@
 <script lang="ts" module>
   export type AssistPhase = 'connecting' | 'open' | 'closed';
-  export type AssistScale = 'fit' | 'real';
+  export type AssistScale = 'fit' | 'real' | 'fill';
 
   /** What the computer reports about the picture; null until the first Hello. */
   export interface AssistInfo {
@@ -101,8 +101,10 @@
   const showCursor = $derived($assistSettings[serverId]?.show_cursor === true);
 
   const factor = $derived(mode === 'real' || box.w <= 0 || box.h <= 0 || size.w <= 0 ? 1 : Math.min(box.w / size.w, box.h / size.h));
-  const cssW = $derived(Math.max(1, Math.floor(size.w * factor)));
-  const cssH = $derived(Math.max(1, Math.floor(size.h * factor)));
+  // "fill": the picture is stretched to the whole area, its proportions follow the window (the pointer is mapped per axis)
+  const fill = $derived(mode === 'fill' && box.w > 0 && box.h > 0);
+  const cssW = $derived(fill ? box.w : Math.max(1, Math.floor(size.w * factor)));
+  const cssH = $derived(fill ? box.h : Math.max(1, Math.floor(size.h * factor)));
 
   // ---- the connection ----
 

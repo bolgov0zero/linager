@@ -863,6 +863,7 @@ export interface WinUser {
 }
 export interface WinSession { id: number; user: string; state: string; type: 'console' | 'rdp' | 'other' }
 export interface WinUsersState { users: WinUser[]; groups: string[]; sessions: WinSession[] }
+export interface WinApp { name: string; version: string; publisher: string; installed: string; size: number; scope: 'machine' | 'user'; arch: string }
 export interface WinUpdate { id: string; title: string; kb: string; size: number; severity: string; security: boolean; downloaded: boolean; need_reboot: boolean }
 export interface WinAdapter {
   index: number; name: string; description: string; mac: string; up: boolean; virtual: boolean; mtu: number; speed_mbps: number;

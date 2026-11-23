@@ -128,5 +128,6 @@
   "srv.note.hint": "Markdown is supported: **bold**, *italic*, `code`, lists, [links](https://…), quotes, headings.",
   "srv.note.counter": "{n} of {max}",
   "srv.note.meta": "Changed {date} · {who}",
-  "srv.note.label": "Text of the note"
+  "srv.note.label": "Text of the note",
+  "srv.tab.programs": "Programs"
 }

@@ -128,5 +128,6 @@
   "srv.note.hint": "Поддерживается Markdown: **жирный**, *курсив*, `код`, списки, [ссылки](https://…), цитаты, заголовки.",
   "srv.note.counter": "{n} из {max}",
   "srv.note.meta": "Изменено {date} · {who}",
-  "srv.note.label": "Текст заметки"
+  "srv.note.label": "Текст заметки",
+  "srv.tab.programs": "Программы"
 }

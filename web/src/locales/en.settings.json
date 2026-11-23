@@ -139,5 +139,6 @@
   "settings.section.groups": "Server groups",
   "dash.group.hint": "Groups collect servers on the dashboard: the group filter and the access of operators. The order here is the order in the dashboard list.",
   "dash.group.up": "Up",
-  "dash.group.down": "Down"
+  "dash.group.down": "Down",
+  "acc.mod.programs": "The list of installed programs (Windows)."
 }

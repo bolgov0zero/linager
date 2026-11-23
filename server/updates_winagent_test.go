@@ -32,7 +32,7 @@ func TestWinActionsUseRealOperatorRights(t *testing.T) {
 		}
 	}
 	// reading is never dangerous, changing always is, except the two calls that settle a network change
-	for _, read := range []string{"users.state", "winupdate.list", "network.state"} {
+	for _, read := range []string{"users.state", "winupdate.list", "network.state", "apps.list"} {
 		if winActions[read].dangerous {
 			t.Errorf("%s only reads", read)
 		}

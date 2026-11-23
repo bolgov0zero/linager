@@ -64,7 +64,6 @@
   "security.disabled": "2FA disabled",
   "security.invalidCode": "Invalid code",
   "security.invalidPassword": "Invalid password",
-  "dash.live": "live · {time}",
   "dash.edit": "Edit",
   "dash.done": "Done",
   "dash.editHint": "Drag cards or use ‹ ›",

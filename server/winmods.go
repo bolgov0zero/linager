@@ -25,6 +25,7 @@ var winActions = map[string]winAction{
 	"users.passwd":     {"users", true, 60 * time.Second},
 	"users.delete":     {"users", true, 60 * time.Second},
 	"users.logoff":     {"users", true, 30 * time.Second},
+	"apps.list":        {"programs", false, 60 * time.Second},
 	"winupdate.list":   {"apt", false, 6 * time.Minute},
 	"network.state":    {"network", false, 30 * time.Second},
 	"network.apply":    {"network", true, 90 * time.Second},

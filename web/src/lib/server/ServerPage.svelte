@@ -23,6 +23,7 @@
   import SecurityTab from './tabs/SecurityTab.svelte';
   import UsersTab from './tabs/UsersTab.svelte';
   import WinNetworkTab from './tabs/WinNetworkTab.svelte';
+  import WinProgramsTab from './tabs/WinProgramsTab.svelte';
   import WinUpdatesTab from './tabs/WinUpdatesTab.svelte';
   import WinUsersTab from './tabs/WinUsersTab.svelte';
   import { osKind } from '../dashboard/status';
@@ -279,6 +280,8 @@
         <ServicesTab server={detail} />
       {:else if tab === 'updates'}
         {#if isWin}<WinUpdatesTab server={detail} />{:else}<UpdatesTab server={detail} />{/if}
+      {:else if tab === 'programs'}
+        <WinProgramsTab server={detail} />
       {:else if tab === 'processes'}
         <ProcessesTab server={detail} />
       {:else if tab === 'security'}

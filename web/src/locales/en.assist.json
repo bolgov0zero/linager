@@ -181,6 +181,7 @@
   "assist.sessionBtn": "Session",
   "assist.display": "Display mode",
   "assist.mode.fit": "Picture fits the window",
+  "assist.mode.fill": "Stretch to the whole window",
   "assist.mode.window": "Window fits the picture",
   "assist.mode.max": "Window fills the browser",
   "assist.mode.real": "Picture at 100% (scrolls)",

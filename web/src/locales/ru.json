@@ -64,7 +64,6 @@
   "security.disabled": "2FA отключена",
   "security.invalidCode": "Неверный код",
   "security.invalidPassword": "Неверный пароль",
-  "dash.live": "live · {time}",
   "dash.edit": "Редактировать",
   "dash.done": "Готово",
   "dash.editHint": "Перетаскивайте карточки или используйте ‹ ›",

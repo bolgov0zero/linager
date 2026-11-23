@@ -15,7 +15,9 @@
     closePultTab,
     openPultTab,
     pultActive,
+    passesFilter,
     pultCollapsed,
+    pultFilter,
     pultMode,
     pultShown,
     pultTabs,
@@ -75,12 +77,16 @@
     return !desktopHidden(card.id, card.sample, $rdpOverride);
   }
 
-  const counts = $derived(Object.fromEntries(MODES.map((m) => [m.id, items.filter((c) => has(c, m.id)).length])) as Record<PultMode, number>);
+  let filtersOpen = $state(false);
+  const filterCount = $derived(($pultFilter.os !== 'all' ? 1 : 0) + ($pultFilter.status !== 'all' ? 1 : 0));
+  const shownItems = $derived(items.filter((c) => passesFilter($pultFilter, osKind(c.os) === 'windows', c.online)));
+
+  const counts = $derived(Object.fromEntries(MODES.map((m) => [m.id, shownItems.filter((c) => has(c, m.id)).length])) as Record<PultMode, number>);
 
   const sections = $derived.by(() => {
     const list: { key: string; name: string; cards: ServerCard[] }[] = [];
-    for (const g of groups) list.push({ key: String(g.id), name: g.name, cards: items.filter((c) => c.group_id === g.id && has(c, $pultMode)) });
-    list.push({ key: 'none', name: $tr('pult.noGroup'), cards: items.filter((c) => c.group_id === null && has(c, $pultMode)) });
+    for (const g of groups) list.push({ key: String(g.id), name: g.name, cards: shownItems.filter((c) => c.group_id === g.id && has(c, $pultMode)) });
+    list.push({ key: 'none', name: $tr('pult.noGroup'), cards: shownItems.filter((c) => c.group_id === null && has(c, $pultMode)) });
     return list.filter((s) => s.cards.length > 0);
   });
 
@@ -305,7 +311,7 @@
       {#if loadFailed && !loaded}
         <p class="empty small">{$tr('pult.loadFailed')}</p>
       {:else if loaded && sections.length === 0}
-        <p class="empty small">{$tr('pult.empty')}</p>
+        <p class="empty small">{filterCount > 0 ? $tr('pult.emptyFiltered') : $tr('pult.empty')}</p>
       {/if}
       {#each sections as sec (sec.key)}
         <div class="grp" class:collapsed={$pultCollapsed[sec.name]}>
@@ -347,6 +353,29 @@
         {/each}
       </div>
     {/if}
+    <div class="filters" class:open={filtersOpen}>
+      <button class="fh" type="button" aria-expanded={filtersOpen} aria-controls="pult-filters" onclick={() => (filtersOpen = !filtersOpen)}>
+        <span>{$tr('pult.filters')}{#if filterCount > 0} · {filterCount}{/if}</span><span class="chev" aria-hidden="true"></span>
+      </button>
+      {#if filtersOpen}
+        <div class="fb" id="pult-filters">
+          <div class="fg" role="group" aria-label={$tr('pult.filter.os')}>
+            <span class="fl">{$tr('pult.filter.os')}</span>
+            {#each ['all', 'linux', 'windows'] as v (v)}
+              <button class="fo" type="button" aria-pressed={$pultFilter.os === v} onclick={() => pultFilter.update((f) => ({ ...f, os: v as typeof f.os }))}
+                >{$tr(`pult.filter.os.${v}`)}</button>
+            {/each}
+          </div>
+          <div class="fg" role="group" aria-label={$tr('pult.filter.status')}>
+            <span class="fl">{$tr('pult.filter.status')}</span>
+            {#each ['all', 'online', 'offline'] as v (v)}
+              <button class="fo" type="button" aria-pressed={$pultFilter.status === v} onclick={() => pultFilter.update((f) => ({ ...f, status: v as typeof f.status }))}
+                >{$tr(`pult.filter.status.${v}`)}</button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
   </aside>
 
   <section class="main">
@@ -593,6 +622,99 @@
   .srv.ctx {
     outline: 2px dashed var(--accent);
     outline-offset: -2px;
+  }
+
+  /* the filters: a folding panel at the very bottom of the side list */
+  .filters {
+    flex: none;
+    border-top: 2px solid var(--line);
+    background: var(--bg);
+  }
+
+  .fh {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 30px;
+    padding: 0 12px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .fh:hover {
+    background: var(--seg-off);
+  }
+
+  .filters.open .fh {
+    color: var(--ink);
+  }
+
+  .filters .chev {
+    transform: rotate(180deg); /* the panel opens upwards */
+  }
+
+  .filters.open .chev {
+    transform: none;
+  }
+
+  .fb {
+    display: grid;
+    gap: 6px;
+    padding: 4px 12px 10px;
+    animation: filters-in 0.12s ease-out;
+  }
+
+  .fg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .fl {
+    flex: 0 0 100%;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .fo {
+    flex: 1 1 auto;
+    height: 26px;
+    padding: 0 6px;
+    white-space: nowrap;
+    background: var(--surface);
+    border: 2px solid var(--line);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ink);
+  }
+
+  .fo:hover {
+    background: var(--seg-off);
+  }
+
+  .fo[aria-pressed='true'] {
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  @keyframes filters-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fb {
+      animation: none;
+    }
   }
 
   /* the windows list: a separate area at the bottom of the side list, the servers scroll above it */

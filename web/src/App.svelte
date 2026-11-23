@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api, type Session } from './api';
-  import { liveConnected, subscribeLive } from './live';
   import { locale, setLocale, t, tr, type Locale } from './i18n';
   import Dashboard from './lib/Dashboard.svelte';
   import { dashView } from './lib/dashboard/view';
@@ -13,7 +12,6 @@
   import Toast from './lib/Toast.svelte';
   import { showToast } from './lib/toast';
   import AddServerModal from './lib/addserver/AddServerModal.svelte';
-  import { fmtClock } from './lib/dashboard/format';
   import ServerPage from './lib/server/ServerPage.svelte';
   import TermWindows from './lib/terminal/TermWindows.svelte';
   import { closeAllTermWindows } from './lib/terminal/windows';
@@ -73,10 +71,8 @@
   let addOpen = $state(false);
   let reloadKey = $state(0);
   let moreOpen = $state(false);
-  let lastLive = $state<Date | null>(null);
   let hash = $state(location.hash);
   let openedFromApp = false;
-  let unsubscribeLive: (() => void) | undefined;
 
   const serverRoute = $derived(parseServerHash(hash));
   const serverName = $derived(serverRoute?.name ?? null);
@@ -96,7 +92,6 @@
   $effect(() => {
     myAccess.set({ role: session?.role ?? 'auditor', modules: session?.modules ?? [] });
   });
-  const clock = $derived(lastLive ? fmtClock(lastLive) : '--:--:--');
 
   /** Phone: the bottom bar of the dashboard. The server page has its own bar. */
   const barItems = $derived<TabBarItem[]>([
@@ -196,11 +191,6 @@
     phase = 'app';
     if (next.totp_required) openSettings('profile'); // 2FA is required: the profile has its setup
     void refreshUpdatesCount();
-    if (!unsubscribeLive) {
-      unsubscribeLive = subscribeLive(() => {
-        lastLive = new Date();
-      });
-    }
   }
 
   function endSession(): void {
@@ -212,9 +202,6 @@
     addOpen = false;
     pultVisited = false; // the sessions of the Console end with the sign-in
     closeAllTermWindows();
-    unsubscribeLive?.();
-    unsubscribeLive = undefined;
-    lastLive = null;
     if (hash) {
       history.replaceState(null, '', `${location.pathname}${location.search}`);
       hash = '';
@@ -265,7 +252,6 @@
     return () => {
       clearInterval(counter);
       window.removeEventListener('hashchange', onHashChange);
-      unsubscribeLive?.();
     };
   });
 </script>
@@ -292,11 +278,6 @@
     </div>
   {/if}
   <div class="right">
-    {#if phase === 'app'}
-      <p class="live mono small">
-        <span class="dot" class:on={$liveConnected} aria-hidden="true"></span>{$tr('dash.live', { time: clock })}
-      </p>
-    {/if}
     {#if onDashboard}
       <ViewSwitch />
       {#if editing}
@@ -555,25 +536,6 @@
     background: var(--accent);
   }
 
-  .live {
-    display: flex;
-    align-items: center;
-    margin: 0 5px 0 0;
-    color: var(--muted);
-  }
-
-  .dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 5px;
-    background: var(--muted);
-  }
-
-  .dot.on {
-    background: var(--good);
-  }
-
   .right {
     display: flex;
     flex-wrap: wrap;
@@ -621,11 +583,6 @@
       flex-wrap: nowrap;
       align-items: center;
       gap: 7px;
-    }
-
-    .live {
-      margin: 0;
-      white-space: nowrap;
     }
 
     .add-text {

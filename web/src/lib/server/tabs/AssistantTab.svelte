@@ -28,9 +28,9 @@
   });
 
   // The picture fitted into the tab, or at 100% with scroll bars.
-  let display = $state<'fit' | 'window' | 'max' | 'real'>('fit');
+  let display = $state<'fit' | 'fill' | 'window' | 'max' | 'real'>('fit');
   $effect(() => {
-    screen?.setScale(display === 'real' ? 'real' : 'fit');
+    screen?.setScale(display === 'real' ? 'real' : display === 'fill' ? 'fill' : 'fit');
   });
 
   const statusText = $derived(

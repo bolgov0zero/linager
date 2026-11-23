@@ -26,13 +26,14 @@ func useSimWindows() {
 		return func(context.Context, json.RawMessage, bool) (any, error) { return v, nil }
 	}
 	devOS = "Windows 11 Pro 24H2"
-	devModules = []string{"metrics", "terminal", "desktop", "assistant", "services", "processes", "logs", "files", "disk", "users", "winupdate", "network", "system"}
+	devModules = []string{"metrics", "terminal", "desktop", "assistant", "services", "processes", "logs", "files", "disk", "users", "programs", "winupdate", "network", "system"}
 	devCommands = map[string]CmdFunc{
 		"services.list":      ok(simWinServices()),
 		"processes.list":     ok(simProcesses()),
 		"disk.state":         ok(simWinDisk()),
 		"disk.scan":          ok(simWinScan()),
 		"users.state":        ok(simWinUsers()),
+		"apps.list":          ok(map[string]any{"apps": simWinApps()}),
 		"winupdate.list":     ok(map[string]any{"updates": simWinUpdates(), "reboot_pending": true}),
 		"network.state":      ok(simWinNet()),
 		"assistant.sessions": simAssistSessions,
@@ -167,4 +168,15 @@ func simSasToggle(_ context.Context, p json.RawMessage, _ bool) (any, error) {
 	_ = json.Unmarshal(p, &in)
 	simSasOn.Store(in.Enable)
 	return simSasState(), nil
+}
+
+func simWinApps() []AppInfo {
+	return []AppInfo{
+		{Name: "7-Zip 24.08 (x64)", Version: "24.08", Publisher: "Igor Pavlov", Installed: "2025-02-11", Size: 5_800_000, Scope: "machine", Arch: "x64"},
+		{Name: "Google Chrome", Version: "131.0.6778.205", Publisher: "Google LLC", Installed: "2025-01-20", Size: 0, Scope: "machine", Arch: "x64"},
+		{Name: "Microsoft Edge", Version: "131.0.2903.112", Publisher: "Microsoft Corporation", Installed: "2025-01-18", Size: 0, Scope: "machine", Arch: "x86"},
+		{Name: "Notepad++ (64-bit x64)", Version: "8.7.4", Publisher: "Notepad++ Team", Installed: "2024-12-02", Size: 12_400_000, Scope: "machine", Arch: "x64"},
+		{Name: "Linager Agent", Version: "0.9.0", Publisher: "Linager", Installed: "2025-03-01", Size: 18_300_000, Scope: "machine", Arch: "x64"},
+		{Name: "Visual Studio Code", Version: "1.96.2", Publisher: "Microsoft Corporation", Installed: "2025-01-09", Size: 380_000_000, Scope: "user", Arch: ""},
+	}
 }

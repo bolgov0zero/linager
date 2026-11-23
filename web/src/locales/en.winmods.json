@@ -94,5 +94,18 @@
   "wu.sessionType": "Sign-in",
   "wup.summary": "updates: {n}, security: {s}",
   "wup.installSec": "Install security",
-  "wup.f.security": "Security only"
+  "wup.f.security": "Security only",
+  "wp.search": "Search by name or publisher",
+  "wp.name": "Name",
+  "wp.version": "Version",
+  "wp.publisher": "Publisher",
+  "wp.installed": "Installed",
+  "wp.size": "Size",
+  "wp.scope": "For",
+  "wp.scope.machine": "whole computer",
+  "wp.scope.user": "user",
+  "wp.empty": "Nothing found",
+  "wp.legend": "Showing {shown} of {total}. The list is read from the registry; programs without an uninstall entry there are not shown.",
+  "wp.old": "The agent does not know this request. Update the agent.",
+  "wp.hint": "View only."
 }

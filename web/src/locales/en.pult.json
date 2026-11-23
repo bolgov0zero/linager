@@ -34,5 +34,15 @@
   "pult.winQuality": "Quality",
   "pult.winDispatcher": "Dispatcher",
   "pult.filesTitle": "Files · {name}",
-  "pult.loadFailed": "Could not load the list of servers."
+  "pult.loadFailed": "Could not load the list of servers.",
+  "pult.filters": "Filters",
+  "pult.filter.os": "OS",
+  "pult.filter.os.all": "All",
+  "pult.filter.os.linux": "Linux",
+  "pult.filter.os.windows": "Windows",
+  "pult.filter.status": "Status",
+  "pult.filter.status.all": "All",
+  "pult.filter.status.online": "Online",
+  "pult.filter.status.offline": "Offline",
+  "pult.emptyFiltered": "No servers match the filters."
 }

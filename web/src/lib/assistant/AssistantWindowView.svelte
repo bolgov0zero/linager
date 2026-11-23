@@ -22,7 +22,7 @@
 
   // How the picture and the window go together. The window follows the size of the picture by default; the person
   // choosing another mode, resizing the window by hand or maximizing it leaves that mode.
-  let display = $state<'fit' | 'window' | 'max' | 'real'>('window');
+  let display = $state<'fit' | 'fill' | 'window' | 'max' | 'real'>('window');
   let boxW = $state(0);
   let boxH = $state(0);
   /** What the window needs around the picture (header, borders, the stats line), measured once. */
@@ -122,7 +122,7 @@
 
   // the picture is shown at 100% while the window follows it (scaled down as a whole when the page is too small), fitted into the window otherwise
   $effect(() => {
-    screen?.setScale(display === 'window' ? scaleMode : 'fit');
+    screen?.setScale(display === 'window' ? scaleMode : display === 'fill' ? 'fill' : 'fit');
   });
 
   const statusText = $derived(

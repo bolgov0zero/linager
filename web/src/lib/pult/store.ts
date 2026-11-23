@@ -10,11 +10,37 @@ export interface PultTab {
   mode: PultMode;
 }
 
+/** The filters of the side list: the system and the state of the server. */
+export interface PultFilter {
+  os: 'all' | 'linux' | 'windows';
+  status: 'all' | 'online' | 'offline';
+}
+
+const NO_FILTER: PultFilter = { os: 'all', status: 'all' };
+
 interface Saved {
   mode: PultMode;
   tabs: PultTab[];
   active: number;
   collapsed: Record<string, boolean>;
+  filter?: PultFilter;
+}
+
+function cleanFilter(v: unknown): PultFilter {
+  const f = (v && typeof v === 'object' ? v : {}) as Partial<PultFilter>;
+  return {
+    os: f.os === 'linux' || f.os === 'windows' ? f.os : 'all',
+    status: f.status === 'online' || f.status === 'offline' ? f.status : 'all',
+  };
+}
+
+/** A server passes the filter: the system (windows or not) and the state match. */
+export function passesFilter(f: PultFilter, isWindows: boolean, online: boolean): boolean {
+  if (f.os === 'windows' && !isWindows) return false;
+  if (f.os === 'linux' && isWindows) return false;
+  if (f.status === 'online' && !online) return false;
+  if (f.status === 'offline' && online) return false;
+  return true;
 }
 
 const KEY = 'linager.pult.state';
@@ -24,7 +50,7 @@ function isMode(v: unknown): v is PultMode {
 }
 
 function read(): Saved {
-  const empty: Saved = { mode: 'term', tabs: [], active: 0, collapsed: {} };
+  const empty: Saved = { mode: 'term', tabs: [], active: 0, collapsed: {}, filter: NO_FILTER };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty;
@@ -33,7 +59,7 @@ function read(): Saved {
       ? v.tabs.filter((t): t is PultTab => !!t && typeof t.id === 'number' && typeof t.serverId === 'string' && typeof t.name === 'string' && isMode(t.mode))
       : [];
     const active = tabs.some((t) => t.id === v.active) ? (v.active as number) : (tabs[0]?.id ?? 0);
-    return { mode: isMode(v.mode) ? v.mode : 'term', tabs, active, collapsed: v.collapsed && typeof v.collapsed === 'object' ? v.collapsed : {} };
+    return { mode: isMode(v.mode) ? v.mode : 'term', tabs, active, collapsed: v.collapsed && typeof v.collapsed === 'object' ? v.collapsed : {}, filter: cleanFilter(v.filter) };
   } catch {
     return empty; // storage unavailable or damaged: start empty
   }
@@ -49,6 +75,8 @@ export const pultTabs = writable<PultTab[]>(saved.tabs);
 export const pultActive = writable<number>(saved.active);
 /** The groups folded in the side list, by group name. */
 export const pultCollapsed = writable<Record<string, boolean>>(saved.collapsed);
+/** The filters of the side list (the system and the state of the server). */
+export const pultFilter = writable<PultFilter>(saved.filter ?? NO_FILTER);
 /** The Console is on the screen: the dock of the floating windows steps aside (the side list has the window list). */
 export const pultShown = writable(false);
 
@@ -63,7 +91,7 @@ function persist(): void {
     try {
       localStorage.setItem(
         KEY,
-        JSON.stringify({ mode: get(pultMode), tabs: get(pultTabs), active: get(pultActive), collapsed: get(pultCollapsed) } satisfies Saved),
+        JSON.stringify({ mode: get(pultMode), tabs: get(pultTabs), active: get(pultActive), collapsed: get(pultCollapsed), filter: get(pultFilter) } satisfies Saved),
       );
     } catch {
       // storage unavailable: the state just is not remembered
@@ -75,6 +103,7 @@ pultMode.subscribe(persist);
 pultTabs.subscribe(persist);
 pultActive.subscribe(persist);
 pultCollapsed.subscribe(persist);
+pultFilter.subscribe(persist);
 
 /** Opens a session of a server in the mode, or brings the open one to the front (one tab per server and mode). */
 export function openPultTab(serverId: string, name: string, mode: PultMode): void {

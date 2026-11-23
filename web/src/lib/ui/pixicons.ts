@@ -32,6 +32,7 @@ const ALIAS: Record<string, string> = {
   manage: 'sliders',
   services: 'bulletlist',
   processes: 'cpu',
+  programs: 'window-frame',
   logs: 'article',
   updates: 'download',
   files: 'folder',

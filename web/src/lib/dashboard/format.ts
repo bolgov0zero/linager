@@ -52,8 +52,3 @@ export function fmtAgo(iso: string | null, now: number, u: Units): string | null
   if (hours < 24) return `${hours} ${u.h}`;
   return `${Math.floor(hours / 24)} ${u.d}`;
 }
-
-export function fmtClock(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}

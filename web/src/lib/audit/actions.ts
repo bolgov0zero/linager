@@ -21,6 +21,7 @@ export const KNOWN_ACTIONS: ReadonlySet<string> = new Set([
   'dashboard.add', 'dashboard.remove', 'dashboard.reorder',
   'group.create', 'group.rename', 'group.delete', 'group.assign',
   'access.update', 'access.retention', 'access.reset',
+  'assistant.type', 'disk.scan', 'disk.clean', 'docker.check', 'group.reorder', 'join.create', 'join.revoke', 'network.dns', 'server.note', 'user.access', 'user.password_reset', 'security.fail2ban.ban', 'security.fail2ban.unban', 'security.fail2ban.settings', 'security.key.remove', 'ssh.check', 'ssh.install', 'enroll.join', 'win.users.add', 'win.users.update', 'win.users.passwd', 'win.users.delete', 'win.users.logoff', 'win.network.apply', 'win.network.rollback',
 ]);
 
 export interface Option {

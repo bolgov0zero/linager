@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import { tr } from '../i18n';
   import PixIcon from './ui/PixIcon.svelte';
+  import { dropModal, frontModal, MODAL_Z, modalLevel, pushModal, raiseModal } from './ui/modalstack';
   import { lockScroll } from './ui/scrolllock';
   import { isPhone } from './ui/viewport';
 
@@ -37,6 +38,41 @@
 
   let dialog = $state<HTMLDivElement | undefined>(undefined);
 
+  // A dialog is a floating window: it moves by its header and the page behind it stays alive. On a phone it is a sheet.
+  const id = pushModal();
+  let offset = $state({ x: 0, y: 0 });
+  let dragging = $state(false);
+  const z = $derived(MODAL_Z + Math.max(0, $modalLevel(id)));
+  $effect(() => () => dropModal(id));
+
+  function startDrag(event: PointerEvent): void {
+    if (event.button !== 0 || $isPhone || !dialog) return;
+    if ((event.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+    event.preventDefault();
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture(event.pointerId);
+    const rect = dialog.getBoundingClientRect();
+    const start = { px: event.clientX, py: event.clientY, ...offset };
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    dragging = true;
+    const move = (e: PointerEvent) => {
+      // The header stays reachable: at least 80 px of it stay on the screen and its top never leaves it.
+      const left = Math.min(Math.max(rect.left + e.clientX - start.px, 80 - rect.width), vw - 80);
+      const top = Math.min(Math.max(rect.top + e.clientY - start.py, 0), vh - 40);
+      offset = { x: start.x + left - rect.left, y: start.y + top - rect.top };
+    };
+    const end = () => {
+      dragging = false;
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  }
+
   $effect(() => {
     dialog?.focus();
   });
@@ -50,15 +86,33 @@
 
 <svelte:window
   onkeydown={(event) => {
-    if (event.key === 'Escape') (onescape ?? onclose)();
+    // One Escape closes one dialog: the stack changes between the handlers of the same event, so the first one marks it as taken.
+    if (event.key !== 'Escape' || $frontModal !== id || event.defaultPrevented) return;
+    event.preventDefault();
+    (onescape ?? onclose)();
   }}
 />
 
-<div class="modal-layer">
-  <button class="backdrop" type="button" tabindex="-1" aria-label={$tr('common.close')} onclick={onclose}
-  ></button>
-  <div class="dialog" class:wide class:medium class:fixed role="dialog" aria-modal="true" aria-labelledby={labelId} tabindex="-1" bind:this={dialog}>
-    <header class="dialog-head">
+<div class="modal-layer" style:z-index={z}>
+  {#if $isPhone}
+    <button class="backdrop" type="button" tabindex="-1" aria-label={$tr('common.close')} onclick={onclose}
+    ></button>
+  {/if}
+  <div
+    class="dialog"
+    class:wide
+    class:medium
+    class:fixed
+    class:dragging
+    role="dialog"
+    aria-modal="false"
+    aria-labelledby={labelId}
+    tabindex="-1"
+    bind:this={dialog}
+    style:transform={offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined}
+    onpointerdowncapture={() => raiseModal(id)}
+  >
+    <header class="dialog-head" role="presentation" onpointerdown={startDrag}>
       <h2 id={labelId}>{title}</h2>
       <div class="dialog-tools">
         {#if actions}{@render actions()}{/if}
@@ -75,12 +129,11 @@
   .modal-layer {
     position: fixed;
     inset: 0;
-    z-index: 20;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding: 43px 14px 14px;
-    overflow: auto;
+    pointer-events: none; /* the page behind a dialog stays alive; only the dialog takes the pointer */
   }
 
   .backdrop {
@@ -94,12 +147,20 @@
 
   .dialog {
     position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 504px;
+    max-height: calc(100dvh - 58px);
+    pointer-events: auto;
     background: var(--surface);
     border: 2px solid var(--line);
     box-shadow: 4px 4px 0 var(--shade);
     outline: none;
+  }
+
+  .dialog.dragging {
+    user-select: none;
   }
 
   .dialog.medium {
@@ -111,8 +172,6 @@
   }
 
   .dialog.fixed {
-    display: flex;
-    flex-direction: column;
     max-width: min(1008px, 100%);
     height: min(684px, calc(100dvh - 58px));
   }
@@ -125,6 +184,13 @@
     padding: 5px 7px 5px 11px;
     border-bottom: 2px solid var(--line);
     background: var(--seg-off);
+    flex: none;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .dialog.dragging .dialog-head {
+    cursor: grabbing;
   }
 
   .dialog-tools {
@@ -151,6 +217,9 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .dialog-body.fixed {
@@ -167,6 +236,12 @@
       align-items: flex-end;
       padding: 0;
       overflow: hidden;
+      pointer-events: auto;
+    }
+
+    .dialog-head {
+      cursor: auto;
+      touch-action: auto;
     }
 
     .dialog,

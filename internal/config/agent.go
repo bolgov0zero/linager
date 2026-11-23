@@ -17,7 +17,7 @@ var AgentModules = ModulesFor(runtime.GOOS)
 // security) are Linux-only.
 func ModulesFor(goos string) []string {
 	if goos == "windows" {
-		return []string{"metrics", "terminal", "desktop", "assistant", "services", "processes", "logs", "files", "disk", "users", "winupdate", "network"}
+		return []string{"metrics", "terminal", "desktop", "assistant", "services", "processes", "logs", "files", "disk", "users", "programs", "winupdate", "network"}
 	}
 	return []string{"metrics", "terminal", "assistant", "services", "apt", "processes", "logs", "files", "disk", "network", "firewall", "security", "users", "docker"}
 }

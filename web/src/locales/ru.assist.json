@@ -181,6 +181,7 @@
   "assist.sessionBtn": "Сеанс",
   "assist.display": "Режим отображения",
   "assist.mode.fit": "Картинка по размеру окна",
+  "assist.mode.fill": "Растянуть на всё окно",
   "assist.mode.window": "Окно по размеру картинки",
   "assist.mode.max": "Окно на весь браузер",
   "assist.mode.real": "Картинка 100% (с прокруткой)",

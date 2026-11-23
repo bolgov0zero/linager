@@ -34,5 +34,15 @@
   "pult.winQuality": "Качество",
   "pult.winDispatcher": "Диспетчер",
   "pult.filesTitle": "Файлы · {name}",
-  "pult.loadFailed": "Не удалось загрузить список серверов."
+  "pult.loadFailed": "Не удалось загрузить список серверов.",
+  "pult.filters": "Фильтры",
+  "pult.filter.os": "ОС",
+  "pult.filter.os.all": "Все",
+  "pult.filter.os.linux": "Linux",
+  "pult.filter.os.windows": "Windows",
+  "pult.filter.status": "Статус",
+  "pult.filter.status.all": "Все",
+  "pult.filter.status.online": "В сети",
+  "pult.filter.status.offline": "Не в сети",
+  "pult.emptyFiltered": "Под фильтры ничего не подходит."
 }

@@ -48,6 +48,9 @@ func (r *Registry) registerPlatform(cfg *config.Agent, _ Collector, _ *slog.Logg
 		r.cmds["users.delete"] = userDeleteCmd
 		r.cmds["users.logoff"] = userLogoffCmd
 	}
+	if cfg.Enabled("programs") {
+		r.cmds["apps.list"] = appsListCmd
+	}
 	if cfg.Enabled("winupdate") {
 		r.cmds["winupdate.list"] = winUpdateListCmd
 		r.streams["winupdate"] = winUpdateStream

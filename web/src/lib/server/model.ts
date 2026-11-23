@@ -32,6 +32,7 @@ export const TABS = [
   { id: 'disk', key: 'srv.tab.disk' },
   { id: 'services', key: 'srv.tab.services' },
   { id: 'processes', key: 'srv.tab.processes' },
+  { id: 'programs', key: 'srv.tab.programs' },
   { id: 'network', key: 'srv.tab.network' },
   { id: 'firewall', key: 'srv.tab.firewall' },
   { id: 'security', key: 'srv.tab.security' },
@@ -60,12 +61,13 @@ const TAB_MODULE: Partial<Record<TabId, string>> = {
   docker: 'docker',
   updates: 'apt',
   processes: 'processes',
+  programs: 'programs',
   logs: 'logs',
 };
 
 /**
  * Tabs to show for the reported agent modules. An empty list means the agent did not report
- * its modules (old agent): all tabs stay except Docker, Security, Disk, Users and the Windows-only Assistant and Manage, which need the module to be reported.
+ * its modules (old agent): all tabs stay except Docker, Security, Disk, Users and the Windows-only Assistant, Manage and Programs, which need the module to be reported.
  */
 export function visibleTabs(modules: readonly string[], allowed: readonly string[] | null = null): (typeof TABS)[number][] {
   return TABS.filter((tab) => {
@@ -75,7 +77,7 @@ export function visibleTabs(modules: readonly string[], allowed: readonly string
     if (tab.id === 'updates' && modules.includes('winupdate') && (allowed === null || allowed.includes('apt'))) return true;
     // an operator only gets the modules that were given (an administrator: null), an auditor none
     if (allowed !== null && !allowed.includes(module)) return false;
-    if (modules.length === 0) return module !== 'docker' && module !== 'security' && module !== 'disk' && module !== 'users' && module !== 'assistant';
+    if (modules.length === 0) return module !== 'docker' && module !== 'security' && module !== 'disk' && module !== 'users' && module !== 'assistant' && module !== 'programs';
     return modules.includes(module);
   });
 }
@@ -83,7 +85,7 @@ export function visibleTabs(modules: readonly string[], allowed: readonly string
 /** Sidebar groups of the server page; every tab belongs to exactly one group, in the order shown. */
 export const TAB_GROUPS: readonly { id: string; key: string; tabs: readonly TabId[] }[] = [
   { id: 'general', key: 'srv.group.general', tabs: ['overview', 'metrics', 'terminal', 'desktop', 'assistant'] },
-  { id: 'system', key: 'srv.group.system', tabs: ['services', 'processes', 'logs', 'updates'] },
+  { id: 'system', key: 'srv.group.system', tabs: ['services', 'processes', 'programs', 'logs', 'updates'] },
   { id: 'fs', key: 'srv.group.fs', tabs: ['files', 'disk'] },
   { id: 'net', key: 'srv.group.net', tabs: ['network', 'firewall', 'security', 'manage', 'users'] },
   { id: 'apps', key: 'srv.group.apps', tabs: ['docker'] },

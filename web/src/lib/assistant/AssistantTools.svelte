@@ -40,7 +40,7 @@
     /** Where the screen is: a page tab (the picture is fitted or shown at 100%) or a floating window (the window can follow the picture). */
     layout?: 'tab' | 'window';
     /** How the picture and the window go together; the owner applies it. */
-    display?: 'fit' | 'window' | 'max' | 'real';
+    display?: 'fit' | 'fill' | 'window' | 'max' | 'real';
   } = $props();
 
   const live = $derived(phase === 'open');
@@ -130,16 +130,18 @@
   });
 
   const displayItems = $derived.by(() => {
-    const pick = (d: 'fit' | 'window' | 'max' | 'real') => () => (display = d);
+    const pick = (d: 'fit' | 'fill' | 'window' | 'max' | 'real') => () => (display = d);
     const list =
       layout === 'window'
         ? [
             { key: 'fit', label: $tr('assist.mode.fit'), checked: display === 'fit', onselect: pick('fit') },
+            { key: 'fill', label: $tr('assist.mode.fill'), checked: display === 'fill', onselect: pick('fill') },
             { key: 'window', label: $tr('assist.mode.window'), checked: display === 'window', onselect: pick('window') },
             { key: 'max', label: $tr('assist.mode.max'), checked: display === 'max', onselect: pick('max') },
           ]
         : [
             { key: 'fit', label: $tr('assist.mode.fit'), checked: display === 'fit', onselect: pick('fit') },
+            { key: 'fill', label: $tr('assist.mode.fill'), checked: display === 'fill', onselect: pick('fill') },
             { key: 'real', label: $tr('assist.mode.real'), checked: display === 'real', onselect: pick('real') },
           ];
     return [...list, { key: 'full', label: $tr('assist.mode.full'), onselect: () => screen?.fullscreen() }];

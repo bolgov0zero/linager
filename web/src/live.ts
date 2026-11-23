@@ -1,4 +1,3 @@
-import { readable } from 'svelte/store';
 import type { LiveEvent } from './api';
 
 type Handler = (e: LiveEvent) => void;
@@ -43,9 +42,3 @@ export function subscribeLive(h: Handler): () => void {
     }
   };
 }
-
-/** True while the stream is connected (for the "live" indicator). */
-export const liveConnected = readable(false, (set) => {
-  const id = setInterval(() => set(source?.readyState === EventSource.OPEN), 1000);
-  return () => clearInterval(id);
-});
