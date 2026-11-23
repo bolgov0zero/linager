@@ -11,6 +11,7 @@ const sidebar = (p: string, t: Record<string, string>): DefaultTheme.SidebarItem
   { text: t.guides, items: [
     { text: t.proxy, link: `${p}/proxy` },
     { text: t.access, link: `${p}/access` },
+    { text: t.connection, link: `${p}/connection` },
     { text: t.modules, link: `${p}/modules` },
     { text: t.menu, link: `${p}/menu` },
     { text: t.console, link: `${p}/console` },
@@ -24,7 +25,7 @@ const sidebar = (p: string, t: Record<string, string>): DefaultTheme.SidebarItem
   { text: t.ref, items: [{ text: t.architecture, link: `${p}/architecture` }] },
 ];
 
-const docsMatch = (p: string) => `^${p}/(introduction|install|proxy|access|modules|menu|console|keys|windows|updates|security|architecture)`;
+const docsMatch = (p: string) => `^${p}/(introduction|install|proxy|access|connection|modules|menu|console|keys|windows|updates|security|architecture)`;
 
 export default defineConfig({
   srcDir: 'content',
@@ -53,7 +54,7 @@ export default defineConfig({
         ],
         sidebar: sidebar('', {
           start: 'Getting started', guides: 'Guides', ops: 'Operations', ref: 'Reference',
-          introduction: 'Introduction', install: 'Installation', proxy: 'Reverse proxy', access: 'Admin panel access',
+          introduction: 'Introduction', install: 'Installation', proxy: 'Reverse proxy', access: 'Admin panel access', connection: 'Agent and application ports',
           modules: 'Agent modules', menu: 'Terminal menu', console: 'The Console view', keys: 'Keys', windows: 'Windows agent', updates: 'Updates and backups', security: 'Security', architecture: 'Architecture',
         }),
         outline: { label: 'On this page', level: [2, 3] },
@@ -74,7 +75,7 @@ export default defineConfig({
         ],
         sidebar: sidebar('/ru', {
           start: 'Начало работы', guides: 'Руководства', ops: 'Эксплуатация', ref: 'Справочник',
-          introduction: 'Введение', install: 'Установка', proxy: 'Обратный прокси', access: 'Доступ к админке',
+          introduction: 'Введение', install: 'Установка', proxy: 'Обратный прокси', access: 'Доступ к админке', connection: 'Порты агентов и приложения',
           modules: 'Модули агента', menu: 'Меню в терминале', console: 'Вид «Консоль»', keys: 'Ключи', windows: 'Агент для Windows', updates: 'Обновления и бэкапы', security: 'Безопасность', architecture: 'Архитектура',
         }),
         outline: { label: 'На этой странице', level: [2, 3] },
