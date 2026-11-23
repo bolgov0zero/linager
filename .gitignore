@@ -27,3 +27,9 @@ agent.yaml
 /site/node_modules/
 /site/.vitepress/cache/
 /site/.vitepress/dist/
+
+# desktop application (app/): the built interface is embedded, the dependencies are not kept
+/app/frontend/dist/*
+!/app/frontend/dist/.gitkeep
+/app/frontend/node_modules/
+/app/bin/

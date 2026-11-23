@@ -1,0 +1,45 @@
+<script lang="ts">
+  import Icon from './Icon.svelte';
+  import { t } from './i18n.svelte';
+  import type { ServerCard } from './api';
+  import { isWindows, levelOf, meter, tagsOf } from './status';
+
+  let { card, onterminal }: { card: ServerCard; onterminal: (c: ServerCard) => void } = $props();
+
+  const level = $derived(levelOf(card));
+  const s = $derived(card.sample);
+  const cols = $derived(
+    card.online && s
+      ? [
+          { l: t('card.cpu'), v: Math.round(s.cpu) },
+          { l: t('card.ram'), v: Math.round(s.mem_pct) },
+          { l: t('card.disk'), v: Math.round(s.disk_pct) },
+        ]
+      : [
+          { l: t('card.cpu'), v: -1 },
+          { l: t('card.ram'), v: -1 },
+          { l: t('card.disk'), v: -1 },
+        ],
+  );
+  // the one thing worth a line: the first problem, otherwise the address
+  const note = $derived(tagsOf(card).find((x) => x.tone === 'warn' || x.tone === 'crit' || x.id === 'offline'));
+</script>
+
+<article class="card mini st-{level}">
+  <header class="c-head">
+    <span class="dot {level}"></span>
+    <h3>{card.name}</h3>
+    <span class="os" class:os-windows={isWindows(card.os)}>{isWindows(card.os) ? 'WIN' : 'LIN'}</span>
+  </header>
+  <div class="mini-m">
+    {#each cols as c (c.l)}
+      <div class={c.v < 0 ? '' : `lv-${meter(c.v)}`}><small>{c.l}</small><b>{c.v < 0 ? '—' : c.v}</b><span class="bar"><i style="width:{Math.max(0, Math.min(100, c.v))}%"></i></span></div>
+    {/each}
+  </div>
+  <footer class="mini-f">
+    <span class="mono" class:warnt={!!note} class:dim={!note}>{note ? t(`tag.${note.id}`, { n: note.n ?? 0 }) : card.address}</span>
+    <div class="acts">
+      <button class="btn icon xs" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onterminal(card)}><Icon name="square-terminal" size={14} /></button>
+    </div>
+  </footer>
+</article>

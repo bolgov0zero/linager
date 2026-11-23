@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0-beta.2
+
+The desktop application, stage 1. The server and the agent are unchanged: this release carries the sources and the docs of the application (`app/`), the application itself is not in the release files yet. No database migration.
+
+- New: **the Linager application** (`app/`, Wails v3, a separate Go module): connects to the application port of a server over TLS 1.3 with the certificate fingerprint pinned (confirmed by the person on the first connection, like an SSH host key), signs in (login, password, 2FA; the password can be kept in the system keychain), shows the dashboard in three layouts (cards, compact cards, rows) with live data and opens a terminal in a native window of its own. The interface follows the new design mockup (`docs/design/redesign`), uses the current Linager logo, Medeo Sans and Medeo Mono, Lucide icons, Russian and English, light and dark themes.
+- New: a local server inside the application (loopback, a random token in every path) that serves the interface, proxies the API (the session cookie never reaches the page) and offers profiles, the keychain and windows. The interface can also be opened in a browser (`make -C app headless`).
+- Not yet: the server page, files, the editor, the Console, RDP and the Assistant, settings, the tray, self-update; passkey sign-in does not work in the application (see the docs).
+- Change: `web/` is frozen; releases go to the beta channel until told otherwise.
+- Docs: [the application](docs/en/app.md) / [приложение](docs/ru/app.md); CI builds the application on Linux, macOS and Windows (`.github/workflows/app.yml`).
+
 ## 0.10.0-beta.1
 
 The application port and the section "Connection". Migration 00019 (the port an agent connected to). **Update the agents** to follow a change of the agent port (0.10.0-beta.1 or newer); older agents keep working, they just do not move.
