@@ -48,13 +48,16 @@ type Options struct {
 	// OpenWindow opens (or raises) a native window of a kind ("terminal") for a server; nil in the headless run.
 	OpenWindow func(kind, id, title, arg string) error
 	// Update checks for and installs a new version of the application; nil in the headless run (nothing to replace).
-	Update  *update.Updater
-	Version string
+	Update *update.Updater
+	// VaultMemo is the file that remembers the chosen vault file for seven days; empty keeps nothing.
+	VaultMemo string
+	Version   string
 }
 
 // Server is the local server.
 type Server struct {
 	o     Options
+	vault *vaultMemo
 	token string
 	ln    net.Listener
 	srv   *http.Server
@@ -77,7 +80,7 @@ func New(o Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{o: o, token: hex.EncodeToString(b), ln: ln}
+	s := &Server{o: o, token: hex.EncodeToString(b), ln: ln, vault: newVaultMemo(o.VaultMemo)}
 	s.srv = &http.Server{Handler: s.handler(), ReadHeaderTimeout: 10 * time.Second}
 	return s, nil
 }
@@ -122,6 +125,8 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("POST /app/download", s.download)
 	inner.HandleFunc("POST /app/vault/open", s.vaultOpen)
 	inner.HandleFunc("POST /app/vault/save", s.vaultSave)
+	inner.HandleFunc("GET /app/vault/last", s.vaultLast)
+	inner.HandleFunc("DELETE /app/vault/last", s.vaultForget)
 	inner.HandleFunc("GET /app/prefs", s.prefsGet)
 	inner.HandleFunc("PUT /app/prefs", s.prefsPut)
 	inner.HandleFunc("POST /app/update/check", s.updateCheck)
@@ -416,7 +421,34 @@ func (s *Server) vaultOpen(w http.ResponseWriter, _ *http.Request) {
 		fail(w, http.StatusInternalServerError, "read")
 		return
 	}
+	s.vault.remember(path)
 	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b)})
+}
+
+// vaultLast returns the vault file chosen earlier (within seven days) so that the page need not ask for it again.
+func (s *Server) vaultLast(w http.ResponseWriter, _ *http.Request) {
+	path, ok := s.vault.recall()
+	if !ok {
+		writeJSON(w, http.StatusOK, map[string]any{})
+		return
+	}
+	st, err := os.Stat(path)
+	if err != nil || !st.Mode().IsRegular() || st.Size() > maxVault {
+		s.vault.forget() // moved, deleted or not a vault any more
+		writeJSON(w, http.StatusOK, map[string]any{})
+		return
+	}
+	b, err := os.ReadFile(path) //nolint:gosec // the path is the one the person chose in the dialog
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b)})
+}
+
+func (s *Server) vaultForget(w http.ResponseWriter, _ *http.Request) {
+	s.vault.forget()
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // vaultSave asks where to save the vault file (a native dialog) and writes the bytes the page sends (already encrypted).
@@ -455,6 +487,7 @@ func (s *Server) vaultSave(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "write")
 		return
 	}
+	s.vault.remember(dest)
 	writeJSON(w, http.StatusOK, map[string]any{"saved": dest, "name": filepath.Base(dest)})
 }
 
@@ -719,4 +752,4 @@ func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // windowKinds are the windows the interface may ask for.
-var windowKinds = map[string]bool{"terminal": true, "note": true, "files": true, "manager": true, "editor": true, "rdp": true, "asst": true}
+var windowKinds = map[string]bool{"terminal": true, "note": true, "files": true, "manager": true, "editor": true, "rdp": true, "asst": true, "settings": true}

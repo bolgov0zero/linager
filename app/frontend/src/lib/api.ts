@@ -6,6 +6,7 @@ export interface Session {
   login: string;
   role?: 'admin' | 'operator' | 'auditor';
   totp_enabled?: boolean;
+  recovery_left?: number;
 }
 
 export interface Sample {
@@ -81,6 +82,111 @@ export interface Disk {
   pct: number;
 }
 
+export type Role = 'admin' | 'operator' | 'auditor';
+export interface UserAccess { servers: string[]; groups: number[]; modules: string[] }
+export interface UserRow {
+  id: number; login: string; role: string; totp_enabled: boolean; passkeys: number; recovery_left: number;
+  created_at: string; current: boolean;
+  /** Only for an operator or an auditor. */
+  access?: UserAccess;
+}
+
+/** Access restriction of the admin panel (Settings, "Access"). */
+export interface AccessRule { cidr: string; note: string }
+export type AccessMode = 'off' | 'white' | 'black';
+export interface AccessConfig { mode: AccessMode; only_proxy: boolean; white: AccessRule[]; black: AccessRule[]; proxies: AccessRule[]; retention_days: number }
+export interface AccessYou { ip: string; remote_addr: string; forwarded_for: string; via_proxy: boolean; peer_trusted: boolean }
+/** What a host name of a list points to now (checked_at: unix time of the last good lookup, 0 when there was none). */
+export interface AccessHost { ips: string[]; checked_at: number; failing: boolean; expired: boolean }
+export interface AccessState { config: AccessConfig; configured: boolean; you: AccessYou; denied_24h: number; hosts: Record<string, AccessHost> }
+export interface AccessProblem { code: string; ip?: string; reason?: string; host?: string }
+export interface AccessVerdict { ip: string; allowed: boolean; reason: string; via_proxy: boolean; ignored_xff: boolean }
+export interface AccessCheck { problems: AccessProblem[]; you: AccessVerdict; test?: AccessVerdict; hosts: Record<string, AccessHost> }
+export type AccessLogFilter = 'all' | 'denied' | 'login' | 'fail' | 'proxy' | 'direct';
+export interface AccessLogRow {
+  id: number; ts: number; client_ip: string; remote_addr: string; via_proxy: boolean; proxy_trusted: boolean;
+  event: 'page' | 'login.ok' | 'login.fail' | 'denied'; login: string; path: string; user_agent: string; reason: string;
+}
+
+/** An agent in the connection settings; `supported` tells whether it follows a change of the agent port. */
+export interface ConnAgent { id: string; name: string; version: string; online: boolean; supported: boolean }
+/** The agent port is being changed: agents move to the new port by themselves while the old one stays open. */
+export interface ConnMove { from: number; to: number; moved: number; total: number; pending: ConnAgent[] }
+/** Settings, "Connection": the port of the agents and the port of the desktop application. */
+export interface ConnectionState {
+  agent_port: number;
+  /** 0: the application listener is off. */
+  app_port: number;
+  host: string;
+  fingerprint: string;
+  /** The first agent version that follows a change of the agent port. */
+  min_agent: string;
+  admin_port: number;
+  app_up: boolean;
+  move: ConnMove | null;
+  /** Online agents that cannot follow: while there are any, the agent port cannot be changed. */
+  blockers: ConnAgent[];
+}
+export interface AuditItem {
+  id: number; ts: number; actor: string; action: string; target_type: string; target_name: string;
+  result: string; client_ip: string; remote_addr: string; details: Record<string, unknown> | null;
+}
+export interface AuditPage { items: AuditItem[]; next_before: number }
+
+// ---- updates of the server and the agents ----
+export interface UpdateStep {
+  id: 'verify' | 'backup' | 'stop' | 'replace' | 'migrate' | 'start'; state: 'pending' | 'running' | 'done' | 'failed';
+  /** Unix milliseconds; the panel often learns about the steps only after they are over, so it shows how long each took. */
+  started_ms?: number; finished_ms?: number;
+}
+export interface ServerUpdateRun {
+  run_id: string; state: 'idle' | 'running' | 'done' | 'failed' | 'rolled_back';
+  steps: UpdateStep[]; from: string; to: string; error?: string; started_at: number; finished_at: number;
+}
+export interface AgentUpdateRow {
+  id: string; name: string; os: string; address: string; version: string;
+  status: 'current' | 'available' | 'unsupported' | 'updating' | 'queued' | 'rollback' | 'failed';
+  online: boolean; target?: string;
+  step?: number; steps_total: number;
+  step_id?: 'download' | 'verify' | 'backup' | 'replace' | 'restart' | 'offline' | 'reconnect' | 'confirm';
+  message?: string;
+  /** A Windows agent: a newer version is out, and it is installed with its MSI package, not from the panel. */
+  manual?: boolean;
+  /** The stages of the run that is going on or ended badly, and the server clock they are measured by. */
+  steps?: AgentUpdateStep[]; now_ms?: number;
+  /** Unix seconds: when the agent restores its old binary if the new one has not confirmed itself. */
+  rollback_at?: number;
+}
+export interface AgentUpdateStep {
+  id: NonNullable<AgentUpdateRow['step_id']>; state: 'pending' | 'running' | 'done' | 'failed';
+  /** Unix milliseconds on the server clock. */
+  started_ms?: number; finished_ms?: number;
+  detail?: string; bytes?: number; size?: number;
+}
+export interface UpdateHistoryRow { id: number; ts: number; kind: 'server' | 'agents'; from: string; to: string; status: 'success' | 'failed' | 'rolled_back'; detail: string }
+export type RolloutMode = 'all' | 'one_by_one' | 'first_then_rest';
+export interface UpdatesInfo {
+  channel: 'stable' | 'beta';
+  server: {
+    current: string; available: string | null; checked_at: number; check_error: string;
+    /** Release notes of the latest known release (bullet lines) and its version. */
+    notes: string[]; notes_version?: string | null; db_migrations: { applied: number; shipped: number; pending: number };
+    last_backup: number; source: string; can_update: boolean; update_run: ServerUpdateRun;
+  };
+  cache: { version: string; size: number; downloaded_at: number; verified: boolean; downloaded: boolean }[];
+  /** Cached releases that "delete old" would remove (all but the newest and the running version). */
+  cache_prunable?: number;
+  /** Present in the answer of the prune call. */
+  pruned?: { count: number; bytes: number };
+  agents: AgentUpdateRow[];
+  rollout: { state: 'running' | 'done' | 'stopped'; mode: RolloutMode; stop_on_error: boolean; version: string } | null;
+  history: UpdateHistoryRow[];
+  min_agent: string; agents_target: string; latest_known: string | null;
+}
+
+export interface TotpSetup { secret: string; uri: string }
+export interface PasskeyRow { id: string; name: string; created_at: string; last_used_at: string | null }
+
 export interface Group {
   id: number;
   name: string;
@@ -145,6 +251,62 @@ export const api = {
   },
   dashboard: () => request<{ items: ServerCard[] }>('GET', 'api/dashboard'),
   groups: () => request<Group[]>('GET', 'api/groups'),
+  groupCreate: (name: string) => request<Group>('POST', 'api/groups', { name }),
+  groupRename: (id: number, name: string) => request<void>('PUT', `api/groups/${id}`, { name }),
+  groupDelete: (id: number) => request<void>('DELETE', `api/groups/${id}`),
+  /** Stores the order of the groups: every group id exactly once, in the wanted order. */
+  groupsReorder: (ids: number[]) => request<void>('PUT', 'api/groups/order', { ids }),
+
+  // the person's own account
+  totpSetup: () => request<TotpSetup>('POST', 'api/me/totp/setup'),
+  /** Returns the recovery codes: they are shown once. */
+  totpEnable: (code: string) => request<{ ok: boolean; recovery_codes: string[] }>('POST', 'api/me/totp/enable', { code }),
+  totpDisable: (password: string) => request<void>('POST', 'api/me/totp/disable', { password }),
+  changePassword: (current: string, password: string) => request<{ ok: boolean }>('POST', 'api/me/password', { current, password }),
+  recoveryRegenerate: (password: string) => request<{ ok: boolean; recovery_codes: string[] }>('POST', 'api/me/recovery-codes', { password }),
+  passkeys: () => request<{ passkeys: PasskeyRow[] }>('GET', 'api/me/passkeys'),
+  passkeyDelete: (id: string, password: string) => request<{ ok: boolean }>('DELETE', `api/me/passkeys/${encodeURIComponent(id)}`, { password }),
+
+  users: () => request<{ users: UserRow[] }>('GET', 'api/users'),
+  userCreate: (login: string, password: string, role: Role = 'admin', access?: UserAccess) => request<{ ok: boolean; id: number }>('POST', 'api/users', { login, password, role, ...(access ?? {}) }),
+  userAccess: (id: number, role: Role, access: UserAccess) => request<{ ok: boolean }>('PUT', `api/users/${id}/access`, { role, ...access }),
+  userDelete: (id: number) => request<{ ok: boolean }>('DELETE', `api/users/${id}`, { confirm: true }),
+  userSetPassword: (id: number, password: string) => request<{ ok: boolean }>('POST', `api/users/${id}/password`, { password, confirm: true }),
+  userReset2fa: (id: number) => request<{ ok: boolean }>('POST', `api/users/${id}/2fa/reset`, { confirm: true }),
+
+  access: () => request<AccessState>('GET', 'api/access'),
+  accessSave: (config: AccessConfig) => request<AccessState>('PUT', 'api/access', config),
+  accessCheck: (config: AccessConfig, test?: { ip: string; proxy: boolean }) => request<AccessCheck>('POST', 'api/access/check', { config, test }),
+  /** Looks a host name up now; a name that is already in a list gets its new address in force. 422 "unresolved" when it has none. */
+  accessResolve: (host: string) => request<{ host: string; status: AccessHost }>('POST', 'api/access/resolve', { host }),
+  accessRetention: (days: number) => request<AccessState>('PUT', 'api/access/retention', { days }),
+  accessLog: (filter: AccessLogFilter, before = 0) => request<{ rows: AccessLogRow[] }>('GET', `api/access/log?filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
+
+  connection: () => request<ConnectionState>('GET', 'api/connection'),
+  connectionSave: (agentPort: number, appPort: number) => request<ConnectionState>('PUT', 'api/connection', { agent_port: agentPort, app_port: appPort }),
+  connectionCloseOld: () => request<ConnectionState>('POST', 'api/connection/close-old'),
+  audit: (params: { before?: number; limit?: number; action?: string; actor?: string; result?: string; q?: string } = {}) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '' && v !== 0) q.set(k, String(v));
+    return request<AuditPage>('GET', `api/audit?${q.toString()}`);
+  },
+
+  updates: () => request<UpdatesInfo>('GET', 'api/updates'),
+  updatesCheck: () => request<UpdatesInfo>('POST', 'api/updates/check'),
+  updatesChannel: (channel: 'stable' | 'beta') => request<UpdatesInfo>('PUT', 'api/updates/channel', { channel }),
+  updatesCachePrune: () => request<UpdatesInfo>('POST', 'api/updates/cache/prune', { confirm: true }),
+  /** Downloads and verifies a release into the cache of the server ahead of time. */
+  updatesPrefetch: (version: string) => request<UpdatesInfo>('POST', 'api/updates/cache', { version }),
+  /** Starts the server update (backup, replace, migrate, restart); the server is unreachable for a short time. */
+  updatesServer: (version: string) => request<{ ok: boolean }>('POST', 'api/updates/server', { version, confirm: true }),
+  updatesAgents: (serverIds: string[] | 'all', mode: RolloutMode, stopOnError: boolean) =>
+    request<UpdatesInfo>('POST', 'api/updates/agents', serverIds === 'all' ? { all: true, mode, stop_on_error: stopOnError } : { server_ids: serverIds, mode, stop_on_error: stopOnError }),
+
+  snippetsList: () => request<{ snippets: Snippet[] }>('GET', 'api/snippets'),
+  snippetCreate: (name: string, command: string) => request<Snippet>('POST', 'api/snippets', { name, command }),
+  snippetUpdate: (id: number, name: string, command: string) => request<{ ok: boolean }>('PUT', `api/snippets/${id}`, { name, command }),
+  snippetDelete: (id: number) => request<{ ok: boolean }>('DELETE', `api/snippets/${id}`),
+  snippetsOrder: (ids: number[]) => request<{ ok: boolean }>('PUT', 'api/snippets/order', { ids }),
 };
 
 /** The shared stream of live events; `handler` is called for every event and the stream reconnects by itself. */
@@ -246,7 +408,10 @@ export interface DiskFS {
   inodes_total: number; inodes_used: number; pct: number;
   per_day: number; days_left: number; history_days: number; trend: number[];
 }
-export interface DiskState { filesystems: DiskFS[] }
+export interface DiskCleanItem { kind: 'journal' | 'apt' | 'docker-images' | 'docker-build' | 'kernels' | 'win-temp' | 'win-update-cache' | 'win-recycle' | 'win-delivery' | 'win-dumps' | 'win-old'; size: number; frees: number; count?: number; items?: string[]; keep?: string }
+export interface DiskState { filesystems: DiskFS[]; cleanup: DiskCleanItem[]; docker: boolean }
+export interface DiskNode { name: string; size: number; children?: DiskNode[] }
+export interface DiskScan { scanned_at: number; mount: string; partial: boolean; tree: DiskNode; categories: { id: string; size: number }[] }
 
 const enc = encodeURIComponent;
 export const serverApi = {
@@ -261,6 +426,8 @@ export const serverApi = {
     request<{ ok: boolean }>('POST', `api/servers/${enc(id)}/processes/${pid}/kill`, { signal, confirm: true }),
   apt: (id: string) => request<AptList>('GET', `api/servers/${enc(id)}/apt`),
   disk: (id: string) => request<DiskState>('GET', `api/servers/${enc(id)}/disk`),
+  diskScan: (id: string, mount: string, force: boolean) => request<DiskScan>('POST', `api/servers/${enc(id)}/disk/scan`, { mount, force }),
+  diskClean: (id: string, kind: DiskCleanItem['kind']) => request<{ ok: boolean; freed: number; output: string }>('POST', `api/servers/${enc(id)}/disk/clean`, { kind, confirm: true }),
   reboot: (id: string) => request<{ ok: boolean }>('POST', `api/servers/${enc(id)}/reboot`, { confirm: true }),
   deleteServer: (id: string, name: string, uninstall: boolean) => request<void>('DELETE', `api/servers/${enc(id)}`, { name, uninstall }),
   noteSet: (id: string, note: string) => request<{ note: string }>('PUT', `api/servers/${enc(id)}/note`, { note }),

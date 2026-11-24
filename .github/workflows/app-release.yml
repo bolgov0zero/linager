@@ -87,7 +87,7 @@ jobs:
         with:
           node-version: 22
       - name: Libraries of the web view
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libgtk-4-dev libwebkitgtk-6.0-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libgtk-4-dev libwebkitgtk-6.0-dev
       - name: Build
         run: |
           make -C app build VERSION="${VERSION#v}"

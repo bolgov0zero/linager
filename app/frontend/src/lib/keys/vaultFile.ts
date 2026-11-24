@@ -35,6 +35,18 @@ function pickInBrowser(): Promise<Picked | null> {
   });
 }
 
+/** The file chosen earlier (the application remembers it for seven days of use); null when there is none. */
+export async function rememberedVaultFile(): Promise<Picked | null> {
+  try {
+    const r = await native.vaultLast();
+    return r.data ? { name: r.name ?? '', bytes: fromBase64(r.data) } : null;
+  } catch {
+    return null; // a browser in development, or an old application
+  }
+}
+
+export const forgetVaultFile = (): Promise<unknown> => native.vaultForget().catch(() => undefined);
+
 /** Asks for a vault file; null when it was cancelled. */
 export async function pickVaultFile(): Promise<Picked | null> {
   try {

@@ -88,19 +88,24 @@
   });
 
   function runSnippet(v: string): void {
+    if (v === MANAGE) {
+      void native.openWindow('settings', 'app', 'Linager', nativeWindows, 'snippets');
+      return;
+    }
     const sn = snippets.find((x) => String(x.id) === v);
     if (!sn || !current) return;
     current.send(sn.command + '\r');
     current.focus();
     void serverApi2.snippetRan(sn.id, id).catch(() => undefined);
   }
+  const MANAGE = '__manage';
   const userOptions = $derived([{ v: '', t: t('term.user.default') }, ...users.map((u) => ({ v: u, t: u }))]);
 </script>
 
 <div class="term-win" class:embedded>
   <div class="term-tools">
     <CustomSelect small value={user} options={userOptions} icon="user" onchange={(v) => (user = v)} />
-    <Menu icon="file-code" label={t('term.snippets')} items={snippets.map((s) => ({ v: String(s.id), t: s.name }))} empty={t('term.snippets.none')} onpick={runSnippet} />
+    <Menu icon="file-code" label={t('term.snippets')} items={[...snippets.map((s) => ({ v: String(s.id), t: s.name })), { v: MANAGE, t: t('term.snippets.manage') }]} empty={t('term.snippets.none')} onpick={runSnippet} />
     <span class="spacer"></span>
     {#if phase !== 'open'}<span class="muted" style="font-size:12px">{phase === 'connecting' ? t('term.connecting') : t('term.closed')}</span>{/if}
     {#if phase === 'closed'}<button class="btn sm" type="button" onclick={() => (attempt += 1)}>{t('term.reconnect')}</button>{/if}

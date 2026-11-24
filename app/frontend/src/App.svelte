@@ -19,6 +19,7 @@
   import EditorWindow from './lib/win/EditorWindow.svelte';
   import FilesWindow from './lib/win/FilesWindow.svelte';
   import ManagerWindow from './lib/win/ManagerWindow.svelte';
+  import SettingsWindow from './lib/win/SettingsWindow.svelte';
   import NoteWindow from './lib/win/NoteWindow.svelte';
 
   // A window of the application is a hash route: #/w/terminal/<server id>?title=<name>. Everything else is the main window.
@@ -96,6 +97,8 @@
   <FilesWindow id={win.id} title={win.title} nativeWindows={st?.native ?? false} start={win.arg} />
 {:else if stage === 'window' && win && win.kind === 'manager'}
   <ManagerWindow id={win.id} title={win.title} />
+{:else if stage === 'window' && win && win.kind === 'settings' && session}
+  <SettingsWindow {session} start={win.arg} />
 {:else if stage === 'window' && win && win.kind === 'rdp'}
   <DesktopWindow id={win.id} title={win.title} />
 {:else if stage === 'window' && win && win.kind === 'asst'}
@@ -103,7 +106,7 @@
 {:else if stage === 'window' && win && win.kind === 'editor'}
   <EditorWindow id={win.id} path={win.arg} />
 {:else if stage === 'main' && st && session}
-  <Shell server={st.profile?.name ?? ''} onlogout={logout} flush={page.page === 'server'}>
+  <Shell server={st.profile?.name ?? ''} onlogout={logout} flush={page.page === 'server'} nativeWindows={st.native}>
     {#if page.page === 'server'}<ServerPage id={page.id} tab={page.tab} nativeWindows={st.native} />{:else if nav.section !== 'console'}<Dashboard nativeWindows={st.native} />{/if}
     {#if nav.section === 'console' || con.seen}<div class="con-host" hidden={nav.section !== 'console' || page.page === 'server'}><Console nativeWindows={st.native} /></div>{/if}
   </Shell>

@@ -11,3 +11,6 @@ export function errorText(e: unknown): string {
   }
   return t('common.genericError');
 }
+
+/** The session of the server has ended (the person signed out, or seven days passed). */
+export const isUnauthorized = (e: unknown): boolean => e instanceof ApiError && e.status === 401;

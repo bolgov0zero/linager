@@ -22,7 +22,7 @@ export interface AppState {
   native: boolean;
 }
 
-export type WindowKind = 'terminal' | 'note' | 'files' | 'manager' | 'editor' | 'rdp' | 'asst';
+export type WindowKind = 'terminal' | 'note' | 'files' | 'manager' | 'editor' | 'rdp' | 'asst' | 'settings';
 
 export class NativeError extends Error {
   constructor(
@@ -60,6 +60,9 @@ export const native = {
   download: (path: string, name: string) => call<{ saved?: string; cancelled?: boolean }>('POST', 'download', { path, name }),
   /** The file of the vault (Keys): the application asks which file (a native dialog) and returns its bytes (base64). */
   vaultOpen: () => call<{ name?: string; data?: string; cancelled?: boolean }>('POST', 'vault/open', {}),
+  /** The vault file chosen in the last seven days (every use renews the period): the bytes come back without a dialog. */
+  vaultLast: () => call<{ name?: string; data?: string }>('GET', 'vault/last'),
+  vaultForget: () => call<{ ok: boolean }>('DELETE', 'vault/last'),
   /** The application asks where to save the file (a native dialog) and writes the bytes (base64, already encrypted). */
   vaultSave: (name: string, data: string) => call<{ saved?: string; name?: string; cancelled?: boolean }>('POST', 'vault/save', { name, data }),
   /** Opens a native window; in a browser (development) the same page opens in a new tab. */

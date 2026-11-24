@@ -40,7 +40,7 @@
     icon: string;
     label: string;
     ready: boolean;
-    window?: 'terminal';
+    window?: 'terminal' | 'rdp' | 'asst';
   }
   const win = $derived(s ? isWindows(s.os) : false);
   const groups = $derived<{ key: string; items: Item[] }[]>([
@@ -48,8 +48,8 @@
       { key: 'overview', icon: 'layout-grid', label: t('sp.overview'), ready: true },
       { key: 'metrics', icon: 'activity', label: t('sp.metrics'), ready: true },
       { key: 'terminal', icon: 'square-terminal', label: win ? 'PowerShell' : t('sp.terminal'), ready: true, window: 'terminal' },
-      ...(win && s?.sample?.desktop_off !== true ? [{ key: 'desktop', icon: 'monitor', label: 'RDP', ready: true }] : []),
-      ...(assistantOffered(s?.os ?? '', s?.sample) ? [{ key: 'assistant', icon: 'app-window', label: t('sp.assistant'), ready: true }] : []),
+      ...(win && s?.sample?.desktop_off !== true ? [{ key: 'desktop', icon: 'monitor', label: 'RDP', ready: true, window: 'rdp' as const }] : []),
+      ...(assistantOffered(s?.os ?? '', s?.sample) ? [{ key: 'assistant', icon: 'app-window', label: t('sp.assistant'), ready: true, window: 'asst' as const }] : []),
     ] },
     { key: 'system', items: [
       { key: 'services', icon: 'list-checks', label: t('sp.services'), ready: true },
@@ -68,6 +68,12 @@
          { key: 'security', icon: 'lock', label: t('sp.security'), ready: true }, { key: 'users', icon: 'users', label: t('sp.users'), ready: true }] },
     ...(win ? [] : [{ key: 'apps', items: [{ key: 'docker', icon: 'container', label: 'Docker', ready: true }] }]),
   ]);
+  /** A session of the remote desktop or the Assistant can be open in one place only: when its tab is on the screen it makes way for the window. */
+  function inWindow(it: Item): void {
+    if (!it.window || !s) return;
+    if (it.window !== 'terminal' && current.key === it.key) openServer(id, 'overview');
+    void native.openWindow(it.window, id, s.name, nativeWindows);
+  }
   const flat = $derived(groups.flatMap((g) => g.items));
   const current = $derived(flat.find((i) => i.key === tab && i.ready) ?? flat[0]);
   const group = $derived(groups.find((g) => g.items.includes(current))!);
@@ -152,8 +158,8 @@
                     <Icon name={it.icon} size={15} /><span>{it.label}</span>
                     {#if it.key === 'updates' && s.sample && s.sample.updates > 0}<em class="cnt">{s.sample.updates}</em>{/if}
                   </button>
-                  {#if it.window === 'terminal'}
-                    <button class="si-w" type="button" title={t('sp.inWindow')} disabled={!s.online} onclick={() => native.openWindow('terminal', id, s!.name, nativeWindows)}><Icon name="app-window" size={13} /></button>
+                  {#if it.window}
+                    <button class="si-w" type="button" title={t('sp.inWindow')} disabled={!s.online} onclick={() => inWindow(it)}><Icon name="app-window" size={13} /></button>
                   {/if}
                 </div>
               {/each}

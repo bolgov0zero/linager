@@ -59,7 +59,7 @@ func main() {
 		secrets = &profiles.Memory{} // development runs must not touch the keychain of the person
 	}
 
-	opts := local.Options{Assets: assets, Profiles: store, Prefs: profiles.OpenPrefs(profiles.PrefsPath(path)), Secrets: secrets, Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
+	opts := local.Options{Assets: assets, Profiles: store, Prefs: profiles.OpenPrefs(profiles.PrefsPath(path)), Secrets: secrets, VaultMemo: filepath.Join(filepath.Dir(path), "vault-last.json"), Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
 	var wins *windows
 	if !*headless {
 		update.CleanupOld() // the program that was replaced by the last update could not delete itself
@@ -151,6 +151,7 @@ var winSpecs = map[string]winSpec{
 	"editor":   {"Editor", 820, 560, 480, 280, false},
 	"rdp":      {"Remote desktop", 1100, 720, 640, 420, false},
 	"asst":     {"Assistant", 1100, 720, 640, 420, false},
+	"settings": {"Settings", 1000, 680, 780, 460, false},
 	"note":     {"Note", 440, 320, 320, 220, true},
 }
 
@@ -160,6 +161,9 @@ func (w *windows) show(kind, id, title, arg string) error {
 		return fmt.Errorf("unknown window %q", kind)
 	}
 	key := kind + ":" + id + ":" + arg
+	if kind == "settings" {
+		key = "settings" // one window of the settings; a later request only raises it
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if win, ok := w.open[key]; ok {

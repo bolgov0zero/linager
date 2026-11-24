@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/bolgov0zero/linager/app/internal/profiles"
 	"github.com/bolgov0zero/linager/app/internal/remote"
@@ -431,5 +432,60 @@ func TestUpdateEndpoints(t *testing.T) {
 		if resp.StatusCode == 200 {
 			t.Fatal("the update paths need the token")
 		}
+	}
+}
+
+func TestVaultFileIsRememberedForSevenDays(t *testing.T) {
+	dir := t.TempDir()
+	vault := filepath.Join(dir, "keys.lvault")
+	if err := os.WriteFile(vault, []byte("sealed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, _ := profiles.Open(filepath.Join(dir, "profiles.json"))
+	picks := 0
+	s, err := New(Options{Assets: fstest.MapFS{"index.html": {Data: []byte("x")}}, Profiles: store, VaultMemo: filepath.Join(dir, "vault-last.json"),
+		PickFile: func(string) (string, bool, error) { picks++; return vault, true, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = s.Serve() }()
+	t.Cleanup(s.Close)
+	var got struct{ Name, Data string }
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name != "" {
+		t.Fatal("nothing is remembered before a file is chosen")
+	}
+	call(t, "POST", s.URL()+"app/vault/open", map[string]string{}, nil)
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name != "keys.lvault" || got.Data == "" {
+		t.Fatalf("the chosen file must come back: %+v", got)
+	}
+	if picks != 1 {
+		t.Fatal("recalling must not open the dialog")
+	}
+	// seven days after the last use the file is forgotten; every use renews the period
+	base := time.Now()
+	s.vault.now = func() time.Time { return base.Add(6 * 24 * time.Hour) }
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name == "" {
+		t.Fatal("still inside the period")
+	}
+	s.vault.now = func() time.Time { return base.Add(12 * 24 * time.Hour) }
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name == "" {
+		t.Fatal("the use six days in renewed the period")
+	}
+	got.Name = ""
+	s.vault.now = func() time.Time { return base.Add(30 * 24 * time.Hour) }
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name != "" {
+		t.Fatal("must be forgotten after seven days without use")
+	}
+	// forgetting by hand; a deleted file is forgotten too
+	s.vault.now = time.Now
+	call(t, "POST", s.URL()+"app/vault/open", map[string]string{}, nil)
+	call(t, "DELETE", s.URL()+"app/vault/last", nil, nil)
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name != "" {
+		t.Fatal("must be forgotten on request")
+	}
+	call(t, "POST", s.URL()+"app/vault/open", map[string]string{}, nil)
+	_ = os.Remove(vault)
+	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name != "" {
+		t.Fatal("a missing file must not be offered")
 	}
 }
