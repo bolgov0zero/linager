@@ -1,0 +1,98 @@
+name: app-release
+# The desktop application for the release: macOS (Apple Silicon), Windows x64 and Linux x64. Each build is one archive
+# that the application unpacks when it updates itself (app/internal/update/install.go), so the layout inside matters:
+#   Linager-macos-arm64.zip    Linager.app/...
+#   Linager-windows-x64.zip    linager-app.exe
+#   Linager-linux-x64.tar.gz   linager-app
+# Called by the release workflow; can also be run by hand to try the builds.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, for example v0.10.0-beta.4
+        default: v0.0.0-dev
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14 # Apple Silicon: the only macOS build
+    env:
+      VERSION: ${{ inputs.version || 'v0.0.0-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: app/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the bundle
+        run: make -C app zip VERSION="${VERSION#v}"
+      - name: Check the archive
+        run: |
+          test "$(uname -m)" = arm64
+          cd app/bin && unzip -q Linager-macos-arm64.zip -d check && codesign --verify --deep --strict check/Linager.app && file check/Linager.app/Contents/MacOS/linager-app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-macos
+          path: app/bin/Linager-macos-arm64.zip
+
+  windows:
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ inputs.version || 'v0.0.0-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: app/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Interface
+        working-directory: app/frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Build linager-app.exe
+        working-directory: app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force bin | Out-Null
+          $v = $env:VERSION.TrimStart('v')
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o bin/linager-app.exe .
+          Compress-Archive -Path bin/linager-app.exe -DestinationPath bin/Linager-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-windows
+          path: app/bin/Linager-windows-x64.zip
+
+  linux:
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ inputs.version || 'v0.0.0-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: app/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Libraries of the web view
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Build
+        run: |
+          make -C app build VERSION="${VERSION#v}"
+          tar -C app/bin -czf app/bin/Linager-linux-x64.tar.gz linager-app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-linux
+          path: app/bin/Linager-linux-x64.tar.gz

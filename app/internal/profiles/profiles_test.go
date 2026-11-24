@@ -56,3 +56,27 @@ func TestMemorySecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPrefs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sub", "prefs.json")
+	p := OpenPrefs(path)
+	if len(p.All()) != 0 {
+		t.Fatal("a new set must be empty")
+	}
+	if err := p.Merge(map[string]string{"theme": "light", "layout": "rows"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Merge(map[string]string{"layout": ""}); err != nil {
+		t.Fatal(err)
+	}
+	again := OpenPrefs(path).All()
+	if again["theme"] != "light" || len(again) != 1 {
+		t.Fatalf("not kept: %v", again)
+	}
+	if err := p.Merge(map[string]string{"": "x"}); err == nil {
+		t.Fatal("an empty key must be refused")
+	}
+	if st, err := os.Stat(path); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("mode: %v %v", st, err)
+	}
+}

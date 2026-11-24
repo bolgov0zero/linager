@@ -99,3 +99,26 @@ func TestTerminalUserParam(t *testing.T) {
 		}
 	}
 }
+
+// An apt run of chosen packages: only plain package names reach the agent.
+func TestAptPackagesParam(t *testing.T) {
+	a := &Admin{}
+	for query, ok := range map[string]bool{
+		"kind=apt&mode=packages&names=curl,libc6": true,
+		"kind=apt&mode=packages&names=g%2B%2B":    true,
+		"kind=apt&mode=packages":                  false,
+		"kind=apt&mode=packages&names=curl,":      false,
+		"kind=apt&mode=packages&names=-o%20x":     false,
+		"kind=apt&mode=packages&names=a%3Bb":      false,
+		"kind=apt&mode=upgrade":                   true,
+	} {
+		r := httptest.NewRequest("GET", "/api/servers/x/stream?"+query, nil)
+		_, p, got := a.streamParams(r)
+		if got != ok {
+			t.Errorf("%s: ok=%v want %v", query, got, ok)
+		}
+		if ok && strings.Contains(query, "packages") && p["names"] == nil {
+			t.Errorf("%s: the names must be passed to the agent", query)
+		}
+	}
+}

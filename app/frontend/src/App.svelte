@@ -6,14 +6,25 @@
   import { t } from './lib/i18n.svelte';
   import Login from './lib/Login.svelte';
   import { native, type AppState } from './lib/native';
+  import Confirm from './lib/Confirm.svelte';
+  import Icon from './lib/Icon.svelte';
+  import Console from './lib/console/Console.svelte';
+  import { con } from './lib/console/store.svelte';
+  import { nav, route as page } from './lib/route.svelte';
+  import ServerPage from './lib/server/ServerPage.svelte';
   import Shell from './lib/Shell.svelte';
   import Terminal from './lib/Terminal.svelte';
+  import EditorWindow from './lib/win/EditorWindow.svelte';
+  import FilesWindow from './lib/win/FilesWindow.svelte';
+  import ManagerWindow from './lib/win/ManagerWindow.svelte';
+  import NoteWindow from './lib/win/NoteWindow.svelte';
 
   // A window of the application is a hash route: #/w/terminal/<server id>?title=<name>. Everything else is the main window.
-  function route(): { kind: string; id: string; title: string } | null {
+  function route(): { kind: string; id: string; title: string; arg: string } | null {
     const m = /^#\/w\/(\w+)\/([^?]+)(?:\?(.*))?$/.exec(location.hash);
     if (!m) return null;
-    return { kind: m[1], id: decodeURIComponent(m[2]), title: new URLSearchParams(m[3] ?? '').get('title') ?? m[2] };
+    const q = new URLSearchParams(m[3] ?? '');
+    return { kind: m[1], id: decodeURIComponent(m[2]), title: q.get('title') ?? m[2], arg: q.get('arg') ?? '' };
   }
   const win = route();
 
@@ -42,10 +53,18 @@
 
   onMount(async () => {
     try {
-      await enter(await native.state());
+      let s = await native.state();
+      // a session of an earlier run is still kept: open the last server at once, no sign-in screen
+      const last = s.profiles[0];
+      if (!s.connected && !win && last?.session) s = await native.use(last.id).catch(() => s);
+      await enter(s);
     } catch {
       stage = 'error';
     }
+  });
+
+  $effect(() => {
+    if (nav.section === 'console') con.seen = true;
   });
 
   async function logout(): Promise<void> {
@@ -68,7 +87,20 @@
 {:else if stage === 'login' && st?.profile}
   <Login profile={st.profile} onsignedin={(s) => { session = s; stage = 'main'; }} onchange={(s) => void enter(s)} />
 {:else if stage === 'window' && win && win.kind === 'terminal'}
-  <Terminal id={win.id} title={win.title} />
+  <Terminal id={win.id} title={win.title} nativeWindows={st?.native ?? false} initialUser={win.arg} />
+{:else if stage === 'window' && win && win.kind === 'note'}
+  <NoteWindow id={win.id} title={win.title} />
+{:else if stage === 'window' && win && win.kind === 'files'}
+  <FilesWindow id={win.id} title={win.title} nativeWindows={st?.native ?? false} start={win.arg} />
+{:else if stage === 'window' && win && win.kind === 'manager'}
+  <ManagerWindow id={win.id} title={win.title} />
+{:else if stage === 'window' && win && win.kind === 'editor'}
+  <EditorWindow id={win.id} path={win.arg} />
 {:else if stage === 'main' && st && session}
-  <Shell server={st.profile?.name ?? ''} onlogout={logout}><Dashboard nativeWindows={st.native} /></Shell>
+  <Shell server={st.profile?.name ?? ''} onlogout={logout} flush={page.page === 'server'}>
+    {#if page.page === 'server'}<ServerPage id={page.id} tab={page.tab} nativeWindows={st.native} />{:else if nav.section !== 'console'}<Dashboard nativeWindows={st.native} />{/if}
+    {#if nav.section === 'console' || con.seen}<div class="con-host" hidden={nav.section !== 'console' || page.page === 'server'}><Console nativeWindows={st.native} /></div>{/if}
+  </Shell>
 {/if}
+
+<Confirm />

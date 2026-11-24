@@ -6,33 +6,50 @@
 package local
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/bolgov0zero/linager/app/internal/profiles"
 	"github.com/bolgov0zero/linager/app/internal/remote"
+	"github.com/bolgov0zero/linager/app/internal/update"
 )
 
 // Options configure the server.
 type Options struct {
 	Assets   fs.FS // the built interface (index.html at the root)
 	Profiles *profiles.Store
-	Secrets  profiles.Secrets
+	// Prefs keeps the choices of the interface (theme, layout, section); nil keeps none.
+	Prefs   *profiles.Prefs
+	Secrets profiles.Secrets
 	// Debug logs every request (without the token), for development.
 	Debug bool
+	// SaveFile asks where to save a downloaded file (a native dialog) and returns the path; ok is false when it was
+	// cancelled. nil in the headless run: the page downloads by itself then.
+	SaveFile func(name string) (path string, ok bool, err error)
+	// PickFile asks which file to open (a native dialog) and returns its path; ok is false when it was cancelled. ext is the
+	// extension offered (".lvault"). nil in the headless run: the page opens the file by itself then.
+	PickFile func(ext string) (path string, ok bool, err error)
 	// OpenWindow opens (or raises) a native window of a kind ("terminal") for a server; nil in the headless run.
-	OpenWindow func(kind, id, title string) error
-	Version    string
+	OpenWindow func(kind, id, title, arg string) error
+	// Update checks for and installs a new version of the application; nil in the headless run (nothing to replace).
+	Update  *update.Updater
+	Version string
 }
 
 // Server is the local server.
@@ -102,6 +119,15 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("PUT /app/secret", s.secretPut)
 	inner.HandleFunc("DELETE /app/secret", s.secretDelete)
 	inner.HandleFunc("POST /app/window", s.window)
+	inner.HandleFunc("POST /app/download", s.download)
+	inner.HandleFunc("POST /app/vault/open", s.vaultOpen)
+	inner.HandleFunc("POST /app/vault/save", s.vaultSave)
+	inner.HandleFunc("GET /app/prefs", s.prefsGet)
+	inner.HandleFunc("PUT /app/prefs", s.prefsPut)
+	inner.HandleFunc("POST /app/update/check", s.updateCheck)
+	inner.HandleFunc("GET /app/update/info", s.updateInfo)
+	inner.HandleFunc("POST /app/update/install", s.updateInstall)
+	inner.HandleFunc("GET /app/update/status", s.updateStatus)
 	inner.HandleFunc("/api/", s.api)
 	if s.o.Assets != nil {
 		inner.Handle("/", http.FileServerFS(s.o.Assets))
@@ -152,12 +178,14 @@ type profileView struct {
 	Address     string `json:"address"`
 	Fingerprint string `json:"fingerprint"`
 	Login       string `json:"login"`
-	Saved       bool   `json:"saved"` // a password is in the keychain
+	Saved       bool   `json:"saved"`   // a password is in the keychain
+	Session     bool   `json:"session"` // a session of an earlier run is kept: the application can open without asking
 }
 
 func (s *Server) view(p profiles.Profile) profileView {
 	_, err := s.o.Secrets.Get(p.ID)
-	return profileView{ID: p.ID, Name: p.Name, Address: p.Address, Fingerprint: p.Fingerprint, Login: p.Login, Saved: err == nil}
+	_, serr := s.o.Secrets.Get(sessionKey(p))
+	return profileView{ID: p.ID, Name: p.Name, Address: p.Address, Fingerprint: p.Fingerprint, Login: p.Login, Saved: err == nil, Session: serr == nil}
 }
 
 func (s *Server) stateBody() map[string]any {
@@ -202,6 +230,10 @@ func (s *Server) open(r *http.Request, p profiles.Profile) error {
 	if err != nil {
 		return err
 	}
+	// the session of an earlier run (the server renews it with every request and ends it after seven idle days)
+	if old, err := s.o.Secrets.Get(sessionKey(p)); err == nil {
+		sess.RestoreSession(old)
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, sess.URL("/api/me"), nil)
@@ -217,7 +249,25 @@ func (s *Server) open(r *http.Request, p profiles.Profile) error {
 	}
 	s.sess, s.prof = sess, p
 	s.mu.Unlock()
+	sess.OnSession = func(v string) {
+		s.mu.Lock()
+		cur := s.prof
+		s.mu.Unlock()
+		s.keepSession(cur, v)
+	}
 	return nil
+}
+
+// sessionKey is where the session cookie of a profile is kept (the keychain, next to the saved password).
+func sessionKey(p profiles.Profile) string { return "session:" + p.ID }
+
+// keepSession stores or forgets the session cookie the server set.
+func (s *Server) keepSession(p profiles.Profile, value string) {
+	if value == "" {
+		_ = s.o.Secrets.Delete(sessionKey(p))
+		return
+	}
+	_ = s.o.Secrets.Set(sessionKey(p), value)
 }
 
 func (s *Server) openError(w http.ResponseWriter, err error) {
@@ -299,6 +349,7 @@ func (s *Server) forget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.o.Secrets.Delete(req.ID)
+	_ = s.o.Secrets.Delete("session:" + req.ID)
 	if err := s.o.Profiles.Delete(req.ID); err != nil {
 		fail(w, http.StatusInternalServerError, "profiles")
 		return
@@ -330,6 +381,228 @@ func (s *Server) secretProfile(r *http.Request) string {
 		return id
 	}
 	return ""
+}
+
+// maxVault is the biggest vault file (the Keys): the file is read whole into the page.
+const maxVault = 1 << 20
+
+// vaultOpen asks for a vault file (a native dialog) and returns its bytes: the file of the Keys is the person's own,
+// the page decrypts it. Only a file of a limited size with the extension of the vault is read.
+func (s *Server) vaultOpen(w http.ResponseWriter, _ *http.Request) {
+	if s.o.PickFile == nil {
+		fail(w, http.StatusNotImplemented, "no_native_dialog")
+		return
+	}
+	path, ok, err := s.o.PickFile(".lvault")
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "dialog")
+		return
+	}
+	if !ok || path == "" {
+		writeJSON(w, http.StatusOK, map[string]any{"cancelled": true})
+		return
+	}
+	st, err := os.Stat(path)
+	if err != nil || !st.Mode().IsRegular() {
+		fail(w, http.StatusBadRequest, "not_a_file")
+		return
+	}
+	if st.Size() > maxVault {
+		fail(w, http.StatusRequestEntityTooLarge, "too_big")
+		return
+	}
+	b, err := os.ReadFile(path) //nolint:gosec // the person chose this path in the dialog
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "read")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b)})
+}
+
+// vaultSave asks where to save the vault file (a native dialog) and writes the bytes the page sends (already encrypted).
+func (s *Server) vaultSave(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name string `json:"name"`
+		Data string `json:"data"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if s.o.SaveFile == nil {
+		fail(w, http.StatusNotImplemented, "no_native_dialog")
+		return
+	}
+	b, err := base64.StdEncoding.DecodeString(req.Data)
+	if err != nil || len(b) == 0 || len(b) > maxVault {
+		fail(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	name := filepath.Base(strings.ReplaceAll(req.Name, "\\", "/"))
+	if name == "." || name == "/" || name == "" {
+		name = "linager-keys.lvault"
+	}
+	dest, ok, err := s.o.SaveFile(name)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "dialog")
+		return
+	}
+	if !ok || dest == "" {
+		writeJSON(w, http.StatusOK, map[string]any{"cancelled": true})
+		return
+	}
+	// the file holds passwords (encrypted): readable by its owner only
+	if err := os.WriteFile(dest, b, 0o600); err != nil {
+		fail(w, http.StatusInternalServerError, "write")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"saved": dest, "name": filepath.Base(dest)})
+}
+
+// downloadPath is what a download may fetch: the file or the zip of the file manager of a server.
+var downloadPath = regexp.MustCompile(`^api/servers/[A-Za-z0-9-]+/files/(download|zip)\?`)
+
+// download saves a file of the server to the disk: the web view of the application does not handle a download by
+// itself, so the application asks where (a native dialog) and writes the file.
+func (s *Server) download(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path string `json:"path"`
+		Name string `json:"name"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if s.o.SaveFile == nil {
+		fail(w, http.StatusNotImplemented, "no_native_dialog")
+		return
+	}
+	if !downloadPath.MatchString(req.Path) {
+		fail(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	s.mu.Lock()
+	sess := s.sess
+	s.mu.Unlock()
+	if sess == nil {
+		fail(w, http.StatusServiceUnavailable, "not_connected")
+		return
+	}
+	name := filepath.Base(strings.ReplaceAll(req.Name, "\\", "/"))
+	if name == "." || name == "/" || name == "" {
+		name = "download"
+	}
+	dest, ok, err := s.o.SaveFile(name)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "dialog")
+		return
+	}
+	if !ok || dest == "" {
+		writeJSON(w, http.StatusOK, map[string]any{"cancelled": true})
+		return
+	}
+	resp, err := sess.Fetch(r.Context(), "/"+req.Path)
+	if err != nil {
+		fail(w, http.StatusBadGateway, "upstream")
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		fail(w, resp.StatusCode, "upstream")
+		return
+	}
+	f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // the person chose this path in the dialog
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "write")
+		return
+	}
+	_, cerr := io.Copy(f, resp.Body)
+	if e := f.Close(); cerr == nil {
+		cerr = e
+	}
+	if cerr != nil {
+		_ = os.Remove(dest)
+		fail(w, http.StatusBadGateway, "interrupted")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"saved": dest})
+}
+
+func (s *Server) prefsGet(w http.ResponseWriter, _ *http.Request) {
+	if s.o.Prefs == nil {
+		writeJSON(w, http.StatusOK, map[string]string{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.o.Prefs.All())
+}
+
+func (s *Server) prefsPut(w http.ResponseWriter, r *http.Request) {
+	var in map[string]string
+	if !decode(w, r, &in) {
+		return
+	}
+	if s.o.Prefs == nil {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+	if err := s.o.Prefs.Merge(in); err != nil {
+		fail(w, http.StatusBadRequest, "prefs")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// updateInfo answers what the last check found; without an updater the build cannot update itself.
+func (s *Server) updateInfo(w http.ResponseWriter, _ *http.Request) {
+	if s.o.Update == nil {
+		writeJSON(w, http.StatusOK, update.Info{Reason: "headless", Current: s.o.Version, Channel: update.ChannelOf(s.o.Version)})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.o.Update.Info())
+}
+
+func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
+	if s.o.Update == nil {
+		s.updateInfo(w, r)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
+	defer cancel()
+	info, err := s.o.Update.Check(ctx)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "update_check", "info": info})
+		return
+	}
+	writeJSON(w, http.StatusOK, info)
+}
+
+// updateInstall starts the installation and answers at once; the page follows it through /app/update/status.
+func (s *Server) updateInstall(w http.ResponseWriter, _ *http.Request) {
+	if s.o.Update == nil {
+		fail(w, http.StatusNotImplemented, "not_supported")
+		return
+	}
+	if st := s.o.Update.Status(); st.Phase == "downloading" || st.Phase == "installing" || st.Phase == "restarting" {
+		writeJSON(w, http.StatusAccepted, st)
+		return
+	}
+	go func() {
+		// the request is over by then, so the installation has a context of its own
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+		defer cancel()
+		_ = s.o.Update.Install(ctx)
+	}()
+	writeJSON(w, http.StatusAccepted, update.Status{Phase: "downloading"})
+}
+
+func (s *Server) updateStatus(w http.ResponseWriter, _ *http.Request) {
+	if s.o.Update == nil {
+		writeJSON(w, http.StatusOK, update.Status{Phase: "idle"})
+		return
+	}
+	st := s.o.Update.Status()
+	if st.Phase == "" {
+		st.Phase = "idle"
+	}
+	writeJSON(w, http.StatusOK, st)
 }
 
 func (s *Server) secretGet(w http.ResponseWriter, r *http.Request) {
@@ -380,6 +653,7 @@ func (s *Server) window(w http.ResponseWriter, r *http.Request) {
 		Kind  string `json:"kind"`
 		ID    string `json:"id"`
 		Title string `json:"title"`
+		Arg   string `json:"arg"` // a path for the editor
 	}
 	if !decode(w, r, &req) {
 		return
@@ -388,11 +662,11 @@ func (s *Server) window(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotImplemented, "no_native_windows")
 		return
 	}
-	if req.Kind != "terminal" || req.ID == "" {
+	if !windowKinds[req.Kind] || req.ID == "" {
 		fail(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	if err := s.o.OpenWindow(req.Kind, req.ID, req.Title); err != nil {
+	if err := s.o.OpenWindow(req.Kind, req.ID, req.Title, req.Arg); err != nil {
 		fail(w, http.StatusInternalServerError, "window")
 		return
 	}
@@ -407,5 +681,42 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusServiceUnavailable, "not_connected")
 		return
 	}
-	sess.Handler().ServeHTTP(w, r)
+	rec := &statusWriter{ResponseWriter: w}
+	sess.Handler().ServeHTTP(rec, r)
+	// the server no longer knows the kept session (it was idle for seven days, or it was ended): forget it
+	if rec.status == http.StatusUnauthorized && r.URL.Path == "/api/me" {
+		s.mu.Lock()
+		cur := s.prof
+		s.mu.Unlock()
+		s.keepSession(cur, "")
+	}
 }
+
+// statusWriter remembers the status of an answer; Flush and Hijack still reach the connection (the live stream and
+// the terminals need them).
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	if w.status == 0 {
+		w.status = code
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return http.NewResponseController(w.ResponseWriter).Hijack()
+}
+
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// windowKinds are the windows the interface may ask for.
+var windowKinds = map[string]bool{"terminal": true, "note": true, "files": true, "manager": true, "editor": true}

@@ -2,9 +2,9 @@ name: app
 on:
   push:
     branches: [main]
-    paths: ["app/**", ".github/workflows/app.yml"]
+    paths: ["app/**", ".github/workflows/app.yml", ".github/workflows/app-release.yml"]
   pull_request:
-    paths: ["app/**", ".github/workflows/app.yml"]
+    paths: ["app/**", ".github/workflows/app.yml", ".github/workflows/app-release.yml"]
 
 jobs:
   test:
@@ -23,7 +23,7 @@ jobs:
       - name: Interface
         run: |
           cd frontend && npm ci && npm run check && npm run build
-          node --test src/lib/*.test.mjs
+          node --test src/lib/*.test.mjs src/lib/assistant/*.test.mjs src/lib/desktop/*.test.mjs src/lib/keys/*.test.mjs
       - name: Go packages without a window
         run: go vet ./internal/... && go test ./internal/...
 

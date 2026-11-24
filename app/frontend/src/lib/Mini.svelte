@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import { t } from './i18n.svelte';
+  import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
   import { isWindows, levelOf, meter, tagsOf } from './status';
 
@@ -25,7 +26,8 @@
   const note = $derived(tagsOf(card).find((x) => x.tone === 'warn' || x.tone === 'crit' || x.id === 'offline'));
 </script>
 
-<article class="card mini st-{level}">
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+<article class="card mini st-{level}" onclick={(e) => !(e.target as Element).closest('button') && openServer(card.id)}>
   <header class="c-head">
     <span class="dot {level}"></span>
     <h3>{card.name}</h3>

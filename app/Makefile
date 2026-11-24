@@ -9,7 +9,7 @@ frontend:
 	cd frontend && npm ci && npm run build && touch dist/.gitkeep
 
 test: frontend
-	cd frontend && npm run check && node --test src/lib/*.test.mjs
+	cd frontend && npm run check && node --test src/lib/*.test.mjs src/lib/assistant/*.test.mjs src/lib/desktop/*.test.mjs src/lib/keys/*.test.mjs
 	go vet ./... && go test ./internal/...
 
 build: frontend
@@ -20,7 +20,7 @@ bundle: build
 	./build/macos/bundle.sh $(VERSION)
 
 zip: bundle
-	cd bin && ditto -c -k --keepParent Linager.app Linager-macos-$$(uname -m).zip
+	cd bin && ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent Linager.app Linager-macos-$$(uname -m).zip
 
 # the window of the application (a connection to a server is asked for on the first start)
 run: build

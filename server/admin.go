@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	cookieName     = "linager_session"
-	sessionTTL     = 12 * time.Hour
+	cookieName = "linager_session"
+	sessionTTL = 12 * time.Hour
+	// appSessionTTL is the sliding lifetime of a session of the desktop application (the application port)
+	appSessionTTL  = 7 * 24 * time.Hour
 	maxEnrollTries = 5
 )
 
@@ -449,13 +451,17 @@ func (a *Admin) finishLogin(w http.ResponseWriter, r *http.Request, u *store.Use
 	_ = a.DB.RecordLoginSuccess(r.Context(), u.ID)
 	token, hash := NewToken()
 	csrf := NewCSRF()
-	if err := a.DB.CreateSession(r.Context(), hash, u.ID, csrf, a.Trust.ClientIP(r), r.UserAgent(), sessionTTL); err != nil {
+	ttl, sliding := sessionTTL, false
+	if isDirect(r) { // the application port: seven days, renewed by every request
+		ttl, sliding = appSessionTTL, true
+	}
+	if err := a.DB.CreateSession(r.Context(), hash, u.ID, csrf, a.Trust.ClientIP(r), r.UserAgent(), ttl, sliding); err != nil {
 		jsonErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: token, //nolint:gosec // Secure follows cookie_secure/forwarded proto: plain-HTTP LANs are supported
 		Path: "/", HttpOnly: true, Secure: a.secureCookie(r),
-		SameSite: http.SameSiteStrictMode, MaxAge: int(sessionTTL.Seconds())})
+		SameSite: http.SameSiteStrictMode, MaxAge: int(ttl.Seconds())})
 	a.audit(r, u, "auth.login", "user", "", u.Login, "ok", map[string]any{"method": method})
 	writeJSON(w, http.StatusOK, a.sessionBody(r, u, csrf))
 }

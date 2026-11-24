@@ -61,6 +61,9 @@ func PinnedTLS(fp string) *tls.Config {
 	}
 }
 
+// SessionCookie is the name of the cookie of the panel session.
+const SessionCookie = "linager_session"
+
 // Target is a server the application is connected to.
 type Target struct {
 	Addr        string // host:port of the application port
@@ -71,12 +74,15 @@ type Target struct {
 // Session is one connection to a server. It keeps the cookies of the panel, so the sign-in lives here and never
 // reaches the web view.
 type Session struct {
-	T      Target
-	jar    *cookiejar.Jar
-	tr     *http.Transport
-	proxy  *httputil.ReverseProxy
-	mu     sync.Mutex
-	closed bool
+	T Target
+	// OnSession is called when the server sets (value != "") or clears (value == "") the session cookie, so the
+	// application can keep it for the next start.
+	OnSession func(value string)
+	jar       *cookiejar.Jar
+	tr        *http.Transport
+	proxy     *httputil.ReverseProxy
+	mu        sync.Mutex
+	closed    bool
 }
 
 // NewSession builds a session for a target.
@@ -146,6 +152,17 @@ func (s *Session) modify(resp *http.Response) error {
 	if cs := resp.Cookies(); len(cs) > 0 {
 		s.jar.SetCookies(resp.Request.URL, cs)
 		resp.Header.Del("Set-Cookie")
+		if s.OnSession != nil {
+			for _, c := range cs {
+				if c.Name == SessionCookie {
+					if c.MaxAge < 0 || c.Value == "" {
+						s.OnSession("")
+					} else {
+						s.OnSession(c.Value)
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -156,6 +173,22 @@ func (s *Session) Handler() http.Handler { return s.proxy }
 // Client is an HTTP client with the pin and the cookies of this session, for calls the application itself makes.
 func (s *Session) Client() *http.Client {
 	return &http.Client{Transport: s.tr, Jar: s.jar, Timeout: 20 * time.Second}
+}
+
+// Fetch makes a GET of a path with its query on the server, with the pin and the cookies of this session and without a
+// time limit (a download may be long); the caller closes the body.
+func (s *Session) Fetch(ctx context.Context, pathQuery string) (*http.Response, error) {
+	u, err := url.Parse(pathQuery)
+	if err != nil {
+		return nil, err
+	}
+	target := s.upstream(u.Path)
+	target.RawQuery = u.RawQuery
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	return (&http.Client{Transport: s.tr, Jar: s.jar}).Do(req)
 }
 
 // URL is the address of a path on the server.
@@ -169,4 +202,13 @@ func (s *Session) Close() {
 		s.closed = true
 		s.tr.CloseIdleConnections()
 	}
+}
+
+// RestoreSession puts a session cookie kept from an earlier run into the jar.
+func (s *Session) RestoreSession(value string) {
+	if value == "" {
+		return
+	}
+	u := s.upstream("/")
+	s.jar.SetCookies(u, []*http.Cookie{{Name: SessionCookie, Value: value, Path: "/", Secure: true, HttpOnly: true}})
 }

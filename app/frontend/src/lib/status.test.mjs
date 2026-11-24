@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/status.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { levelOf, meter, tagsOf, summarize, fmtRate, fmtUptime, sparkPath } from './status.ts';
+import { levelOf, meter, tagsOf, summarize, fmtRate, fmtUptime, fmtBytes, sparkPath } from './status.ts';
 
 const card = (over = {}, sample = {}) => ({
   id: 'a', name: 'a', address: '10.0.0.1', os: 'Debian 12', agent_version: '0.10.0', online: true, last_seen_at: null, spark: [], group_id: null,
@@ -51,4 +51,12 @@ test('a chart needs no data to be drawn without errors', () => {
   assert.deepEqual(sparkPath([]), { line: '', area: '' });
   assert.ok(sparkPath([50]).line.startsWith('M0.0,'));
   assert.ok(sparkPath([10, 90, 50]).area.endsWith('Z'));
+});
+
+test('sizes are written the way the panel writes them', () => {
+  assert.equal(fmtBytes(0), '0 B');
+  assert.equal(fmtBytes(1536), '1.5 KB');
+  assert.equal(fmtBytes(5 * 1024 ** 3), '5.0 GB');
+  assert.equal(fmtBytes(250 * 1024 ** 2), '250 MB');
+  assert.equal(fmtBytes(undefined), '—');
 });

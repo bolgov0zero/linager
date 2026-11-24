@@ -190,7 +190,10 @@ func aptBusy() bool {
 // is already running, the stream attaches to it and replays its events and log instead of starting
 // another one.
 func aptStream(ctx context.Context, raw json.RawMessage, sio *StreamIO, onDone func()) error {
-	var p struct{ Mode string }
+	var p struct {
+		Mode  string
+		Names []string
+	}
 	_ = json.Unmarshal(raw, &p)
 
 	aptMu.Lock()
@@ -222,6 +225,29 @@ func aptStream(ctx context.Context, raw json.RawMessage, sio *StreamIO, onDone f
 			if len(names) == 0 {
 				aptMu.Unlock()
 				return sio.Out([]byte("No security updates available.\n"))
+			}
+			args = append(append([]string{"install", "--only-upgrade"}, common...), names...)
+		case "packages":
+			// only the chosen packages, and only those apt itself lists as upgradable
+			pk, err := aptSimulate(ctx)
+			if err != nil {
+				aptMu.Unlock()
+				return err
+			}
+			want := map[string]bool{}
+			for _, n := range p.Names {
+				want[n] = true
+			}
+			names := []string{}
+			for _, x := range pk {
+				if want[x.Name] {
+					names = append(names, x.Name)
+					queue = append(queue, x)
+				}
+			}
+			if len(names) == 0 {
+				aptMu.Unlock()
+				return sio.Out([]byte("Nothing to install.\n"))
 			}
 			args = append(append([]string{"install", "--only-upgrade"}, common...), names...)
 		default:

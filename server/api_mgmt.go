@@ -716,10 +716,25 @@ func (a *Admin) streamParams(r *http.Request) (module string, params map[string]
 		switch m := q.Get("mode"); m {
 		case "update", "upgrade", "security":
 			return "apt", map[string]any{"mode": m}, true
+		case "packages":
+			// the chosen packages: a comma separated list of apt names (a name cannot start a flag)
+			names := []string{}
+			for _, n := range strings.Split(q.Get("names"), ",") {
+				if !aptName.MatchString(n) {
+					return "", nil, false
+				}
+				names = append(names, n)
+			}
+			if len(names) > 0 && len(names) <= 500 {
+				return "apt", map[string]any{"mode": "packages", "names": names}, true
+			}
 		}
 	}
 	return "", nil, false
 }
+
+// aptName is what a Debian package name may look like.
+var aptName = regexp.MustCompile(`^[a-z0-9][a-z0-9+.:~-]{0,127}$`)
 
 func (a *Admin) streamWS(w http.ResponseWriter, r *http.Request, u *store.User) {
 	s := a.serverOr404(w, r)

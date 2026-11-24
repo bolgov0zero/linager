@@ -111,16 +111,21 @@ type Session struct {
 }
 
 // CreateSession stores a session keyed by the hash of its token.
-func (s *Store) CreateSession(ctx context.Context, idHash []byte, userID int64, csrf, ip, ua string, ttl time.Duration) error {
-	_, err := s.Pool.Exec(ctx, `INSERT INTO sessions (id,user_id,csrf,ip,user_agent,expires_at) VALUES ($1,$2,$3,$4,$5,now()+make_interval(secs => $6))`,
-		idHash, userID, csrf, ip, ua, ttl.Seconds())
+// A sliding session is renewed by every request: it ends after ttl without one.
+func (s *Store) CreateSession(ctx context.Context, idHash []byte, userID int64, csrf, ip, ua string, ttl time.Duration, sliding bool) error {
+	secs := 0
+	if sliding {
+		secs = int(ttl.Seconds())
+	}
+	_, err := s.Pool.Exec(ctx, `INSERT INTO sessions (id,user_id,csrf,ip,user_agent,expires_at,sliding_secs) VALUES ($1,$2,$3,$4,$5,now()+make_interval(secs => $6),$7)`,
+		idHash, userID, csrf, ip, ua, ttl.Seconds(), secs)
 	return err
 }
 
 // SessionByHash returns a non-expired session and extends its last-seen time.
 func (s *Store) SessionByHash(ctx context.Context, idHash []byte) (*Session, error) {
 	var se Session
-	err := s.Pool.QueryRow(ctx, `UPDATE sessions SET last_seen=now() WHERE id=$1 AND expires_at>now() RETURNING id,user_id,csrf,expires_at`, idHash).
+	err := s.Pool.QueryRow(ctx, `UPDATE sessions SET last_seen=now(), expires_at=CASE WHEN sliding_secs>0 THEN now()+make_interval(secs => sliding_secs) ELSE expires_at END WHERE id=$1 AND expires_at>now() RETURNING id,user_id,csrf,expires_at`, idHash).
 		Scan(&se.ID, &se.UserID, &se.CSRF, &se.Expires)
 	if err != nil {
 		return nil, notFound(err)

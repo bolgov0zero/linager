@@ -106,3 +106,25 @@ export function sparkPath(values: number[], w = 160, h = 26): { line: string; ar
   const line = 'M' + pts.map((v, i) => `${(i * step).toFixed(1)},${(h - (Math.min(100, Math.max(0, v)) / 100) * h * 0.86 - 2).toFixed(1)}`).join(' L');
   return { line, area: `${line} L${w},${h} L0,${h}Z` };
 }
+
+export function fmtBytes(n: number | undefined): string {
+  if (n === undefined || !Number.isFinite(n)) return '—';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  let v = n;
+  while (v >= 1024 && i < u.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${u[i]}`;
+}
+
+/** The count of something with its unit of time "40д 4ч" from seconds. */
+export function fmtDuration(seconds: number, u: { d: string; h: string; min: string }): string {
+  return fmtUptime(seconds, u);
+}
+
+/** The Assistant is offered for Windows computers, and for a Linux computer whose agent says it has a graphical console. */
+export function assistantOffered(os: string, sample: { gui?: boolean } | null | undefined): boolean {
+  return isWindows(os) || sample?.gui === true;
+}

@@ -1,3 +1,4 @@
+import { getPref, setPref } from './prefs';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
 
@@ -8,7 +9,7 @@ const KEY = 'linager.locale';
 
 function initial(): Locale {
   try {
-    const saved = localStorage.getItem(KEY);
+    const saved = getPref(KEY);
     if (saved === 'ru' || saved === 'en') return saved;
   } catch {
     // no storage
@@ -21,11 +22,7 @@ export const i18n = $state<{ locale: Locale }>({ locale: initial() });
 export function setLocale(l: Locale): void {
   i18n.locale = l;
   document.documentElement.lang = l;
-  try {
-    localStorage.setItem(KEY, l);
-  } catch {
-    // no storage
-  }
+  setPref(KEY, l);
 }
 
 /** Translate a key; {name} placeholders are filled from vars. Reads i18n.locale, so a template re-renders on a change. */

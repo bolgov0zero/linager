@@ -4,10 +4,12 @@
   import Card from './Card.svelte';
   import CustomSelect from './CustomSelect.svelte';
   import Icon from './Icon.svelte';
+  import { getPref, setPref } from './prefs';
   import { t } from './i18n.svelte';
   import Mini from './Mini.svelte';
   import { native } from './native';
   import Rows from './Rows.svelte';
+  import SearchField from './SearchField.svelte';
   import { levelOf, sparkPath, summarize } from './status';
 
   let { nativeWindows }: { nativeWindows: boolean } = $props();
@@ -25,7 +27,7 @@
   let q = $state('');
   let layout = $state<Layout>(((): Layout => {
     try {
-      const v = localStorage.getItem(LKEY);
+      const v = getPref(LKEY);
       if (v === 'cards' || v === 'mini' || v === 'rows') return v;
     } catch {
       // no storage
@@ -35,11 +37,7 @@
 
   function setLayout(l: Layout): void {
     layout = l;
-    try {
-      localStorage.setItem(LKEY, l);
-    } catch {
-      // no storage
-    }
+    setPref(LKEY, l);
   }
 
   async function load(): Promise<void> {
@@ -99,6 +97,7 @@
   });
 </script>
 
+<div class="dash">
 <section class="tiles" aria-label="Summary">
   <div class="tile tone-{totals.offline > 0 ? 'crit' : 'ok'}">
     <div class="tile-h"><span>{t('dash.tile.online')}</span><Icon name="server" size={14} /></div>
@@ -131,7 +130,7 @@
   </div>
   <span class="grow"></span>
   <CustomSelect value={group} options={groupOptions} icon="folders" onchange={(v) => (group = v)} />
-  <label class="field"><Icon name="search" size={14} /><input id="q" placeholder={t('dash.search')} bind:value={q} /></label>
+  <SearchField id="q" placeholder={t('dash.search')} bind:value={q} />
   <div class="seg">
     <button type="button" aria-pressed={layout === 'cards'} title={t('dash.layout.cards')} onclick={() => setLayout('cards')}><Icon name="layout-grid" size={14} /></button>
     <button type="button" aria-pressed={layout === 'mini'} title={t('dash.layout.mini')} onclick={() => setLayout('mini')}><Icon name="layers" size={14} /></button>
@@ -148,9 +147,10 @@
 {:else if shown.length === 0}
   <div class="empty"><Icon name="search" size={26} /><p>{t('dash.nothing')}</p></div>
 {:else if layout === 'rows'}
-  <div class="tbl-wrap"><Rows cards={shown} {now} onterminal={terminal} /></div>
+  <div class="tbl-wrap fill"><Rows cards={shown} {now} onterminal={terminal} /></div>
 {:else if layout === 'mini'}
-  <div class="grid mini-grid">{#each shown as c (c.id)}<Mini card={c} onterminal={terminal} />{/each}</div>
+  <div class="dash-scroll"><div class="grid mini-grid">{#each shown as c (c.id)}<Mini card={c} onterminal={terminal} />{/each}</div></div>
 {:else}
-  <div class="grid">{#each shown as c (c.id)}<Card card={c} {now} onterminal={terminal} />{/each}</div>
+  <div class="dash-scroll"><div class="grid">{#each shown as c (c.id)}<Card card={c} {now} onterminal={terminal} />{/each}</div></div>
 {/if}
+</div>

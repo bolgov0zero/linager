@@ -9,6 +9,8 @@ export interface ProfileView {
   login: string;
   /** A password is saved in the keychain. */
   saved: boolean;
+  /** A session of an earlier run is kept (the server renews it for seven days of use): open without asking. */
+  session: boolean;
 }
 
 export interface AppState {
@@ -19,6 +21,8 @@ export interface AppState {
   /** The page runs inside the application window (false: in a browser during development). */
   native: boolean;
 }
+
+export type WindowKind = 'terminal' | 'note' | 'files' | 'manager' | 'editor';
 
 export class NativeError extends Error {
   constructor(
@@ -52,12 +56,18 @@ export const native = {
   secret: (profile: string) => call<{ password: string }>('GET', `secret?profile=${encodeURIComponent(profile)}`),
   saveSecret: (profile: string, password: string) => call<{ ok: boolean }>('PUT', 'secret', { profile, password }),
   forgetSecret: (profile: string) => call<{ ok: boolean }>('DELETE', `secret?profile=${encodeURIComponent(profile)}`),
+  /** Saves a file of the server (a path of its API) to the disk: the application asks where. saved is the path; cancelled when it was. */
+  download: (path: string, name: string) => call<{ saved?: string; cancelled?: boolean }>('POST', 'download', { path, name }),
+  /** The file of the vault (Keys): the application asks which file (a native dialog) and returns its bytes (base64). */
+  vaultOpen: () => call<{ name?: string; data?: string; cancelled?: boolean }>('POST', 'vault/open', {}),
+  /** The application asks where to save the file (a native dialog) and writes the bytes (base64, already encrypted). */
+  vaultSave: (name: string, data: string) => call<{ saved?: string; name?: string; cancelled?: boolean }>('POST', 'vault/save', { name, data }),
   /** Opens a native window; in a browser (development) the same page opens in a new tab. */
-  openWindow: async (kind: 'terminal', id: string, title: string, native: boolean): Promise<void> => {
+  openWindow: async (kind: WindowKind, id: string, title: string, native: boolean, arg = ''): Promise<void> => {
     if (native) {
-      await call<{ ok: boolean }>('POST', 'window', { kind, id, title });
+      await call<{ ok: boolean }>('POST', 'window', { kind, id, title, arg });
       return;
     }
-    window.open(`#/w/${kind}/${encodeURIComponent(id)}?title=${encodeURIComponent(title)}`, '_blank', 'popup,width=900,height=560');
+    window.open(`#/w/${kind}/${encodeURIComponent(id)}?title=${encodeURIComponent(title)}&arg=${encodeURIComponent(arg)}`, '_blank', 'popup,width=900,height=560');
   },
 };

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 
@@ -22,6 +23,7 @@ import (
 
 	"github.com/bolgov0zero/linager/app/internal/local"
 	"github.com/bolgov0zero/linager/app/internal/profiles"
+	"github.com/bolgov0zero/linager/app/internal/update"
 )
 
 //go:embed all:frontend/dist
@@ -57,11 +59,29 @@ func main() {
 		secrets = &profiles.Memory{} // development runs must not touch the keychain of the person
 	}
 
-	opts := local.Options{Assets: assets, Profiles: store, Secrets: secrets, Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
+	opts := local.Options{Assets: assets, Profiles: store, Prefs: profiles.OpenPrefs(profiles.PrefsPath(path)), Secrets: secrets, Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
 	var wins *windows
 	if !*headless {
+		update.CleanupOld() // the program that was replaced by the last update could not delete itself
 		wins = &windows{open: map[string]*application.WebviewWindow{}}
-		opts.OpenWindow = wins.openTerminal
+		cache, cerr := os.UserCacheDir()
+		if cerr != nil {
+			cache = os.TempDir()
+		}
+		up, uerr := update.New(version, filepath.Join(cache, "Linager", "update"), func() { wins.app.Quit() })
+		if uerr != nil {
+			log.Fatalf("update: %v", uerr)
+		}
+		opts.Update = up
+		opts.OpenWindow = wins.show
+		opts.PickFile = func(ext string) (string, bool, error) {
+			path, err := wins.app.Dialog.OpenFile().AddFilter("Linager keys", "*"+ext).CanChooseFiles(true).CanChooseDirectories(false).PromptForSingleSelection()
+			return path, path != "", err
+		}
+		opts.SaveFile = func(name string) (string, bool, error) {
+			path, err := wins.app.Dialog.SaveFile().SetFilename(name).CanCreateDirectories(true).PromptForSingleSelection()
+			return path, path != "", err
+		}
 	}
 	srv, err := local.New(opts)
 	if err != nil {
@@ -116,8 +136,28 @@ type windows struct {
 	open map[string]*application.WebviewWindow
 }
 
-func (w *windows) openTerminal(kind, id, title string) error {
-	key := kind + ":" + id
+// winSpec is the size of a window of a kind and what the person may do with it. Only the terminal, the files, the
+// manager and the editor are maximized; the note is a small window.
+type winSpec struct {
+	title        string
+	w, h, mw, mh int
+	noMaximise   bool
+}
+
+var winSpecs = map[string]winSpec{
+	"terminal": {"Terminal", 900, 560, 480, 280, false},
+	"files":    {"Files", 900, 560, 560, 320, false},
+	"manager":  {"Manager", 820, 560, 520, 320, false},
+	"editor":   {"Editor", 820, 560, 480, 280, false},
+	"note":     {"Note", 440, 320, 320, 220, true},
+}
+
+func (w *windows) show(kind, id, title, arg string) error {
+	sp, ok := winSpecs[kind]
+	if !ok {
+		return fmt.Errorf("unknown window %q", kind)
+	}
+	key := kind + ":" + id + ":" + arg
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if win, ok := w.open[key]; ok {
@@ -127,14 +167,18 @@ func (w *windows) openTerminal(kind, id, title string) error {
 		win.Focus()
 		return nil
 	}
-	win := w.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     "Terminal · " + title,
-		Width:     900,
-		Height:    560,
-		MinWidth:  480,
-		MinHeight: 280,
-		URL:       w.base + "#/w/" + kind + "/" + id + "?title=" + queryEscape(title),
-	})
+	o := application.WebviewWindowOptions{
+		Title:     sp.title + " · " + title,
+		Width:     sp.w,
+		Height:    sp.h,
+		MinWidth:  sp.mw,
+		MinHeight: sp.mh,
+		URL:       w.base + "#/w/" + kind + "/" + url.PathEscape(id) + "?title=" + queryEscape(title) + "&arg=" + queryEscape(arg),
+	}
+	if sp.noMaximise {
+		o.MaximiseButtonState = application.ButtonDisabled
+	}
+	win := w.app.Window.NewWithOptions(o)
 	w.open[key] = win
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		w.mu.Lock()

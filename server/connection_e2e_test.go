@@ -300,3 +300,113 @@ func TestConnectionPortsAndMove(t *testing.T) {
 		t.Fatalf("the agent must fall back and remember the bad port: %+v %v", back, err)
 	}
 }
+
+// TestAppSessionLifetime: a session made on the application port lasts seven days and is renewed by every request (after
+// seven idle days the password and 2FA are asked again); a browser session keeps its fixed 12 hours.
+func TestAppSessionLifetime(t *testing.T) {
+	dsn := os.Getenv("LINAGER_TEST_DSN")
+	if dsn == "" {
+		t.Skip("LINAGER_TEST_DSN is not set")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pc, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pc.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public`); err != nil {
+		t.Fatal(err)
+	}
+	_ = pc.Close(ctx)
+	dir := t.TempDir()
+	cfg := &config.Server{DataDir: dir}
+	cfg.Database.DSN = dsn
+	cfg.Admin.Listen, cfg.Agents.Listen, cfg.App.Listen = freeAddr(t), freeAddr(t), freeAddr(t)
+	cfg.Agents.Hosts = []string{"127.0.0.1"}
+	cfg.Admin.CookieSecure = "never"
+	cfg.Admin.LoginRate = 1000
+	if err := server.InitKeys(dir, cfg.Agents.Hosts); err != nil {
+		t.Fatal(err)
+	}
+	keys, _ := server.LoadKeys(dir)
+	db, err := store.Open(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := server.CreateAdmin(ctx, db, "admin", "a-long-test-password"); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		_ = server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		close(done)
+	}()
+	defer func() { cancel(); <-done }()
+	waitFor(t, "server", func() bool { return portOpen(cfg.Admin.Listen) && portOpen(cfg.App.Listen) })
+
+	fp := pki.Fingerprint(keys.TLSDER)
+	jar, _ := cookiejar.New(nil)
+	hc := &http.Client{Jar: jar, Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, //nolint:gosec // the pin is checked below
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 || pki.Fingerprint(cs.PeerCertificates[0].Raw) != fp {
+				return io.ErrUnexpectedEOF
+			}
+			return nil
+		}}}}
+	app := &apiClient{t: t, base: "https://" + cfg.App.Listen, hc: hc}
+	var lr struct{ CSRF string }
+	if code := app.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, &lr); code != 200 {
+		t.Fatalf("sign-in on the application port: %d", code)
+	}
+	browser := &apiClient{t: t, base: "http://" + cfg.Admin.Listen, hc: &http.Client{Jar: func() *cookiejar.Jar { j, _ := cookiejar.New(nil); return j }()}}
+	browser.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, nil)
+
+	type row struct {
+		sliding int
+		secs    float64
+	}
+	rows := func() []row {
+		r, err := db.Pool.Query(ctx, `SELECT sliding_secs, extract(epoch from expires_at - now()) FROM sessions ORDER BY sliding_secs`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
+		var out []row
+		for r.Next() {
+			var x row
+			if err := r.Scan(&x.sliding, &x.secs); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, x)
+		}
+		return out
+	}
+	got := rows()
+	if len(got) != 2 || got[0].sliding != 0 || got[0].secs > 12*3600 || got[1].sliding != 7*24*3600 || got[1].secs < 7*24*3600-60 {
+		t.Fatalf("a browser session of 12 hours and an application session of 7 days: %+v", got)
+	}
+	// idle for six days, then a request: the seven days start again
+	if _, err := db.Pool.Exec(ctx, `UPDATE sessions SET expires_at = now() + interval '1 day' WHERE sliding_secs > 0`); err != nil {
+		t.Fatal(err)
+	}
+	if code := app.do("GET", "/api/me", nil, nil); code != 200 {
+		t.Fatalf("a request on the application port: %d", code)
+	}
+	if got := rows(); got[1].secs < 7*24*3600-60 {
+		t.Fatalf("a request must renew the session: %+v", got)
+	}
+	// seven idle days: the session is over
+	if _, err := db.Pool.Exec(ctx, `UPDATE sessions SET expires_at = now() - interval '1 second' WHERE sliding_secs > 0`); err != nil {
+		t.Fatal(err)
+	}
+	if code := app.do("GET", "/api/me", nil, nil); code != http.StatusUnauthorized {
+		t.Fatalf("an idle session must end: %d", code)
+	}
+	// the browser session does not slide
+	before := rows()[0].secs
+	browser.do("GET", "/api/me", nil, nil)
+	if after := rows()[0].secs; after > before+1 {
+		t.Fatalf("a browser session must not slide: %v -> %v", before, after)
+	}
+}

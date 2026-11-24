@@ -2,7 +2,7 @@
 
 The desktop application (macOS, Windows, Linux) shows the interface of a server in native windows. It will replace the web panel: `web/` is frozen and will be removed after the transition. The server is installed with the terminal installer (`linager install server`); the application connects to a ready server.
 
-**State (stage 1, beta).** Done: the connection with a certificate check, sign-in (login, password, 2FA), the dashboard in three layouts (cards, compact cards, rows), light and dark themes, Russian and English, a terminal in a window of its own. Not yet: the server page, files, the editor, the Console, RDP and the Assistant, settings, the tray and notifications, self-update, sign-in with a passkey.
+**State (stage 2).** There is the server page: Overview, Metrics, Terminal, Services, Processes, Logs, Updates, Disk, Files (tree and table), Network, Firewall, Security, Users, Docker; dangerous actions ask first. Every tab can be changed: users, SSH sessions, fail2ban and keys, the network and the firewall (with a 30 second rollback), Docker (containers, images, editing a container). Windows of their own: the terminal (user list, snippets, Files, Manager), the note, files, the manager, the file editor. The Console: the list of servers, tabs of sessions, terminals, the Assistant, RDP and Keys (the key button of the top bar, the file is opened and saved through the dialogs of the system). The Windows tabs (users, Windows Update, programs, network adapters). Earlier: the connection with a certificate check, sign-in (login, password, 2FA), the dashboard in three layouts (cards, compact cards, rows), light and dark themes, Russian and English, a terminal in a window of its own. Self-update from a button in Settings → Updates. Not yet: other settings, the tray and notifications, signed and notarized builds, sign-in with a passkey.
 
 ## Connecting
 
@@ -11,7 +11,9 @@ The desktop application (macOS, Windows, Linux) shows the interface of a server 
 3. Compare it with the fingerprint in the server settings or in the installation summary and confirm. The application remembers it and accepts only this certificate from then on (the way SSH remembers a host key). If the certificate ever changes, the application refuses to connect and warns you.
 4. Sign in. The password can be saved in the keychain of the system (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux); then sign-in is automatic, and the 2FA code, if it is on, is still asked.
 
-The list of servers and the last login are in `<user config dir>/Linager/profiles.json` (mode 600, nothing secret: a fingerprint is public).
+The session lasts seven days and is renewed by every request to the server (plain use of the dashboard counts): while the application is used there is no need to sign in again, and after seven days without activity the password and 2FA are asked again. The application keeps the session cookie in the keychain and forgets it on sign-out. A browser panel session stays at 12 hours as before. The server must be 0.10.0-beta.4 or newer.
+
+The list of servers and the last login are in `<user config dir>/Linager/profiles.json` (mode 600, nothing secret: a fingerprint is public). `prefs.json` lies next to it: the theme, the language, the layout of the dashboard, the sort of the rows and the section of the top bar (Dashboard or Console), so that they last between starts.
 
 ## How it works
 
@@ -25,14 +27,30 @@ The interface (`app/frontend`, Svelte) does not depend on Wails, so it can also 
 
 ## Getting the application
 
-There are no ready files in the releases yet, the application is built from the sources (Go, Node.js and the Xcode Command Line Tools are needed):
+The ready files are in the [releases](https://github.com/bolgov0zero/linager/releases) (from `0.10.0-beta.4`, betas for now):
+
+| System | File | Inside |
+|---|---|---|
+| macOS (Apple Silicon only) | `Linager-macos-arm64.zip` | `Linager.app` |
+| Windows 10/11 x64 | `Linager-windows-x64.zip` | `linager-app.exe` (WebView2 is needed, Windows 11 has it) |
+| Linux x64 | `Linager-linux-x64.tar.gz` | `linager-app` (`libgtk-4` and `libwebkitgtk-6.0` are needed) |
+
+Unpack and run. The builds are not signed by a developer or notarized: on macOS open the application from the context menu the first time (right click, "Open"); if macOS says the file is damaged (it does with a zip downloaded from the network), remove the quarantine: `xattr -dr com.apple.quarantine Linager.app`. Windows shows SmartScreen. Put the application where you can write (on macOS `~/Applications`, or `/Applications` as an administrator): self-update replaces the files in place.
+
+The checksums of every file are in `SHA256SUMS` and in the signed `manifest.json`, with the same release signature (minisign) as the server and the agent.
+
+## Updating the application
+
+The gear of the top bar opens **Settings → Updates**: the version, the channel (a beta follows the betas, a stable version the stable ones), the buttons "Check" and "Update and restart". The application checks at the start and every six hours (can be turned off in the settings); the gear gets a dot when a new version exists. **An update is installed only on your button press.**
+
+What the button does: the application reads the list of releases from GitHub, takes the newest one with a file for your system, verifies the signature of `manifest.json` and the version in it, downloads the file and compares its size and sha256 with the signed manifest, unpacks it next to itself and replaces itself (on macOS the whole `Linager.app` is swapped and the old copy is put back on a failure; on Windows the old file is renamed to `.old` and removed at the next start), then starts the new version and quits. A file that is unsigned or does not match the manifest is never installed. A build from a working tree (`make run`, version `dev`) and the run without a window (`-headless`) do not update.
+
+Install the first beta with the application (`0.10.0-beta.4`) by hand; later updates arrive through the application. To build your own copy from the sources (Go, Node.js and, on macOS, the Xcode Command Line Tools are needed):
 
 ```bash
 make -C app bundle   # app/bin/Linager.app
 make -C app zip      # app/bin/Linager-macos-arm64.zip (x86_64 on Intel), to hand it to another Mac
 ```
-
-The build is signed ad hoc only, not by a developer, and not notarized. Open it from the context menu the first time (right click, "Open"). If macOS says the file is damaged (it does with a zip downloaded from the network), remove the quarantine: `xattr -dr com.apple.quarantine Linager.app`.
 
 ## Building and running
 
