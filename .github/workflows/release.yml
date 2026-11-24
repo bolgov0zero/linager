@@ -30,9 +30,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - name: Build
         run: make build VERSION="${GITHUB_REF_NAME}"
       - name: Windows agent

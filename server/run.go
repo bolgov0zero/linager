@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,8 +58,8 @@ func ResetPassword(ctx context.Context, db *store.Store, login, password string)
 	return nil
 }
 
-// Run starts the admin and agent listeners and blocks until ctx is cancelled.
-func Run(ctx context.Context, cfg *config.Server, static fs.FS, log *slog.Logger) error {
+// Run starts the agent and application listeners and blocks until ctx is cancelled.
+func Run(ctx context.Context, cfg *config.Server, log *slog.Logger) error {
 	db, err := store.Open(ctx, cfg.Database.DSN)
 	if err != nil {
 		return err
@@ -83,7 +81,7 @@ func Run(ctx context.Context, cfg *config.Server, static fs.FS, log *slog.Logger
 		go updates.AgentOnline(ctx, id, online)
 	}
 	go updates.Run(ctx)
-	admin, err := NewAdmin(db, keys, hub, live, metrics, updates, cfg, static, log)
+	admin, err := NewAdmin(db, keys, hub, live, metrics, updates, cfg, log)
 	if err != nil {
 		return err
 	}
@@ -103,18 +101,11 @@ func Run(ctx context.Context, cfg *config.Server, static fs.FS, log *slog.Logger
 	go (&Scheduler{DB: db, Log: log}).Run(ctx)
 	go admin.Access.Run(ctx)
 
-	adminHandler := admin.Handler()
-	adminSrv := &http.Server{Addr: cfg.Admin.Listen, Handler: adminHandler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 64 << 10}
-	adminLn, err := net.Listen("tcp", cfg.Admin.Listen)
-	if err != nil {
-		return err
-	}
+	// the API is served on the application port (and nowhere else): the interface is the desktop application
 	errc := make(chan error, 4)
-	if err := conn.Start(errc, adminHandler); err != nil {
-		_ = adminLn.Close()
+	if err := conn.Start(errc, admin.Handler()); err != nil {
 		return err
 	}
-	go func() { errc <- adminSrv.Serve(adminLn) }()
 	go func() {
 		t := time.NewTicker(10 * time.Minute)
 		defer t.Stop()
@@ -130,7 +121,7 @@ func Run(ctx context.Context, cfg *config.Server, static fs.FS, log *slog.Logger
 		}
 	}()
 	st := conn.State()
-	log.Info("linager server started", "admin", cfg.Admin.Listen, "agents", cfg.Agents.Listen, "agent_port", st.AgentPort, "app_port", st.AppPort, "move_from", st.LegacyPort)
+	log.Info("linager server started", "agents", cfg.Agents.Listen, "agent_port", st.AgentPort, "app_port", st.AppPort, "move_from", st.LegacyPort)
 
 	select {
 	case <-ctx.Done():
@@ -138,7 +129,6 @@ func Run(ctx context.Context, cfg *config.Server, static fs.FS, log *slog.Logger
 	}
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = adminSrv.Shutdown(shutdown)
 	conn.Shutdown(shutdown)
 	if errors.Is(err, http.ErrServerClosed) {
 		err = nil

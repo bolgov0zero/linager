@@ -1,70 +1,48 @@
-# Admin panel access
+# Server access
 
-Settings → **Admin access** restricts who may open the admin panel and shows a journal of visits. The restriction applies to the admin panel port only; the agent port is not affected, so servers stay connected.
+Settings in the application → **Server access** restricts who may connect to the application port and shows a journal of the connections. This is the only way to the interface (there is no web panel any more), so the restriction applies to all the management. The agent port is not affected, the servers stay connected.
 
-![Access restriction](../screenshots/en/access-restriction.png)
+The application port accepts a direct TLS connection, nothing stands in front of it. The address of the connection itself is judged; `X-Forwarded-For` and the like are dropped.
 
 ## Modes
 
 | Mode | Behavior |
 |---|---|
-| Off | The panel is open to everybody who reaches the port. |
-| White list | Whatever is not listed is refused. Good when you know where you sign in from. |
+| Off | Anyone who reaches the port may connect. |
+| White list | Whatever is not listed is refused. Good when you know where you connect from. |
 | Black list | Whatever is not listed is allowed. Closes only the addresses you know are unwanted. |
 
-Each mode has its own list of addresses, networks (`203.0.113.7` or `203.0.113.0/24`, IPv6 too) and host names (see "Host names and DDNS") with a comment. The button "+ Private networks (RFC 1918)" adds `10.0.0.0/8`, `172.16.0.0/12` and `192.168.0.0/16` to the white list. "Check an address" tells what the server would do with an address, through a trusted proxy or directly.
+Each mode has its own list of addresses, networks (`203.0.113.7` or `203.0.113.0/24`, IPv6 too) and host names (see "Host names and DDNS") with a comment. The button "+ Private networks (RFC 1918)" adds `10.0.0.0/8`, `172.16.0.0/12` and `192.168.0.0/16` to the white list. "Test an address" shows what the server would do with the given address.
 
 ## Host names and DDNS
 
-If you have no fixed public address but you have a DDNS name (for example `home.example.duckdns.org`), put the name into the list instead of an address. It carries the tag `DDNS`, and the column "Points to now" shows the addresses the name resolved to (IPv4 and IPv6) and when it was last checked.
+If you have no permanent external address but have a DDNS name (for example `home.example.duckdns.org`), put the name in the list instead of an address. It is marked `DDNS`, and the column "Points to now" shows the addresses it resolved to (IPv4 and IPv6) and the time of the last check.
 
-- The server reads the names again in the background once a minute and puts new addresses in force at once. The button "Refresh" does it immediately. A name is added only when DNS knows it.
-- When DNS stops answering, the last known address stays in force (it is kept in the database and survives a restart of the server). If there has been no answer for more than a day, the address stops counting: a name that has been gone for long must not keep an address open for ever. So after a long DNS outage a white list may lock you out as well; `linager access reset` helps then.
-- Names are allowed in the white and black lists only. They cannot be trusted proxies: DNS would let `X-Forwarded-For` be forged. A name needs a dot and the Latin form (an IDN is written as `xn--...`); a list holds at most 20 names.
+- The server looks the names up in the background once a minute and puts new addresses in force at once. The button "Refresh" does it immediately. A name is added only when DNS knows it. The server resolves the name, not the application: it has its own DNS and it is the one that applies the list. When the common lookup of the IPv4 and IPv6 addresses fails (it happens with the DNS proxies of home routers), the server asks for each family one after the other; on an error the message and the row of the table show what DNS answered.
+- If DNS stops answering, the last known address stays in force (it is kept in the database and survives a restart of the server). If there has been no answer for more than a day, the address stops counting: a name that has been gone for long must not keep an address open for ever. Because of this a long DNS outage may lock you out too: `linager access reset` helps then.
+- Names with a dot in Latin spelling are accepted (Cyrillic domains are written as `xn--...`); a list holds up to 20 names.
 
 ::: warning What to know about DDNS
-- **A delay after the address changes.** From the moment the provider changes your address until the DDNS record and the server catch up (up to a minute plus the TTL of the record), the old address stays allowed. Another subscriber of the provider may get it.
-- **CGNAT.** If the provider shares one public address between many subscribers, a white list by such an address protects little: any of them can get in.
-- **Trust in DNS.** Whoever can change the DDNS record (for example by stealing the password of the service account) gets into the panel. Turn on two-factor sign-in for the DDNS account.
+- **Delay after an address change.** While the provider has changed the address and the DDNS record and the server have not caught up (up to a minute plus the TTL of the record), the old address stays allowed. Another subscriber of the provider may get it.
+- **CGNAT.** If the provider shares one external address between many subscribers, a white list by such an address protects little: any of them can connect.
+- **Trust in DNS.** Whoever can change the DDNS record (for example by stealing the password of the service account) gets access to the server. Turn on two-factor sign-in in the DDNS account.
 
-The most reliable way is to come in through a VPN (WireGuard, Tailscale) and let only its address into the panel.
+The most reliable way is to connect through a VPN (WireGuard, Tailscale) and let only its address reach the port.
 :::
-
-## Trusted proxies
-
-Behind a reverse proxy such as Nginx Proxy Manager the connection arrives from the proxy, not from the visitor. The server reads the real address from `X-Forwarded-For` **only** when the connection comes from a trusted proxy. A connection from any other address is judged by its own address and the header is ignored, so the header cannot be forged and the local network can connect directly.
-
-When you open the section through the proxy, it shows how the request arrived and offers "Add … as a trusted proxy". Add the proxy and remove the default `0.0.0.0/0` (everybody trusted): while everybody is trusted, the lists cannot be turned on.
-
-::: warning Do not leave the proxy untrusted
-If the proxy is not trusted and the white list holds your whole local network, every visitor looks like the proxy (a local address) and the internet gets in. The panel warns about it and refuses to save such settings.
-:::
-
-The switch **Only through trusted proxies** refuses direct connections to the port (a local network included), even when the address is in the list.
-
-If Nginx Proxy Manager sits behind Cloudflare, turn on passing the real visitor address in NPM, otherwise you will see the address of Cloudflare. If NPM runs in Docker on the same host, Linager may see it from the gateway of the Docker network (for example `172.17.0.1`): add exactly the address the interface shows.
 
 ## What cannot be saved
 
-The panel checks every change and refuses to apply it when:
+The server checks every change and does not apply it if:
 
-- it would lock you out (your own address would be refused);
-- everybody is trusted (`0.0.0.0/0`);
-- a proxy sends `X-Forwarded-For` but is not in the trusted list;
+- it would lock you out (your address would be refused);
 - the white list is empty;
-- a host name of a list does not resolve to an address (DNS does not know it).
+- a host name of the list does not resolve to an address (DNS does not know it).
 
-Applying asks for a confirmation and is written to the audit log (`access.update`).
+Applying needs a confirmation and is written to the audit log (`appaccess.update`).
 
-## Access journal
+## The journal of connections
 
-![Trusted proxies and the access journal](../screenshots/en/access-journal.png)
-
-The journal records page opens, sign-ins (good and failed) and refused requests with the client address and the proxy they came through. Filters: all, refused, sign-ins, failed sign-ins, through a proxy, direct. "To white list" / "to black list" puts an address into the list in one click. Retention is 7, 30 or 90 days. Background requests of the interface are not written.
-
-## Server update and the restriction
-
-After an update the server checks that the new version came up: the updater asks the panel root from the server itself (directly, without `X-Forwarded-For` and not as a browser). This request is let through the restriction, so 127.0.0.1 does not have to be in a list. Every other address and path, and a browser on the server itself, are judged by the rules as usual.
+The journal holds the sign-ins (successful or not) and the refused requests with the address of the client. Filters: all, refused, sign-ins, failed sign-ins. "To white list" and "to black list" add an address with one click. Entries are kept for 30 days. Background requests of the application are not written.
 
 ## If you lock yourself out
 
@@ -74,8 +52,8 @@ On the server:
 sudo linager access reset
 ```
 
-The restriction turns off (the admin panel and the application port), the lists stay. A running server applies it within a few seconds.
+The restriction of the application port turns off, the lists stay. A running server applies it within a few seconds.
 
-## Server access (the application port)
+## Carried over from the admin panel
 
-The application port has its own lists: Settings in the application → **Server access**. It is a white or black list of addresses and networks (addresses, networks and host names like in the admin panel: the addresses of a name come from DNS once a minute), a test of an address and the journal of the connections of the application. The port is direct, without a proxy: the address of the connection itself is judged and `X-Forwarded-For` is dropped. Until the list of the port is saved it follows the restriction of the admin panel (as before); after the first "Apply" they are independent. A list that would close the port to you yourself cannot be applied. `linager access reset` turns both restrictions off.
+Before 0.10.0-beta.17 the admin panel (the web panel) had a restriction of its own, and the application port followed it until the port had lists of its own. At the first start of the new version the server carries those lists (the mode, the white and black lists, host names included) to the lists of the application port once, so that a port that was closed stays closed. The trusted proxies and "only through a trusted proxy" are not carried: they no longer exist.

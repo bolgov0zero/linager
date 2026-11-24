@@ -18,7 +18,6 @@ type userView struct {
 	Login        string    `json:"login"`
 	Role         string    `json:"role"`
 	TOTPEnabled  bool      `json:"totp_enabled"`
-	Passkeys     int       `json:"passkeys"`
 	RecoveryLeft int       `json:"recovery_left"`
 	CreatedAt    time.Time `json:"created_at"`
 	Current      bool      `json:"current"`
@@ -34,7 +33,7 @@ func (a *Admin) usersList(w http.ResponseWriter, r *http.Request, u *store.User)
 	}
 	out := make([]userView, 0, len(rows))
 	for _, x := range rows {
-		v := userView{ID: x.ID, Login: x.Login, Role: x.Role, TOTPEnabled: x.TOTPEnabled, Passkeys: x.Passkeys,
+		v := userView{ID: x.ID, Login: x.Login, Role: x.Role, TOTPEnabled: x.TOTPEnabled,
 			RecoveryLeft: x.RecoveryLeft, CreatedAt: x.CreatedAt, Current: x.ID == u.ID}
 		if x.Role != store.RoleAdmin {
 			if acc, err := a.DB.UserAccess(r.Context(), x.ID); err == nil {

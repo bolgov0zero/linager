@@ -6,7 +6,7 @@
 
 - **The file is kept by you, not by the server.** The database of the panel, `/etc/linager` and the audit journal have neither the keys nor the passphrase. A leaked database or a compromised panel server does not reveal the keys.
 - **Decrypted in the memory of the tab only.** The file is opened once per tab (choose the file and enter the passphrase); the decrypted data lives in the memory of the page and is saved nowhere: not in `localStorage`, not in `sessionStorage`, not in IndexedDB. Closing the tab, reloading the page, signing out and the auto-lock forget everything.
-- **The password goes only to the RDP client** (in the browser). It is not sent to the panel server.
+- **The password goes only to the RDP client** (in the application). It is not sent to the panel server.
 - **The passphrase cannot be recovered.** A forgotten passphrase means a lost file. Make a copy of the file and keep it apart.
 
 ## How to use it
@@ -18,7 +18,7 @@
 5. **Save the file** encrypts the vault again and downloads a new `.lvault`; replace the old file with it. While there are unsaved changes the button has the accent colour, a badge shows in the window, and the browser asks for confirmation when the tab is closed.
 6. **Close the window** leaves the vault open until the tab is closed. **Close the vault** forgets the decrypted data at once (with unsaved changes it asks what to do).
 
-The auto-lock (15 minutes of silence by default; 5, 30 or off; the choice is remembered in the browser) closes the vault by itself. With unsaved changes it stays open until you save the file, and closes then.
+The auto-lock (15 minutes of silence by default; 5, 30 or off; the choice is remembered in the application) closes the vault by itself. With unsaved changes it stays open until you save the file, and closes then.
 
 ## A key
 
@@ -31,11 +31,11 @@ The auto-lock (15 minutes of silence by default; 5, 30 or off; the choice is rem
 | Password | Can be shown, and a random one (20 characters) can be generated. |
 | Note | Optional. |
 
-**A binding only sets the order in the lists, it is not protection.** In the RDP form the keys bound to this server come first, then those of its group, then those for all; the rest are behind "Show all". Every key of the file is open to whoever opened the file. If the servers or groups a key is bound to are removed from the panel, the key gets the badge "not found", and a key with no living binding counts as general; the dead binding can be taken off in the window of the key.
+**A binding only sets the order in the lists, it is not protection.** In the RDP form the keys bound to this server come first, then those of its group, then those for all; the rest are behind "Show all". Every key of the file is open to whoever opened the file. If the servers or groups a key is bound to are removed from the application, the key gets the badge "not found", and a key with no living binding counts as general; the dead binding can be taken off in the window of the key.
 
 ## The RDP form
 
-In the connection form (the tab "RDP" and the floating window) there is a list **"Key"** above the login. When the vault is closed, the list has the button "Open…": it opens a small window with the file and the passphrase (not the whole window "Keys"), and once the vault is open the list of keys unfolds by itself. Choosing a key **connects at once**: the login, the domain and the password go to the RDP client in the browser (CredSSP), the password is not sent to the panel server. If the connection fails, the form comes back with the fields filled. The list opens over the page like the other drop-down lists (as a sheet from the bottom on a phone) and does not make the window taller. The connection is written to the audit with the login, as before.
+In the connection form (the tab "RDP" and the floating window) there is a list **"Key"** above the login. When the vault is closed, the list has the button "Open…": it opens a small window with the file and the passphrase (not the whole window "Keys"), and once the vault is open the list of keys unfolds by itself. Choosing a key **connects at once**: the login, the domain and the password go to the RDP client in the application (CredSSP), the password is not sent to the panel server. If the connection fails, the form comes back with the fields filled. The list opens over the page like the other drop-down lists (as a sheet from the bottom on a phone) and does not make the window taller. The connection is written to the audit with the login, as before.
 
 ## Typing on the lock screen, the sign-in screen and into a UAC prompt
 
@@ -51,7 +51,7 @@ How it works and what to expect:
 
 - The text is typed as **characters** (`SendInput` with `KEYEVENTF_UNICODE`), not as keys: the keyboard layout of the computer does not matter and the clipboard is not used, so the password does not stay in it.
 - **The agent types only on the secure desktop and checks it at the moment of typing.** If a UAC prompt went away between the click and the typing, the password is not typed into the window of the person: the helper refuses and the panel shows "Typing refused".
-- **The password passes through the panel server in memory**: the browser, the server, the agent (through the same protected channels as the screen). The server writes it neither to the database nor to the journal, but it sees it in memory while it is typed. Unlike RDP, where the password stays in the browser, this cannot be avoided here: the agent types it. There is no "browser to agent" encryption on top of the channel yet.
+- **The password passes through the panel server in memory**: the browser, the server, the agent (through the same protected channels as the screen). The server writes it neither to the database nor to the journal, but it sees it in memory while it is typed. Unlike RDP, where the password stays in the application, this cannot be avoided here: the agent types it. There is no "browser to agent" encryption on top of the channel yet.
 - The audit journal gets `assistant.type`: the session, the **name of the key** (the browser sends it), the number of characters and what is pressed after (Tab, Enter); **no text**. `assistant.close` has the number of typings (`typed`). At most 60 typings per opening of the Assistant.
 - **After the sign-in the Assistant connects again by itself.** Signing in changes the session of the computer and the old connection ends. If the connection ends within 30 seconds after the screen was the sign-in (or after a key was typed), the panel connects again silently (at most 12 tries in a minute, two seconds apart: the desktop does not appear at once); the picture and the size of the window stay until a new frame comes. This works for the session "console"; if a session number is picked, the connection goes to the same number.
 - Rights: the same as for the Assistant (the module "Assistant"); there is no separate right.

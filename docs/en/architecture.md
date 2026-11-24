@@ -1,18 +1,20 @@
 # Linager architecture
 
+**State at 0.10.0-beta.17: there is no web panel.** The interface of the server is the Linager application (`app/`), which connects to the application port over TLS 1.3 with a pinned certificate; the HTTP admin port, the embedded frontend, the reverse proxy (Caddy, nginx) and the admin access restriction are removed. The sections below that speak of the "admin panel", the proxy and the install modes describe the original architecture of 0.1 and are kept as the history of the decisions.
+
 Status: implemented in 0.1; sections 12a–12e describe what was built and where the implementation departed from the initial plan. Source requirements: `docs/kickoff/PROMPT.md`, decisions: `docs/decisions.md`, interface: `docs/design/ui-spec.md`.
 
 ## 1. Overall scheme
 
 ```
- browser ──HTTP(S)──▶ Caddy/nginx ──HTTP──▶ linager server (admin panel, API, WS/SSE) ──▶ PostgreSQL (localhost)
+ Linager application ──TLS 1.3, pinned certificate──▶ linager server (API, WS/SSE) ──▶ PostgreSQL (localhost)
                                                    ▲
  linager agent (root, Debian/Ubuntu) ──WSS + mTLS, outbound──┘  (separate agent port)
 ```
 
 - A single `linager` binary with subcommands: `server`, `agent`, `install`, `update`, `backup`, `version`.
 - Two independent listening ports on the server, both set during installation with no default values:
-  - **admin panel port** — plain HTTP. A reverse proxy (Caddy) is expected on this same server or a neighboring one; the same mode is used for closed and local networks;
+  - **application port** — TLS 1.3 with the certificate of the server; the Linager application connects here (the only interface);
   - **agent port** — the Linager server's own TLS (self-signed certificate, the fingerprint is pinned on the agent) and mTLS after enrollment.
 - In 0.1, agents connect directly to the agent port, not through a proxy: mTLS will not pass through a regular HTTP proxy. See open question 1.
 

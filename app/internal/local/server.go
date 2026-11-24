@@ -293,7 +293,7 @@ func (s *Server) probe(w http.ResponseWriter, r *http.Request) {
 
 // open pins a session to a profile and checks that the server answers over the pin.
 func (s *Server) open(r *http.Request, p profiles.Profile) error {
-	sess, err := remote.NewSession(remote.Target{Addr: p.Address, Fingerprint: p.Fingerprint, BasePath: p.BasePath})
+	sess, err := remote.NewSession(remote.Target{Addr: p.Address, Fingerprint: p.Fingerprint})
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,6 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 		Name        string `json:"name"`
 		Address     string `json:"address"`
 		Fingerprint string `json:"fingerprint"`
-		BasePath    string `json:"base_path"`
 	}
 	if !decode(w, r, &req) {
 		return
@@ -360,7 +359,7 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	p := profiles.Profile{Name: req.Name, Address: req.Address, Fingerprint: req.Fingerprint, BasePath: req.BasePath}
+	p := profiles.Profile{Name: req.Name, Address: req.Address, Fingerprint: req.Fingerprint}
 	if p.Name == "" {
 		p.Name = req.Address
 	}

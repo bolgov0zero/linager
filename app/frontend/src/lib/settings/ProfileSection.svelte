@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { api, ApiError, type PasskeyRow, type Session, type TotpSetup } from '../api';
+  import { api, ApiError, type Session, type TotpSetup } from '../api';
   import { confirmAsk } from '../dialogs.svelte';
   import { isUnauthorized } from '../errors';
   import { i18n, t } from '../i18n.svelte';
@@ -31,13 +31,6 @@
   let regenBusy = $state(false);
   let regenError = $state('');
 
-  // ---- passkeys: they cannot be made in the application, an old one can be removed ----
-  let passkeys = $state<PasskeyRow[]>([]);
-  let removing = $state<PasskeyRow | null>(null);
-  let removePw = $state('');
-  let pkBusy = $state(false);
-  let pkError = $state('');
-
   const recoveryLeft = $derived(session.recovery_left ?? 0);
 
   function failText(e: unknown, key: string): string {
@@ -56,14 +49,6 @@
   }
   const when = (iso: string): string => new Date(iso).toLocaleString(i18n.locale);
 
-  async function loadPasskeys(): Promise<void> {
-    try {
-      passkeys = (await api.passkeys()).passkeys;
-    } catch (e) {
-      handle(e);
-    }
-  }
-  onMount(() => void loadPasskeys());
 
   async function changePassword(): Promise<void> {
     if (pwBusy) return;
@@ -170,25 +155,6 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
-
-  async function removePasskey(): Promise<void> {
-    const target = removing;
-    if (!target || !removePw || pkBusy) return;
-    pkBusy = true;
-    pkError = '';
-    try {
-      await api.passkeyDelete(target.id, removePw);
-      removing = null;
-      removePw = '';
-      showToast(t('st.passkeys.removed'));
-      await loadPasskeys();
-      await onrefresh();
-    } catch (e) {
-      if (!handle(e)) pkError = failText(e, 'st.security.invalidPassword');
-    } finally {
-      pkBusy = false;
-    }
-  }
 </script>
 
 <div class="set-sec">
@@ -265,32 +231,4 @@
       {/if}
     </section>
   {/if}
-
-  <section class="panel">
-    <h4 class="ph">{t('st.passkeys.title')}</h4>
-    <p class="dim">{t('st.passkeys.appNote')}</p>
-    {#if passkeys.length === 0}
-      <p class="dim" style="margin-top:8px">{t('st.passkeys.empty')}</p>
-    {:else}
-      <ul class="set-list">
-        {#each passkeys as pk (pk.id)}
-          <li>
-            <div class="grow snip"><b>{pk.name}</b><span class="dim">{t('st.passkeys.created', { date: when(pk.created_at) })} · {pk.last_used_at ? t('st.passkeys.used', { date: when(pk.last_used_at) }) : t('st.passkeys.never')}</span></div>
-            <button class="btn sm danger" type="button" onclick={() => { removing = pk; removePw = ''; pkError = ''; }}>{t('st.passkeys.remove')}</button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-    {#if removing}
-      <form class="mdl-stack" style="margin-top:10px" onsubmit={(e) => { e.preventDefault(); void removePasskey(); }}>
-        <p>{t('st.passkeys.removeTitle', { name: removing.name })}</p>
-        <label class="fl"><span>{t('st.passkeys.confirmPassword')}</span><span class="field"><input type="password" autocomplete="current-password" required bind:value={removePw} /></span></label>
-        <div class="row end">
-          <button class="btn" type="button" onclick={() => (removing = null)}>{t('common.cancel')}</button>
-          <button class="btn danger" type="submit" disabled={pkBusy || !removePw}>{t('st.passkeys.remove')}</button>
-        </div>
-      </form>
-    {/if}
-    {#if pkError}<div class="err" role="alert" style="margin-top:8px">{pkError}</div>{/if}
-  </section>
 </div>

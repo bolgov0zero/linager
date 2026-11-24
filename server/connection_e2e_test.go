@@ -85,7 +85,7 @@ func TestConnectionPortsAndMove(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Server{DataDir: dir}
 	cfg.Database.DSN = dsn
-	cfg.Admin.Listen, cfg.Agents.Listen, cfg.App.Listen = freeAddr(t), freeAddr(t), freeAddr(t)
+	cfg.Agents.Listen, cfg.App.Listen = freeAddr(t), freeAddr(t)
 	cfg.Agents.Hosts = []string{"127.0.0.1"}
 	cfg.Admin.CookieSecure = "never"
 	cfg.Admin.LoginRate = 1000
@@ -107,14 +107,14 @@ func TestConnectionPortsAndMove(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		_ = server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		_ = server.Run(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		close(done)
 	}()
 	defer func() { cancel(); <-done }()
-	waitFor(t, "server", func() bool { return portOpen(cfg.Admin.Listen) && portOpen(cfg.App.Listen) })
+	waitFor(t, "server", func() bool { return portOpen(cfg.App.Listen) })
 
 	jar, _ := cookiejar.New(nil)
-	api := &apiClient{t: t, base: "http://" + cfg.Admin.Listen, hc: &http.Client{Jar: jar}}
+	api := &apiClient{t: t, base: "https://" + cfg.App.Listen, hc: testClient(jar)}
 	var lr struct{ CSRF string }
 	if code := api.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, &lr); code != 200 {
 		t.Fatalf("login: %d", code)
@@ -154,8 +154,8 @@ func TestConnectionPortsAndMove(t *testing.T) {
 	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": 70000, "app_port": 0}, nil); code != http.StatusBadRequest {
 		t.Fatalf("a bad port must be refused: %d", code)
 	}
-	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": st.AgentPort, "app_port": portOf(cfg.Admin.Listen)}, nil); code != http.StatusConflict {
-		t.Fatalf("the port of the admin panel must be refused: %d", code)
+	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": st.AgentPort, "app_port": 0}, nil); code != http.StatusBadRequest {
+		t.Fatalf("the application port is the only way to the interface: it cannot be switched off: %d", code)
 	}
 	busy, _ := net.Listen("tcp", "127.0.0.1:0")
 	defer func() { _ = busy.Close() }()
@@ -173,10 +173,9 @@ func TestConnectionPortsAndMove(t *testing.T) {
 		t.Fatalf("the new application port must work: %d", code)
 	}
 	waitFor(t, "the old application port is closed", func() bool { return !portOpen(cfg.App.Listen) })
-	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": st.AgentPort, "app_port": 0}, &st); code != 200 || st.AppUp {
-		t.Fatalf("switch the application port off: %d %+v", code, st)
-	}
-	waitFor(t, "the application port is off", func() bool { return !portOpen(newApp) })
+	// the interface itself moved: the session goes on at the new address
+	api.base = "https://" + newApp
+	appP := portOf(newApp)
 
 	// --- an agent that cannot follow a change of the agent port blocks it while it is online ---
 	adata := t.TempDir()
@@ -226,7 +225,7 @@ func TestConnectionPortsAndMove(t *testing.T) {
 			Name string `json:"name"`
 		} `json:"agents"`
 	}
-	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": portOf(newAgent), "app_port": 0}, &refused); code != http.StatusConflict || refused.Error != "agents_outdated" || len(refused.Agents) != 1 {
+	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": portOf(newAgent), "app_port": appP}, &refused); code != http.StatusConflict || refused.Error != "agents_outdated" || len(refused.Agents) != 1 {
 		t.Fatalf("an online agent that cannot follow must block the change: %d %+v", code, refused)
 	}
 	if code := api.do("GET", "/api/connection", nil, &st); code != 200 || len(st.Blockers) != 1 {
@@ -236,14 +235,14 @@ func TestConnectionPortsAndMove(t *testing.T) {
 	// --- offline, the old agent no longer blocks; the move starts and waits for it ---
 	stop()
 	online(false)
-	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": portOf(newAgent), "app_port": 0}, &st); code != 200 || st.AgentPort != portOf(newAgent) ||
+	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": portOf(newAgent), "app_port": appP}, &st); code != 200 || st.AgentPort != portOf(newAgent) ||
 		st.Move == nil || st.Move.From != oldAgentPort || st.Move.To != portOf(newAgent) || st.Move.Total != 1 || st.Move.Moved != 0 || len(st.Move.Pending) != 1 || st.Move.Pending[0].Supported {
 		t.Fatalf("change the agent port: %d %+v", code, st)
 	}
 	if !portOpen(cfg.Agents.Listen) || !portOpen(newAgent) {
 		t.Fatal("both agent ports must be open during the move")
 	}
-	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": portOf(freeAddr(t)), "app_port": 0}, nil); code != http.StatusConflict {
+	if code := api.do("PUT", "/api/connection", map[string]int{"agent_port": portOf(freeAddr(t)), "app_port": appP}, nil); code != http.StatusConflict {
 		t.Fatalf("a second change while agents are moving must be refused: %d", code)
 	}
 	var ci struct {
@@ -301,8 +300,8 @@ func TestConnectionPortsAndMove(t *testing.T) {
 	}
 }
 
-// TestAppSessionLifetime: a session made on the application port lasts seven days and is renewed by every request (after
-// seven idle days the password and 2FA are asked again); a browser session keeps its fixed 12 hours.
+// TestAppSessionLifetime: a session lasts seven days and is renewed by every request (after seven idle days the password and
+// 2FA are asked again).
 func TestAppSessionLifetime(t *testing.T) {
 	dsn := os.Getenv("LINAGER_TEST_DSN")
 	if dsn == "" {
@@ -321,7 +320,7 @@ func TestAppSessionLifetime(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Server{DataDir: dir}
 	cfg.Database.DSN = dsn
-	cfg.Admin.Listen, cfg.Agents.Listen, cfg.App.Listen = freeAddr(t), freeAddr(t), freeAddr(t)
+	cfg.Agents.Listen, cfg.App.Listen = freeAddr(t), freeAddr(t)
 	cfg.Agents.Hosts = []string{"127.0.0.1"}
 	cfg.Admin.CookieSecure = "never"
 	cfg.Admin.LoginRate = 1000
@@ -339,11 +338,11 @@ func TestAppSessionLifetime(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		_ = server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		_ = server.Run(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		close(done)
 	}()
 	defer func() { cancel(); <-done }()
-	waitFor(t, "server", func() bool { return portOpen(cfg.Admin.Listen) && portOpen(cfg.App.Listen) })
+	waitFor(t, "server", func() bool { return portOpen(cfg.App.Listen) })
 
 	fp := pki.Fingerprint(keys.TLSDER)
 	jar, _ := cookiejar.New(nil)
@@ -359,8 +358,6 @@ func TestAppSessionLifetime(t *testing.T) {
 	if code := app.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, &lr); code != 200 {
 		t.Fatalf("sign-in on the application port: %d", code)
 	}
-	browser := &apiClient{t: t, base: "http://" + cfg.Admin.Listen, hc: &http.Client{Jar: func() *cookiejar.Jar { j, _ := cookiejar.New(nil); return j }()}}
-	browser.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, nil)
 
 	type row struct {
 		sliding int
@@ -383,8 +380,8 @@ func TestAppSessionLifetime(t *testing.T) {
 		return out
 	}
 	got := rows()
-	if len(got) != 2 || got[0].sliding != 0 || got[0].secs > 12*3600 || got[1].sliding != 7*24*3600 || got[1].secs < 7*24*3600-60 {
-		t.Fatalf("a browser session of 12 hours and an application session of 7 days: %+v", got)
+	if len(got) != 1 || got[0].sliding != 7*24*3600 || got[0].secs < 7*24*3600-60 {
+		t.Fatalf("an application session of 7 days: %+v", got)
 	}
 	// idle for six days, then a request: the seven days start again
 	if _, err := db.Pool.Exec(ctx, `UPDATE sessions SET expires_at = now() + interval '1 day' WHERE sliding_secs > 0`); err != nil {
@@ -393,7 +390,7 @@ func TestAppSessionLifetime(t *testing.T) {
 	if code := app.do("GET", "/api/me", nil, nil); code != 200 {
 		t.Fatalf("a request on the application port: %d", code)
 	}
-	if got := rows(); got[1].secs < 7*24*3600-60 {
+	if got := rows(); got[0].secs < 7*24*3600-60 {
 		t.Fatalf("a request must renew the session: %+v", got)
 	}
 	// seven idle days: the session is over
@@ -402,11 +399,5 @@ func TestAppSessionLifetime(t *testing.T) {
 	}
 	if code := app.do("GET", "/api/me", nil, nil); code != http.StatusUnauthorized {
 		t.Fatalf("an idle session must end: %d", code)
-	}
-	// the browser session does not slide
-	before := rows()[0].secs
-	browser.do("GET", "/api/me", nil, nil)
-	if after := rows()[0].secs; after > before+1 {
-		t.Fatalf("a browser session must not slide: %v -> %v", before, after)
 	}
 }

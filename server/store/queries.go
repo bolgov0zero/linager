@@ -18,17 +18,15 @@ type User struct {
 	TOTPLastStep   int64
 	FailedAttempts int
 	LockedUntil    *time.Time
-	// WebAuthnHandle is the opaque user handle for passkeys (nil until the first registration).
-	WebAuthnHandle []byte
 	// Role is filled by the session check (admin, operator or auditor); other queries leave it empty.
 	Role string
 }
 
-const userCols = `id, login, password_hash, coalesce(totp_secret,''), totp_enabled, totp_last_step, failed_attempts, locked_until, webauthn_handle`
+const userCols = `id, login, password_hash, coalesce(totp_secret,''), totp_enabled, totp_last_step, failed_attempts, locked_until`
 
 func scanUser(r pgx.Row) (*User, error) {
 	var u User
-	err := r.Scan(&u.ID, &u.Login, &u.PasswordHash, &u.TOTPSecret, &u.TOTPEnabled, &u.TOTPLastStep, &u.FailedAttempts, &u.LockedUntil, &u.WebAuthnHandle)
+	err := r.Scan(&u.ID, &u.Login, &u.PasswordHash, &u.TOTPSecret, &u.TOTPEnabled, &u.TOTPLastStep, &u.FailedAttempts, &u.LockedUntil)
 	if err != nil {
 		return nil, notFound(err)
 	}

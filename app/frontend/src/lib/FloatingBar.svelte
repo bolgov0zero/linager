@@ -21,12 +21,8 @@
     return { x: Math.min(Math.max(0, x), Math.max(0, w - ew)), y: Math.min(Math.max(0, y), Math.max(0, h - eh)) };
   }
 
-  // the first time: the middle of the top edge
-  $effect(() => {
-    if (!el || pos) return;
-    const p = el.offsetParent as HTMLElement | null;
-    pos = clamp(((p?.clientWidth ?? window.innerWidth) - el.offsetWidth) / 2, 12);
-  });
+  // until the panel is dragged it stands in the middle of the top edge by CSS, so that it stays there whatever its width
+  // becomes (buttons appear when the session opens, the window changes its size)
   // the window changed its size: the panel stays inside
   $effect(() => {
     const on = (): void => {
@@ -42,7 +38,13 @@
 
   let drag: { dx: number; dy: number; sx: number; sy: number; moved: boolean } | null = null;
   function down(e: PointerEvent): void {
-    if (e.button !== 0 || !el || !pos) return;
+    if (e.button !== 0 || !el) return;
+    if (!pos) {
+      // from the middle to a place in pixels, where the panel now stands
+      const r = el.getBoundingClientRect();
+      const p = (el.offsetParent as HTMLElement | null)?.getBoundingClientRect();
+      pos = { x: r.left - (p?.left ?? 0), y: r.top - (p?.top ?? 0) };
+    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag = { dx: e.clientX - pos.x, dy: e.clientY - pos.y, sx: e.clientX, sy: e.clientY, moved: false };
   }
@@ -62,7 +64,7 @@
   }
 </script>
 
-<div class="fb" class:sq={collapsed} bind:this={el} style:left="{pos?.x ?? 0}px" style:top="{pos?.y ?? 12}px" style:visibility={pos ? 'visible' : 'hidden'}>
+<div class="fb" class:sq={collapsed} class:mid={!pos} bind:this={el} style:left={pos ? `${pos.x}px` : null} style:top="{pos?.y ?? 12}px">
   {#if collapsed}
     <button class="fb-sq" type="button" title={t('fs.show')} aria-label={t('fs.show')} onpointerdown={down} onpointermove={move} onpointerup={up} onclick={toggleSquare}><Icon name="chevron-down" size={16} /></button>
   {:else}

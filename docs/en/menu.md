@@ -24,7 +24,7 @@ The state is refreshed every 5 seconds. When something cannot be read (the datab
 
 ## Server menu
 
-State: the service and its uptime, PostgreSQL, the admin panel address, the client port, the number of clients and of those waiting for approval, the last backup, the access restriction, the version (and an available update, checked every 30 minutes).
+State: the service and its uptime, PostgreSQL, the application address, the client port, the number of clients and of those waiting for approval, the last backup, the access restriction, the version (and an available update, checked every 30 minutes).
 
 | Item | What it does |
 |---|---|

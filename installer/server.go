@@ -22,13 +22,13 @@ import (
 
 // ServerOpts are values given by flags; zero values are asked interactively.
 type ServerOpts struct {
-	AgentPort, AppPort, AdminPort, PublicPort int
-	AdminMode, Domain, AdminUser              string
-	PasswordFile                              string
-	ExtraHosts                                []string
-	ConfigPath                                string
-	LogPath                                   string
-	Force                                     bool
+	AgentPort, AppPort int
+	Domain, AdminUser  string // Domain: an optional DNS name of the server for the certificate
+	PasswordFile       string
+	ExtraHosts         []string
+	ConfigPath         string
+	LogPath            string
+	Force              bool
 }
 
 type step struct {
@@ -92,9 +92,8 @@ func portErr(l Lang, v string) error {
 // collectServerParams merges flags and interactive answers.
 func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 	l := c.Lang()
-	p := &ServerParams{AgentPort: o.AgentPort, AppPort: o.AppPort, AdminPort: o.AdminPort, PublicPort: o.PublicPort, AdminMode: o.AdminMode,
-		Domain: o.Domain, AdminUser: o.AdminUser, ExtraHosts: o.ExtraHosts, ConfigPath: o.ConfigPath, DataDir: DataDir, Force: o.Force,
-		CaddyCfgPath: "/etc/caddy/Caddyfile"}
+	p := &ServerParams{AgentPort: o.AgentPort, AppPort: o.AppPort,
+		Domain: o.Domain, AdminUser: o.AdminUser, ExtraHosts: o.ExtraHosts, ConfigPath: o.ConfigPath, DataDir: DataDir, Force: o.Force}
 	if o.PasswordFile != "" {
 		b, err := os.ReadFile(o.PasswordFile) //nolint:gosec // operator-supplied path
 		if err != nil {
@@ -114,22 +113,8 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 	if o.AppPort > 0 {
 		set("appport", fmt.Sprint(o.AppPort))
 	}
-	set("mode", o.AdminMode)
-	set("domain", o.Domain)
 	set("user", o.AdminUser)
-	if o.AdminPort > 0 {
-		set("adminport", fmt.Sprint(o.AdminPort))
-	}
-	if o.PublicPort > 0 {
-		set("publicport", fmt.Sprint(o.PublicPort))
-	}
 	need := func(k string) bool { _, ok := known[k]; return !ok }
-	isMode := func(a map[string]string, m string) bool {
-		if v, ok := known["mode"]; ok {
-			return v == m
-		}
-		return a["mode"] == m
-	}
 	form := Form{Title: tr(l, "srv.title"), Fields: []Field{
 		{Key: "agentport", Label: tr(l, "srv.agentport"), Hint: tr(l, "srv.agentport.h"), Kind: KindNumber, Required: true,
 			Visible:  func(map[string]string) bool { return need("agentport") },
@@ -141,36 +126,6 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 					return err
 				}
 				if v == a["agentport"] || v == known["agentport"] {
-					return errors.New(tr(l, "err.portsame"))
-				}
-				return nil
-			}},
-		{Key: "mode", Label: tr(l, "srv.mode"), Kind: KindChoice, Default: "caddy",
-			Options: []Option{{"caddy", tr(l, "srv.mode.caddy")}, {"proxy", tr(l, "srv.mode.proxy")}},
-			Visible: func(map[string]string) bool { return need("mode") }},
-		{Key: "domain", Label: tr(l, "srv.domain"), Hint: tr(l, "srv.domain.h"), Kind: KindText, Required: true,
-			Visible: func(a map[string]string) bool { return need("domain") && isMode(a, "caddy") },
-			Validate: func(v string, _ map[string]string) error {
-				if !ValidDomain(v) {
-					return errors.New(tr(l, "err.domain"))
-				}
-				return nil
-			}},
-		{Key: "publicport", Label: tr(l, "srv.publicport"), Kind: KindNumber, Default: "443", Required: true,
-			Visible: func(a map[string]string) bool { return need("publicport") && isMode(a, "caddy") },
-			Validate: func(v string, _ map[string]string) error {
-				if _, ok := ValidPort(v); !ok {
-					return errors.New(tr(l, "err.port"))
-				}
-				return nil
-			}},
-		{Key: "adminport", Label: tr(l, "srv.adminport"), Hint: tr(l, "srv.adminport.h"), Kind: KindNumber, Required: true,
-			Visible: func(a map[string]string) bool { return need("adminport") && isMode(a, "proxy") },
-			Validate: func(v string, a map[string]string) error {
-				if err := portErr(l, v); err != nil {
-					return err
-				}
-				if v == a["agentport"] || v == known["agentport"] || v == a["appport"] || v == known["appport"] {
 					return errors.New(tr(l, "err.portsame"))
 				}
 				return nil
@@ -214,46 +169,19 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 		if get("appport") == "" {
 			missing = append(missing, "--app-port")
 		}
-		if get("mode") == "" {
-			missing = append(missing, "--admin-mode")
-		}
-		if get("mode") == "caddy" && get("domain") == "" {
-			missing = append(missing, "--domain")
-		}
-		if get("mode") == "proxy" && get("adminport") == "" {
-			missing = append(missing, "--admin-port")
-		}
 		if len(missing) > 0 {
 			return nil, fmt.Errorf("%s", tr(l, "err.noninteractive", strings.Join(missing, ", ")))
 		}
 	}
 	p.AgentPort, _ = ValidPort(get("agentport"))
 	p.AppPort, _ = ValidPort(get("appport"))
-	p.AdminMode = get("mode")
-	if p.AdminMode != "caddy" && p.AdminMode != "proxy" {
-		return nil, fmt.Errorf("invalid --admin-mode %q (caddy or proxy)", p.AdminMode)
+	if p.Domain != "" && !ValidDomain(p.Domain) {
+		return nil, errors.New(tr(l, "err.domain"))
 	}
-	p.Domain = get("domain")
-	if p.AdminMode == "caddy" {
-		if !ValidDomain(p.Domain) {
-			return nil, errors.New(tr(l, "err.domain"))
-		}
-		p.PublicPort = 443
-		if v := get("publicport"); v != "" {
-			p.PublicPort, _ = ValidPort(v)
-		}
-		port, err := FreeLoopbackPort()
-		if err != nil {
-			return nil, err
-		}
-		p.AdminPort = port
-	} else {
-		p.AdminPort, _ = ValidPort(get("adminport"))
-	}
-	if p.AgentPort == 0 || p.AppPort == 0 || p.AdminPort == 0 {
+	if p.AgentPort == 0 || p.AppPort == 0 {
 		return nil, errors.New(tr(l, "err.port"))
 	}
-	if p.AgentPort == p.AdminPort || p.AppPort == p.AgentPort || p.AppPort == p.AdminPort {
+	if p.AppPort == p.AgentPort {
 		return nil, errors.New(tr(l, "err.portsame"))
 	}
 	if !PortFree(p.AppPort) {
@@ -261,9 +189,6 @@ func collectServerParams(c Console, o ServerOpts) (*ServerParams, error) {
 	}
 	if !PortFree(p.AgentPort) {
 		return nil, errors.New(tr(l, "err.portbusy", p.AgentPort))
-	}
-	if p.AdminMode == "proxy" && !PortFree(p.AdminPort) {
-		return nil, errors.New(tr(l, "err.portbusy", p.AdminPort))
 	}
 	p.AdminUser = get("user")
 	if p.AdminUser == "" {
@@ -309,7 +234,7 @@ func ServerFlow(o ServerOpts) Flow {
 		}
 		run, closeLog := NewRunner(o.LogPath)
 		defer closeLog()
-		run.Logf("=== linager install server %s mode=%s agent-port=%d app-port=%d", time.Now().Format(time.RFC3339), p.AdminMode, p.AgentPort, p.AppPort)
+		run.Logf("=== linager install server %s agent-port=%d app-port=%d", time.Now().Format(time.RFC3339), p.AgentPort, p.AppPort)
 
 		var fp string
 		var hosts []string
@@ -322,9 +247,6 @@ func ServerFlow(o ServerOpts) Flow {
 				return writeServerFiles(ctx, run, p, hosts)
 			}},
 			{title: tr(l, "st.admin"), fn: func(ctx context.Context) error { return createAdmin(ctx, p) }},
-		}
-		if p.AdminMode == "caddy" {
-			steps = append(steps, step{title: tr(l, "st.caddy"), info: tr(l, "info.apt"), fn: func(ctx context.Context) error { return setupCaddy(ctx, run, p) }})
 		}
 		steps = append(steps,
 			step{title: tr(l, "st.service"), fn: func(ctx context.Context) error {
@@ -519,18 +441,23 @@ func createAdmin(ctx context.Context, p *ServerParams) error {
 }
 
 func verifyServer(ctx context.Context, p *ServerParams) (string, error) {
-	url := fmt.Sprintf("http://127.0.0.1:%d/", p.AdminPort)
+	// the application port answers: an unauthenticated request of the API gets its 401
+	addr := fmt.Sprintf("127.0.0.1:%d", p.AppPort)
+	tr := &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, InsecureSkipVerify: true}} //nolint:gosec // loopback probe of our own certificate
+	defer tr.CloseIdleConnections()
+	client := &http.Client{Timeout: 5 * time.Second, Transport: tr}
 	deadline := time.Now().Add(40 * time.Second)
 	for {
-		resp, err := http.Get(url) //nolint:gosec,noctx // loopback URL built from validated ints
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+addr+"/api/me", nil)
+		resp, err := client.Do(req)
 		if err == nil {
 			_ = resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
+			if resp.StatusCode < http.StatusInternalServerError {
 				break
 			}
 		}
 		if time.Now().After(deadline) {
-			return "", fmt.Errorf("admin panel did not respond at %s (see journalctl -u linager-server)", url)
+			return "", fmt.Errorf("the application port did not respond at %s (see journalctl -u linager-server)", addr)
 		}
 		select {
 		case <-ctx.Done():
@@ -565,15 +492,8 @@ func primaryHost(hosts []string) string {
 
 func serverSummary(l Lang, p *ServerParams, hosts []string, fp, logPath string) *Summary {
 	host := primaryHost(hosts)
-	url := fmt.Sprintf("http://%s:%d", host, p.AdminPort)
-	if p.AdminMode == "caddy" {
-		url = "https://" + p.Domain
-		if p.PublicPort != 443 {
-			url += fmt.Sprintf(":%d", p.PublicPort)
-		}
-	}
 	s := &Summary{Title: tr(l, "done.server"), Success: true}
-	s.Lines = append(s.Lines, KV{Label: tr(l, "sum.admin"), Value: url, Mono: true}, KV{Label: tr(l, "sum.login"), Value: p.AdminUser, Mono: true})
+	s.Lines = append(s.Lines, KV{Label: tr(l, "sum.admin"), Value: fmt.Sprintf("%s:%d", host, p.AppPort), Mono: true}, KV{Label: tr(l, "sum.login"), Value: p.AdminUser, Mono: true})
 	if p.PasswordGen {
 		s.Lines = append(s.Lines, KV{Label: tr(l, "sum.password"), Value: p.Password, Mono: true})
 		s.Notes = append(s.Notes, tr(l, "sum.password")+": "+tr(l, "sum.password.gen"))
@@ -585,11 +505,7 @@ func serverSummary(l Lang, p *ServerParams, hosts []string, fp, logPath string) 
 		KV{Label: tr(l, "sum.client"), Value: fmt.Sprintf("linager install agent --server %s:%d --fingerprint %s", host, p.AgentPort, fp), Mono: true},
 		KV{Label: tr(l, "sum.log"), Value: logPath},
 	)
-	if p.AdminMode == "caddy" {
-		s.Notes = append(s.Notes, tr(l, "note.caddy"))
-	} else {
-		s.Notes = append(s.Notes, tr(l, "note.proxy", fmt.Sprintf("%s:%d", host, p.AdminPort)))
-	}
+	s.Notes = append(s.Notes, tr(l, "note.app", fmt.Sprintf("%s:%d", host, p.AppPort)))
 	if exec := (&Runner{log: io.Discard}); exec.Run(context.Background(), "", "systemctl", "is-active", "--quiet", "nftables") == nil {
 		s.Notes = append(s.Notes, tr(l, "note.nft", p.AgentPort, p.AppPort))
 	}

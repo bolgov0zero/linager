@@ -52,7 +52,7 @@ var tuiTexts = map[Lang]tuiStrings{
 		key:         "Ключ",
 		checkCode:   "Код сверки",
 		fingerprint: "Отпечаток",
-		instruction: "Введите ключ в админке: «+ Сервер», проверьте, что код совпадает",
+		instruction: "Введите ключ в приложении: «Добавить сервер», проверьте, что код совпадает",
 	},
 	EN: {
 		subtitle:    "installer",
@@ -66,7 +66,7 @@ var tuiTexts = map[Lang]tuiStrings{
 		key:         "Key",
 		checkCode:   "Check code",
 		fingerprint: "Fingerprint",
-		instruction: "Enter the key in the admin panel: «+ Server», check that the code matches",
+		instruction: "Enter the key in the application: «Add server», check that the code matches",
 	},
 }
 

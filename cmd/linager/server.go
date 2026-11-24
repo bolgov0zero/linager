@@ -5,10 +5,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -17,7 +17,6 @@ import (
 	"github.com/bolgov0zero/linager/internal/config"
 	"github.com/bolgov0zero/linager/server"
 	"github.com/bolgov0zero/linager/server/store"
-	"github.com/bolgov0zero/linager/web"
 )
 
 const defaultServerConfig = "/etc/linager/server.yaml"
@@ -29,7 +28,7 @@ func newServerCmd() *cobra.Command {
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "run",
-		Short: "Run the server (admin panel and agent port)",
+		Short: "Run the server (the application port and the agent port)",
 		RunE: func(*cobra.Command, []string) error {
 			cfg, err := config.LoadServer(cfgPath)
 			if err != nil {
@@ -37,11 +36,7 @@ func newServerCmd() *cobra.Command {
 			}
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			static, err := fs.Sub(web.Dist, "dist")
-			if err != nil {
-				return err
-			}
-			return server.Run(ctx, cfg, static, slog.New(slog.NewTextHandler(os.Stderr, nil)))
+			return server.Run(ctx, cfg, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 		},
 	})
 
@@ -85,6 +80,45 @@ func newServerCmd() *cobra.Command {
 	_ = create.MarkFlagRequired("login")
 	_ = create.MarkFlagRequired("password-file")
 	cmd.AddCommand(create)
+
+	appPort := &cobra.Command{
+		Use:   "app-port [port]",
+		Short: "Show the port and the certificate fingerprint of the desktop application, or set the port (restart the server after)",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			cfg, err := config.LoadServer(cfgPath)
+			if err != nil {
+				return err
+			}
+			db, err := store.Open(c.Context(), cfg.Database.DSN)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			out := c.OutOrStdout()
+			if len(args) == 1 {
+				port, perr := strconv.Atoi(args[0])
+				if perr != nil {
+					return fmt.Errorf("%q is not a port", args[0])
+				}
+				if err := server.SetAppPort(c.Context(), cfg, db, port); err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintf(out, "The application port is %d. Restart the server to open it: systemctl restart linager\n", port)
+			}
+			info, err := server.AppPortInfo(c.Context(), cfg, db)
+			if err != nil {
+				return err
+			}
+			if info.Port == 0 {
+				_, err = fmt.Fprintln(out, "The application port is not set: linager server app-port <port>")
+				return err
+			}
+			_, err = fmt.Fprintf(out, "Application port: %d\nCertificate fingerprint: %s\nIn the application enter <address of this server>:%d and compare the fingerprint.\n", info.Port, info.Fingerprint, info.Port)
+			return err
+		},
+	}
+	cmd.AddCommand(appPort)
 
 	var rLogin, rPwFile string
 	reset := &cobra.Command{

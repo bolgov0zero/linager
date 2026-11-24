@@ -11,31 +11,18 @@ import (
 // ServerParams are the answers needed to install the server.
 type ServerParams struct {
 	AgentPort     int
-	AppPort       int    // the desktop application listener; 0 leaves it out of the file
-	AdminMode     string // "caddy" or "proxy"
-	Domain        string // caddy mode
-	PublicPort    int    // caddy mode, HTTPS port of Caddy (default 443)
-	AdminPort     int    // proxy mode: HTTP port Linager listens on; caddy mode: chosen loopback port
+	AppPort       int    // the desktop application listener, the only way to the interface
+	Domain        string // an optional DNS name of the server, put into the certificate
 	AdminUser     string
 	Password      string // empty = generate
 	ExtraHosts    []string
 	PasswordGen   bool
 	DSN           string
-	AdminListen   string
 	ConfigPath    string
 	DataDir       string
 	Force         bool
-	CaddyCfgPath  string
 	UpdateSource  string // carried over from an existing configuration on reinstall
 	UpdateChannel string
-}
-
-// AdminAddr returns the listen address of the Linager admin HTTP server.
-func (p *ServerParams) AdminAddr() string {
-	if p.AdminMode == "caddy" {
-		return fmt.Sprintf("127.0.0.1:%d", p.AdminPort)
-	}
-	return fmt.Sprintf("0.0.0.0:%d", p.AdminPort)
 }
 
 var loginRe = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,64}$`)
@@ -71,8 +58,6 @@ func RenderServerConfig(p *ServerParams, hosts []string) string {
 	b.WriteString("database:\n")
 	fmt.Fprintf(&b, "  dsn: %q\n", p.DSN)
 	b.WriteString("admin:\n")
-	fmt.Fprintf(&b, "  listen: %q\n", p.AdminAddr())
-	b.WriteString("  trusted_proxies: [\"0.0.0.0/0\", \"::/0\"]\n")
 	b.WriteString("  cookie_secure: auto\n")
 	if p.UpdateSource != "" || p.UpdateChannel == "beta" {
 		b.WriteString("update:\n")
@@ -94,24 +79,6 @@ func RenderServerConfig(p *ServerParams, hosts []string) string {
 		fmt.Fprintf(&b, "    - %q\n", h)
 	}
 	return b.String()
-}
-
-// CaddyMarker identifies the block managed by the installer.
-const CaddyMarker = "# linager-managed"
-
-// RenderCaddyBlock renders the Caddyfile site block for the admin panel.
-func RenderCaddyBlock(domain string, publicPort, internalPort int) string {
-	site := domain
-	if publicPort != 443 {
-		site = fmt.Sprintf("%s:%d", domain, publicPort)
-	}
-	return fmt.Sprintf("%s\n%s {\n\tencode zstd gzip\n\treverse_proxy 127.0.0.1:%d\n}\n", CaddyMarker, site, internalPort)
-}
-
-// IsDefaultCaddyfile reports whether content is the stock package Caddyfile (safe to replace).
-func IsDefaultCaddyfile(content string) bool {
-	c := strings.TrimSpace(content)
-	return c == "" || strings.Contains(c, "/usr/share/caddy") || strings.Contains(c, "Caddyfile is the default")
 }
 
 // ServerUnit is the systemd unit for the server.

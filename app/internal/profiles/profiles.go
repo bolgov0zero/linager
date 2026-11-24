@@ -18,7 +18,6 @@ type Profile struct {
 	Name        string `json:"name"`
 	Address     string `json:"address"` // host:port of the application port
 	Fingerprint string `json:"fingerprint"`
-	BasePath    string `json:"base_path,omitempty"`
 	Login       string `json:"login,omitempty"` // the last login, to fill the form
 }
 

@@ -45,7 +45,7 @@ type AgentPort struct {
 	// listenPort is the port of the agent listener, for the install script when a request names none; it changes
 	// when the administrator moves the agent port (SetListenPort).
 	listenPort atomic.Value
-	// Live, when set, tells the admin panel that something changed on the dashboard.
+	// Live, when set, tells the interface that something changed on the dashboard.
 	Live *Live
 	// Conn follows which port the agents use while the agent port changes (nil in tests).
 	Conn    *Connection

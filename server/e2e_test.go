@@ -118,9 +118,8 @@ func TestEndToEnd(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Server{DataDir: dir}
 	cfg.Database.DSN = dsn
-	cfg.Admin.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
+	cfg.App.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
 	cfg.Agents.Hosts = []string{"127.0.0.1"}
-	cfg.Admin.TrustedProxies = []string{"0.0.0.0/0"}
 	cfg.Admin.CookieSecure = "never"
 	if err := server.InitKeys(dir, cfg.Agents.Hosts); err != nil {
 		t.Fatal(err)
@@ -144,9 +143,9 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	srvDone := make(chan error, 1)
-	go func() { srvDone <- server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
+	go func() { srvDone <- server.Run(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
 	waitFor(t, "server listening", func() bool {
-		c, err := net.Dial("tcp", cfg.Admin.Listen)
+		c, err := net.Dial("tcp", cfg.App.Listen)
 		if err == nil {
 			_ = c.Close()
 		}
@@ -154,7 +153,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	jar, _ := cookiejar.New(nil)
-	api := &apiClient{t: t, base: "http://" + cfg.Admin.Listen, hc: &http.Client{Jar: jar}}
+	api := &apiClient{t: t, base: "https://" + cfg.App.Listen, hc: testClient(jar)}
 
 	// --- authentication ---
 	if code := api.do("GET", "/api/servers", nil, nil); code != http.StatusUnauthorized {
@@ -814,11 +813,10 @@ func TestSecurityHeadersAndTOTPGate(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Server{DataDir: dir}
 	cfg.Database.DSN = dsn
-	cfg.Admin.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
+	cfg.App.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
 	cfg.Agents.Hosts = []string{"127.0.0.1"}
 	cfg.Admin.CookieSecure = "never"
 	cfg.Admin.RequireTOTP = true
-	cfg.Admin.TrustedProxies = []string{"0.0.0.0/0"}
 	if err := server.InitKeys(dir, cfg.Agents.Hosts); err != nil {
 		t.Fatal(err)
 	}
@@ -830,9 +828,9 @@ func TestSecurityHeadersAndTOTPGate(t *testing.T) {
 	if err := server.CreateAdmin(ctx, db, "admin", "a-long-test-password"); err != nil {
 		t.Fatal(err)
 	}
-	go func() { _ = server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
+	go func() { _ = server.Run(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
 	waitFor(t, "server", func() bool {
-		c, e := net.Dial("tcp", cfg.Admin.Listen)
+		c, e := net.Dial("tcp", cfg.App.Listen)
 		if e == nil {
 			_ = c.Close()
 		}
@@ -840,7 +838,7 @@ func TestSecurityHeadersAndTOTPGate(t *testing.T) {
 	})
 
 	jar, _ := cookiejar.New(nil)
-	api := &apiClient{t: t, base: "http://" + cfg.Admin.Listen, hc: &http.Client{Jar: jar}}
+	api := &apiClient{t: t, base: "https://" + cfg.App.Listen, hc: testClient(jar)}
 	var lr struct{ CSRF string }
 	api.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, &lr)
 	api.csrf = lr.CSRF
@@ -870,7 +868,7 @@ func TestSecurityHeadersAndTOTPGate(t *testing.T) {
 	// two-step sign-in: the password alone only asks for the code (no session, not a failed attempt),
 	// a wrong code is refused, a fresh right one opens the session
 	jar2, _ := cookiejar.New(nil)
-	api2 := &apiClient{t: t, base: api.base, hc: &http.Client{Jar: jar2}}
+	api2 := &apiClient{t: t, base: api.base, hc: testClient(jar2)}
 	var first struct {
 		Error string `json:"error"`
 	}
@@ -896,24 +894,17 @@ func TestSecurityHeadersAndTOTPGate(t *testing.T) {
 	}
 
 	// security headers on every response
-	resp, err := api.hc.Get(api.base + "/")
+	resp, err := api.hc.Get(api.base + "/api/me")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = resp.Body.Close()
-	for _, h := range []string{"Content-Security-Policy", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy", "Cross-Origin-Opener-Policy"} {
+	for _, h := range []string{"X-Content-Type-Options", "Cache-Control"} {
 		if resp.Header.Get(h) == "" {
 			t.Errorf("missing security header %s", h)
 		}
 	}
-	if resp.Header.Get("Strict-Transport-Security") != "" {
-		t.Error("HSTS must not be sent for a plain-HTTP request")
-	}
-	req, _ := http.NewRequest("GET", api.base+"/", nil)
-	req.Header.Set("X-Forwarded-Proto", "https")
-	r2, _ := api.hc.Do(req)
-	_ = r2.Body.Close()
-	if r2.Header.Get("Strict-Transport-Security") == "" {
-		t.Error("HSTS must be sent when the original request used HTTPS")
+	if resp.Header.Get("Strict-Transport-Security") == "" {
+		t.Error("HSTS must be sent: the application port is TLS")
 	}
 }

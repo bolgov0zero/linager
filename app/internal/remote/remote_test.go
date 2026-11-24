@@ -54,9 +54,9 @@ func TestProbeAndPin(t *testing.T) {
 	}
 }
 
-func proxyFor(t *testing.T, srv *httptest.Server, base string) *httptest.Server {
+func proxyFor(t *testing.T, srv *httptest.Server) *httptest.Server {
 	t.Helper()
-	s, err := NewSession(Target{Addr: addrOf(srv), Fingerprint: fingerprintOf(t, srv), BasePath: base})
+	s, err := NewSession(Target{Addr: addrOf(srv), Fingerprint: fingerprintOf(t, srv)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,12 +71,12 @@ func TestCookiesStayInTheApplication(t *testing.T) {
 	var seen []string
 	srv := newTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = append(seen, r.URL.Path+"|"+r.Header.Get("Cookie")+"|"+r.Header.Get("X-Forwarded-For"))
-		if r.URL.Path == "/base/api/login" {
+		if r.URL.Path == "/api/login" {
 			http.SetCookie(w, &http.Cookie{Name: "linager_session", Value: "s3cret", Path: "/", Secure: true, HttpOnly: true})
 		}
 		_, _ = io.WriteString(w, "ok")
 	}))
-	front := proxyFor(t, srv, "/base")
+	front := proxyFor(t, srv)
 
 	req, _ := http.NewRequest("POST", front.URL+"/api/login", nil)
 	req.Header.Set("Cookie", "evil=1") // whatever the web view sends is not trusted
@@ -93,8 +93,8 @@ func TestCookiesStayInTheApplication(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = resp.Body.Close()
-	if len(seen) != 2 || seen[0] != "/base/api/login||" || seen[1] != "/base/api/me|linager_session=s3cret|" {
-		t.Fatalf("what the server saw (the base path, the jar cookie, no forwarding header): %q", seen)
+	if len(seen) != 2 || seen[0] != "/api/login||" || seen[1] != "/api/me|linager_session=s3cret|" {
+		t.Fatalf("what the server saw (the jar cookie, no forwarding header): %q", seen)
 	}
 }
 
@@ -109,7 +109,7 @@ func TestLiveStreamIsNotBuffered(t *testing.T) {
 		case <-r.Context().Done():
 		}
 	}))
-	front := proxyFor(t, srv, "")
+	front := proxyFor(t, srv)
 	defer close(release)
 	resp, err := http.Get(front.URL + "/api/live")
 	if err != nil {
@@ -147,7 +147,7 @@ func TestWebSocketThroughTheProxy(t *testing.T) {
 			}
 		}
 	}))
-	front := proxyFor(t, srv, "")
+	front := proxyFor(t, srv)
 	u, _ := url.Parse(front.URL)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

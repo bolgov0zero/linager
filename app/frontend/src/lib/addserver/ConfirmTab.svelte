@@ -28,7 +28,7 @@
   let errors = $state<Record<string, string>>({});
   let busy = $state<Record<string, boolean>>({});
 
-  // The agent port is not behind the admin reverse proxy, so the address is the one the application connected to; the other
+  // The agent port is not the application port, so the address is the one the application connected to; the other
   // names the agent-port certificate was issued for are listed as alternatives.
   const connectTarget = $derived(connect ? `${host}:${connect.port}` : '');
   const otherHosts = $derived((connect?.hosts ?? []).filter((h) => h.toLowerCase() !== host.toLowerCase() && h !== 'localhost' && h !== '127.0.0.1' && h !== '::1'));

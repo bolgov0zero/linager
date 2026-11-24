@@ -19,13 +19,12 @@ type Server struct {
 	Database struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"database"`
+	// Admin keeps the settings of sign-in. The admin panel (and its listen, base_path and trusted_proxies keys) is gone: an old
+	// file that still has them is read as it is, they are ignored.
 	Admin struct {
-		Listen         string   `yaml:"listen"`          // host:port, port is mandatory
-		BasePath       string   `yaml:"base_path"`       // e.g. /linager, empty by default
-		TrustedProxies []string `yaml:"trusted_proxies"` // CIDRs; default: any
-		CookieSecure   string   `yaml:"cookie_secure"`   // auto|always|never
-		RequireTOTP    bool     `yaml:"require_totp"`    // force the administrator to enable 2FA before using the panel
-		LoginRate      int      `yaml:"login_rate"`      // sign-in attempts per minute per address (default 10)
+		CookieSecure string `yaml:"cookie_secure"` // auto|always|never
+		RequireTOTP  bool   `yaml:"require_totp"`  // force the administrator to enable 2FA before using the interface
+		LoginRate    int    `yaml:"login_rate"`    // sign-in attempts per minute per address (default 10)
 	} `yaml:"admin"`
 	Update struct {
 		Source  string `yaml:"source"`  // "" = GitHub releases of bolgov0zero/linager, "owner/repo", or a mirror URL
@@ -36,10 +35,10 @@ type Server struct {
 	SSHInstall struct {
 		AllowedNetworks []string `yaml:"allowed_networks"`
 	} `yaml:"ssh_install"`
-	// App is the listener of the desktop application: TLS with the certificate of the agent port, the same API as the
-	// admin panel. It is optional: an installation without it works as before (the port is set in the settings).
+	// App is the listener of the desktop application: TLS with the certificate of the agent port. It is the only way to the
+	// interface (the port can be changed in the application or with `linager server app-port`).
 	App struct {
-		Listen string `yaml:"listen"` // host:port; empty = off
+		Listen string `yaml:"listen"` // host:port
 	} `yaml:"app"`
 	Agents struct {
 		Listen string   `yaml:"listen"` // host:port, port is mandatory
@@ -79,9 +78,6 @@ func (c *Server) applyDefaults() {
 	if c.DataDir == "" {
 		c.DataDir = "/var/lib/linager"
 	}
-	if len(c.Admin.TrustedProxies) == 0 {
-		c.Admin.TrustedProxies = []string{"0.0.0.0/0", "::/0"}
-	}
 	if c.Admin.LoginRate <= 0 {
 		c.Admin.LoginRate = 10
 	}
@@ -98,20 +94,15 @@ func (c *Server) Validate() error {
 	if c.Database.DSN == "" {
 		return errors.New("database.dsn is required")
 	}
-	for name, addr := range map[string]string{"admin.listen": c.Admin.Listen, "agents.listen": c.Agents.Listen} {
-		if err := validListen(addr); err != nil {
-			return fmt.Errorf("%s: %w", name, err)
-		}
-	}
-	if c.Admin.Listen == c.Agents.Listen {
-		return errors.New("admin.listen and agents.listen must differ")
+	if err := validListen(c.Agents.Listen); err != nil {
+		return fmt.Errorf("agents.listen: %w", err)
 	}
 	if c.App.Listen != "" {
 		if err := validListen(c.App.Listen); err != nil {
 			return fmt.Errorf("app.listen: %w", err)
 		}
-		if c.App.Listen == c.Admin.Listen || c.App.Listen == c.Agents.Listen {
-			return errors.New("app.listen must differ from admin.listen and agents.listen")
+		if c.App.Listen == c.Agents.Listen {
+			return errors.New("app.listen and agents.listen must differ")
 		}
 	}
 	if v := c.Agents.CertLifetime; v != "" {

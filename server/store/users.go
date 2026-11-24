@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/rand"
 	"time"
 )
 
@@ -11,7 +10,6 @@ type UserRow struct {
 	ID           int64
 	Login        string
 	TOTPEnabled  bool
-	Passkeys     int
 	RecoveryLeft int
 	CreatedAt    time.Time
 	Role         string
@@ -20,7 +18,6 @@ type UserRow struct {
 // ListUsers returns all users with the state of their second factors.
 func (s *Store) ListUsers(ctx context.Context) ([]UserRow, error) {
 	rows, err := s.Pool.Query(ctx, `SELECT u.id, u.login, u.totp_enabled, u.created_at,
-		(SELECT count(*) FROM webauthn_credentials w WHERE w.user_id=u.id),
 		(SELECT count(*) FROM recovery_codes c WHERE c.user_id=u.id AND c.used_at IS NULL),
 		coalesce((SELECT r.name FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id ORDER BY r.id LIMIT 1), 'admin')
 		FROM users u ORDER BY u.login`)
@@ -31,7 +28,7 @@ func (s *Store) ListUsers(ctx context.Context) ([]UserRow, error) {
 	out := []UserRow{}
 	for rows.Next() {
 		var r UserRow
-		if err := rows.Scan(&r.ID, &r.Login, &r.TOTPEnabled, &r.CreatedAt, &r.Passkeys, &r.RecoveryLeft, &r.Role); err != nil {
+		if err := rows.Scan(&r.ID, &r.Login, &r.TOTPEnabled, &r.CreatedAt, &r.RecoveryLeft, &r.Role); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -39,7 +36,7 @@ func (s *Store) ListUsers(ctx context.Context) ([]UserRow, error) {
 	return out, rows.Err()
 }
 
-// DeleteUser removes a user; sessions, codes, passkeys and the dashboard go with it.
+// DeleteUser removes a user; sessions, codes and the dashboard go with it.
 func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 	ct, err := s.Pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, id)
 	if err != nil {
@@ -90,7 +87,7 @@ func (s *Store) UseRecoveryCode(ctx context.Context, userID int64, hash []byte) 
 	return ct.RowsAffected() == 1, err
 }
 
-// ClearSecondFactors removes the TOTP secret, recovery codes and passkeys of a user.
+// ClearSecondFactors removes the TOTP secret and the recovery codes of a user.
 func (s *Store) ClearSecondFactors(ctx context.Context, userID int64) error {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
@@ -100,82 +97,12 @@ func (s *Store) ClearSecondFactors(ctx context.Context, userID int64) error {
 	for _, q := range []string{
 		`UPDATE users SET totp_secret=NULL, totp_enabled=false, totp_last_step=0 WHERE id=$1`,
 		`DELETE FROM recovery_codes WHERE user_id=$1`,
-		`DELETE FROM webauthn_credentials WHERE user_id=$1`,
 	} {
 		if _, err := tx.Exec(ctx, q, userID); err != nil {
 			return err
 		}
 	}
 	return tx.Commit(ctx)
-}
-
-// ---- passkeys ----
-
-// Passkey is a stored WebAuthn credential; Credential holds the serialized webauthn.Credential.
-type Passkey struct {
-	ID         []byte
-	Name       string
-	Credential []byte
-	CreatedAt  time.Time
-	LastUsedAt *time.Time
-}
-
-// Passkeys lists the passkeys of a user, oldest first.
-func (s *Store) Passkeys(ctx context.Context, userID int64) ([]Passkey, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT id, name, credential, created_at, last_used_at FROM webauthn_credentials WHERE user_id=$1 ORDER BY created_at`, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []Passkey{}
-	for rows.Next() {
-		var p Passkey
-		if err := rows.Scan(&p.ID, &p.Name, &p.Credential, &p.CreatedAt, &p.LastUsedAt); err != nil {
-			return nil, err
-		}
-		out = append(out, p)
-	}
-	return out, rows.Err()
-}
-
-// PasskeyCount counts the passkeys of a user.
-func (s *Store) PasskeyCount(ctx context.Context, userID int64) (n int, err error) {
-	err = s.Pool.QueryRow(ctx, `SELECT count(*) FROM webauthn_credentials WHERE user_id=$1`, userID).Scan(&n)
-	return
-}
-
-// AddPasskey stores a new credential.
-func (s *Store) AddPasskey(ctx context.Context, userID int64, id []byte, name string, credential []byte) error {
-	_, err := s.Pool.Exec(ctx, `INSERT INTO webauthn_credentials (id, user_id, name, credential) VALUES ($1,$2,$3,$4)`, id, userID, name, credential)
-	return err
-}
-
-// UpdatePasskey saves the credential after a use (the signature counter changes) and marks it used.
-func (s *Store) UpdatePasskey(ctx context.Context, id, credential []byte) error {
-	_, err := s.Pool.Exec(ctx, `UPDATE webauthn_credentials SET credential=$2, last_used_at=now() WHERE id=$1`, id, credential)
-	return err
-}
-
-// DeletePasskey removes one passkey of a user and reports whether it existed.
-func (s *Store) DeletePasskey(ctx context.Context, userID int64, id []byte) (bool, error) {
-	ct, err := s.Pool.Exec(ctx, `DELETE FROM webauthn_credentials WHERE user_id=$1 AND id=$2`, userID, id)
-	return ct.RowsAffected() == 1, err
-}
-
-// EnsureWebAuthnHandle returns the user handle, creating a random one on first use.
-func (s *Store) EnsureWebAuthnHandle(ctx context.Context, userID int64) ([]byte, error) {
-	h := make([]byte, 32)
-	if _, err := rand.Read(h); err != nil {
-		return nil, err
-	}
-	var out []byte
-	err := s.Pool.QueryRow(ctx, `UPDATE users SET webauthn_handle=COALESCE(webauthn_handle,$2) WHERE id=$1 RETURNING webauthn_handle`, userID, h).Scan(&out)
-	return out, err
-}
-
-// UserByHandle loads a user by the opaque WebAuthn user handle.
-func (s *Store) UserByHandle(ctx context.Context, handle []byte) (*User, error) {
-	return scanUser(s.Pool.QueryRow(ctx, `SELECT `+userCols+` FROM users WHERE webauthn_handle=$1`, handle))
 }
 
 // ---- snippets ----

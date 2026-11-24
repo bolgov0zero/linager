@@ -196,7 +196,7 @@ func (a *Admin) securityState(w http.ResponseWriter, r *http.Request, _ *store.U
 	// the address the administrator comes from: the panel never offers to block it
 	var obj map[string]json.RawMessage
 	if json.Unmarshal(data, &obj) == nil {
-		self, _ := json.Marshal(a.Trust.ClientIP(r))
+		self, _ := json.Marshal(clientIP(r))
 		obj["self_ip"] = self
 		if merged, err := json.Marshal(obj); err == nil {
 			data = merged
@@ -309,7 +309,7 @@ func (a *Admin) securityBan(w http.ResponseWriter, r *http.Request, u *store.Use
 		needConfirm(w)
 		return
 	}
-	a.secCall(w, r, u, s, "security", "ban", "security.fail2ban.ban", map[string]any{"ip": req.IP, "duration": req.Duration, "self": a.Trust.ClientIP(r)},
+	a.secCall(w, r, u, s, "security", "ban", "security.fail2ban.ban", map[string]any{"ip": req.IP, "duration": req.Duration, "self": clientIP(r)},
 		map[string]any{"ip": req.IP, "duration": req.Duration}, 40*time.Second)
 }
 
@@ -378,7 +378,7 @@ func (a *Admin) securityF2bSettings(w http.ResponseWriter, r *http.Request, u *s
 		return
 	}
 	params := map[string]any{"maxretry": req.MaxRetry, "findtime": req.FindTime, "bantime": req.BanTime, "increment": req.Increment,
-		"recidive": req.Recidive, "ignore": req.Ignore, "self": a.Trust.ClientIP(r)}
+		"recidive": req.Recidive, "ignore": req.Ignore, "self": clientIP(r)}
 	a.secCall(w, r, u, s, "security", "f2bSettings", "security.fail2ban.settings", params,
 		map[string]any{"maxretry": req.MaxRetry, "findtime": req.FindTime, "bantime": req.BanTime, "increment": req.Increment, "recidive": req.Recidive, "ignore": len(req.Ignore)}, 90*time.Second)
 }
@@ -710,7 +710,7 @@ func (a *Admin) streamParams(r *http.Request) (module string, params map[string]
 	case "f2b-install":
 		preset := q.Get("preset")
 		if preset == "soft" || preset == "norm" || preset == "hard" {
-			return "security.f2bInstall", map[string]any{"preset": preset, "self": a.Trust.ClientIP(r)}, true
+			return "security.f2bInstall", map[string]any{"preset": preset, "self": clientIP(r)}, true
 		}
 	case "apt":
 		switch m := q.Get("mode"); m {

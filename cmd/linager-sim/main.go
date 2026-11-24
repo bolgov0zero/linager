@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -101,7 +102,7 @@ func (f *fake) System(v string) protocol.SystemInfo {
 
 func main() {
 	serverAddr := flag.String("server", "127.0.0.1:9443", "agent port")
-	adminURL := flag.String("admin", "http://127.0.0.1:8080", "admin panel URL")
+	adminURL := flag.String("admin", "https://127.0.0.1:9444", "address of the application port (the API of the server)")
 	login := flag.String("login", "admin", "admin login")
 	password := flag.String("password", "", "admin password")
 	dsn := flag.String("dsn", "", "database DSN for history backfill (optional)")
@@ -117,7 +118,8 @@ func main() {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	jar, _ := cookiejar.New(nil)
-	hc := &http.Client{Jar: jar}
+	// a development tool: the application port presents the certificate of the server itself, which is not checked here
+	hc := &http.Client{Jar: jar, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13}}} //nolint:gosec // development simulator
 	var csrf string
 	call := func(method, path string, body any, out any) error {
 		var rd io.Reader

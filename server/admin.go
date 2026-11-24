@@ -5,9 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
-	"io/fs"
 	"log/slog"
-	"mime"
 	"net"
 	"net/http"
 	"strconv"
@@ -23,7 +21,6 @@ import (
 
 const (
 	cookieName = "linager_session"
-	sessionTTL = 12 * time.Hour
 	// appSessionTTL is the sliding lifetime of a session of the desktop application (the application port)
 	appSessionTTL  = 7 * 24 * time.Hour
 	maxEnrollTries = 5
@@ -36,7 +33,7 @@ const (
 	keySession
 )
 
-// Admin serves the web admin panel and its JSON API.
+// Admin serves the JSON API of the server (the application port).
 type Admin struct {
 	routes  []routeInfo
 	DB      *store.Store
@@ -47,12 +44,10 @@ type Admin struct {
 	Updates *Updates
 	Log     *slog.Logger
 	Cfg     *config.Server
-	Trust   *ProxyTrust
 	Access  *AccessGuard
 	Conn    *Connection // the ports (nil in tests that do not start the listeners)
 	SSH     *SSHInstaller
 	sshL    *ipLimiter
-	Static  fs.FS // built frontend (may be nil in tests)
 
 	loginL *ipLimiter
 
@@ -64,22 +59,14 @@ type Admin struct {
 	assistLive map[string]map[*StreamHandle]struct{} // the streams of the open Assistants per server (guarded by termMu)
 
 	editJobs dockerEditJobs // settings of a container waiting for their stream (api_docker_edit.go)
-
-	// passkey ceremonies in progress (the challenge must survive between begin and finish)
-	cerMu sync.Mutex
-	cers  map[string]*ceremony
 }
 
 // NewAdmin builds the admin handler set.
-func NewAdmin(db *store.Store, keys *Keys, hub *Hub, live *Live, metrics *Metrics, updates *Updates, cfg *config.Server, static fs.FS, log *slog.Logger) (*Admin, error) {
-	trust, err := NewProxyTrust(cfg.Admin.TrustedProxies)
-	if err != nil {
-		return nil, err
-	}
-	guard := newAccessGuard(db, trust, cfg.Admin.TrustedProxies, log)
+func NewAdmin(db *store.Store, keys *Keys, hub *Hub, live *Live, metrics *Metrics, updates *Updates, cfg *config.Server, log *slog.Logger) (*Admin, error) {
+	guard := newAccessGuard(db, log)
 	guard.loadHosts(context.Background()) // the last known addresses of host names, before the first request
 	guard.Load(context.Background())
-	ad := &Admin{DB: db, Keys: keys, Hub: hub, Live: live, Metrics: metrics, Updates: updates, Log: log, Cfg: cfg, Trust: trust, Access: guard, Static: static, loginL: newLimiter(max(cfg.Admin.LoginRate, 10), time.Minute), terms: map[string]int{}, cers: map[string]*ceremony{}, sshL: newLimiter(10, 10*time.Minute)}
+	ad := &Admin{DB: db, Keys: keys, Hub: hub, Live: live, Metrics: metrics, Updates: updates, Log: log, Cfg: cfg, Access: guard, loginL: newLimiter(max(cfg.Admin.LoginRate, 10), time.Minute), terms: map[string]int{}, sshL: newLimiter(10, 10*time.Minute)}
 	ad.SSH = ad.newSSHInstaller()
 	return ad, nil
 }
@@ -95,12 +82,6 @@ func (a *Admin) Handler() http.Handler {
 	a.route(mux, "POST /api/me/totp/disable", "any", a.totpDisable)
 	a.route(mux, "POST /api/me/password", "any", a.changeOwnPassword)
 	a.route(mux, "POST /api/me/recovery-codes", "any", a.recoveryRegenerate)
-	a.route(mux, "GET /api/me/passkeys", "any", a.passkeyList)
-	a.route(mux, "POST /api/me/passkeys/begin", "any", a.passkeyRegisterBegin)
-	a.route(mux, "POST /api/me/passkeys/finish", "any", a.passkeyRegisterFinish)
-	a.route(mux, "DELETE /api/me/passkeys/{id}", "any", a.passkeyDelete)
-	mux.HandleFunc("POST /api/login/passkey/begin", a.passkeyLoginBegin)
-	mux.HandleFunc("POST /api/login/passkey/finish", a.passkeyLoginFinish)
 	a.route(mux, "GET /api/users", "admin", a.usersList)
 	a.route(mux, "POST /api/users", "admin", a.userCreate)
 	a.route(mux, "DELETE /api/users/{id}", "admin", a.userDelete)
@@ -157,12 +138,8 @@ func (a *Admin) Handler() http.Handler {
 	a.route(mux, "GET /api/connection", "admin", a.connGet)
 	a.route(mux, "PUT /api/connection", "admin", a.connPut)
 	a.route(mux, "POST /api/connection/close-old", "admin", a.connCloseOld)
-	a.route(mux, "GET /api/access", "admin", a.accessGet)
-	a.route(mux, "PUT /api/access", "admin", a.accessPut)
-	a.route(mux, "POST /api/access/check", "admin", a.accessCheck)
-	a.route(mux, "POST /api/access/resolve", "admin", a.accessResolve)
-	a.route(mux, "PUT /api/access/retention", "admin", a.accessRetention)
-	a.route(mux, "GET /api/access/log", "admin", a.accessLog)
+	a.route(mux, "POST /api/app-access/resolve", "admin", a.appAccessResolve)
+	a.route(mux, "GET /api/app-access/log", "admin", a.appAccessLog)
 	a.route(mux, "GET /api/app-access", "admin", a.appAccessGet)
 	a.route(mux, "PUT /api/app-access", "admin", a.appAccessPut)
 	a.route(mux, "POST /api/app-access/check", "admin", a.appAccessCheck)
@@ -243,66 +220,22 @@ func (a *Admin) Handler() http.Handler {
 	a.route(mux, "DELETE /api/servers/{id}/docker/images/{iid}", "srv:docker", a.dockerRemoveImage)
 	a.route(mux, "POST /api/servers/{id}/docker/check", "srv:docker", a.dockerCheck)
 	a.route(mux, "PUT /api/servers/{id}/docker-ignore", "srv:docker", a.ignoreUpdates("docker"))
-	if a.Static != nil {
-		mux.Handle("/", a.static())
-	}
-	var h http.Handler = mux
-	if bp := strings.TrimRight(a.Cfg.Admin.BasePath, "/"); bp != "" {
-		h = http.StripPrefix(bp, mux)
-	}
-	return a.secureHeaders(a.accessGuard(h))
+	return a.secureHeaders(a.accessGuard(mux))
 }
 
+// secureHeaders sets what an API answer needs: the server speaks JSON and streams to the application, there is no page to
+// protect with a policy of its own.
 func (a *Admin) secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
-		h.Set("Cross-Origin-Opener-Policy", "same-origin")
-		h.Set("Cross-Origin-Resource-Policy", "same-origin")
-		if a.Trust.IsHTTPS(r) {
+		if r.TLS != nil {
 			h.Set("Strict-Transport-Security", "max-age=31536000")
 		}
-		// The remote desktop client is WebAssembly (it needs wasm-unsafe-eval, which allows no script from a string) and
-		// loads its module from a data: address, so connect-src lists data: as well.
-		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' data:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "no-referrer")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			h.Set("Cache-Control", "no-store")
 		}
 		next.ServeHTTP(w, r)
-	})
-}
-
-func (a *Admin) static() http.Handler {
-	// Not every system mime table knows the web app manifest; nosniff is set, so the type must be right.
-	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
-	files := http.FileServerFS(a.Static)
-	gz := &gzipAssets{fsys: a.Static}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if gz.serve(w, r) {
-			return
-		}
-		p := strings.TrimPrefix(r.URL.Path, "/")
-		if p != "" {
-			if _, err := fs.Stat(a.Static, p); err != nil {
-				// A script or style that is gone (a page opened before an update asks for the old file) must be a
-				// 404: the page of the application in its place cannot be loaded as a module and the window that
-				// needed it stays empty.
-				if strings.HasPrefix(p, "assets/") {
-					http.NotFound(w, r)
-					return
-				}
-				r.URL.Path = "/" // SPA fallback
-				p = ""
-			}
-		}
-		// The page itself names the files of this build: it is always asked again, so a new release is picked up.
-		if p == "" || p == "index.html" {
-			w.Header().Set("Cache-Control", "no-cache")
-		}
-		files.ServeHTTP(w, r)
 	})
 }
 
@@ -322,7 +255,7 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 
 func (a *Admin) audit(r *http.Request, u *store.User, action, ttype, tid, tname, result string, details map[string]any) {
 	au := store.Audit{Action: action, TargetType: ttype, TargetID: tid, TargetName: tname, Result: result, Details: details,
-		RemoteAddr: remoteAddr(r).String(), ClientIP: a.Trust.ClientIP(r)}
+		RemoteAddr: remoteAddr(r).String(), ClientIP: clientIP(r)}
 	if u != nil {
 		au.UserID, au.Actor = &u.ID, u.Login
 	}
@@ -334,7 +267,7 @@ func (a *Admin) audit(r *http.Request, u *store.User, action, ttype, tid, tname,
 		if u != nil {
 			login = u.Login
 		}
-		a.Access.logLogin(r, a.Access.snap.Load().rules.decide(remoteAddr(r), r.Header.Get("X-Forwarded-For")), login, result)
+		a.Access.logLogin(r, login, result)
 	}
 }
 
@@ -345,7 +278,7 @@ func (a *Admin) secureCookie(r *http.Request) bool {
 	case "never":
 		return false
 	}
-	return a.Trust.IsHTTPS(r)
+	return r.TLS != nil
 }
 
 // auth requires a valid session; non-GET requests also need a matching CSRF token.
@@ -400,7 +333,7 @@ func (a *Admin) login(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	ip := a.Trust.ClientIP(r)
+	ip := clientIP(r)
 	if !a.loginL.Allow(ip) || !a.loginL.Allow("peer:"+remoteAddr(r).String()) {
 		a.audit(r, nil, "auth.login", "user", "", req.Login, "rate_limited", nil)
 		jsonErr(w, http.StatusTooManyRequests, "too many attempts, try later")
@@ -456,11 +389,8 @@ func (a *Admin) finishLogin(w http.ResponseWriter, r *http.Request, u *store.Use
 	_ = a.DB.RecordLoginSuccess(r.Context(), u.ID)
 	token, hash := NewToken()
 	csrf := NewCSRF()
-	ttl, sliding := sessionTTL, false
-	if isDirect(r) { // the application port: seven days, renewed by every request
-		ttl, sliding = appSessionTTL, true
-	}
-	if err := a.DB.CreateSession(r.Context(), hash, u.ID, csrf, a.Trust.ClientIP(r), r.UserAgent(), ttl, sliding); err != nil {
+	ttl, sliding := appSessionTTL, true // seven days, renewed by every request
+	if err := a.DB.CreateSession(r.Context(), hash, u.ID, csrf, clientIP(r), r.UserAgent(), ttl, sliding); err != nil {
 		jsonErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -473,7 +403,6 @@ func (a *Admin) finishLogin(w http.ResponseWriter, r *http.Request, u *store.Use
 
 // sessionBody is the answer of login and me.
 func (a *Admin) sessionBody(r *http.Request, u *store.User, csrf string) map[string]any {
-	n, _ := a.DB.PasskeyCount(r.Context(), u.ID)
 	left, _ := a.DB.RecoveryRemaining(r.Context(), u.ID)
 	if u.Role == "" {
 		u.Role, _ = a.DB.RoleOf(r.Context(), u.ID)
@@ -487,7 +416,7 @@ func (a *Admin) sessionBody(r *http.Request, u *store.User, csrf string) map[str
 			modules = acc.Modules
 		}
 	}
-	return map[string]any{"csrf": csrf, "login": u.Login, "id": u.ID, "totp_enabled": u.TOTPEnabled, "passkeys": n, "recovery_left": left,
+	return map[string]any{"csrf": csrf, "login": u.Login, "id": u.ID, "totp_enabled": u.TOTPEnabled, "recovery_left": left,
 		"totp_required": a.Cfg.Admin.RequireTOTP && !u.TOTPEnabled, "role": u.Role, "modules": modules}
 }
 
@@ -506,8 +435,8 @@ func (a *Admin) me(w http.ResponseWriter, r *http.Request, u *store.User) {
 }
 
 // connectInfo returns what a client needs to connect to this server: the agent port, the fingerprint of the agent-port
-// certificate and the names/IPs that certificate was issued for. The agent port is not behind the admin reverse proxy,
-// so the page picks the host itself (usually the one the administrator opened the panel with).
+// certificate and the names/IPs that certificate was issued for. The agent port is not the application port,
+// so the application picks the host itself (usually the one it is connected to).
 func (a *Admin) connectInfo(w http.ResponseWriter, _ *http.Request, _ *store.User) {
 	port := a.agentPort()
 	hosts := a.Cfg.Agents.Hosts

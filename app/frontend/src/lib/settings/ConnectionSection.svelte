@@ -17,9 +17,9 @@
   let confirmClose = $state(false);
 
   const agentNum = $derived(Number.parseInt(agentPort, 10));
-  const appNum = $derived(appPort.trim() === '' ? 0 : Number.parseInt(appPort, 10));
+  const appNum = $derived(Number.parseInt(appPort, 10));
   const validPort = (n: number, zeroOk: boolean): boolean => (zeroOk && n === 0) || (Number.isInteger(n) && n >= 1 && n <= 65535);
-  const valid = $derived(validPort(agentNum, false) && validPort(appNum, true) && /^\d*$/.test(agentPort.trim()) && /^\d*$/.test(appPort.trim()));
+  const valid = $derived(validPort(agentNum, false) && validPort(appNum, false) && /^\d*$/.test(agentPort.trim()) && /^\d*$/.test(appPort.trim()));
   const agentChanged = $derived(!!st && agentNum !== st.agent_port);
   const appChanged = $derived(!!st && appNum !== st.app_port);
   const dirty = $derived(agentChanged || appChanged);
@@ -34,7 +34,7 @@
   function fill(s: ConnectionState): void {
     st = s;
     agentPort = String(s.agent_port);
-    appPort = s.app_port ? String(s.app_port) : '';
+    appPort = String(s.app_port);
   }
   async function load(initial: boolean): Promise<void> {
     try {

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -94,12 +95,11 @@ func TestUpdatesAndAuditAPI(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Server{DataDir: dir}
 	cfg.Database.DSN = dsn
-	cfg.Admin.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
+	cfg.App.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
 	cfg.Agents.Hosts = []string{"127.0.0.1"}
 	cfg.Admin.CookieSecure = "never"
 	cfg.Update.Source = fake.URL
 	cfg.Update.Channel = "stable"
-	cfg.Admin.TrustedProxies = []string{"0.0.0.0/0"}
 	if err := server.InitKeys(dir, cfg.Agents.Hosts); err != nil {
 		t.Fatal(err)
 	}
@@ -111,17 +111,17 @@ func TestUpdatesAndAuditAPI(t *testing.T) {
 	if err := server.CreateAdmin(ctx, db, "admin", "a-long-test-password"); err != nil {
 		t.Fatal(err)
 	}
-	go func() { _ = server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
+	go func() { _ = server.Run(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
 	waitFor(t, "server", func() bool {
-		c, e := http.Get("http://" + cfg.Admin.Listen + "/")
+		c, e := net.Dial("tcp", cfg.App.Listen)
 		if e == nil {
-			_ = c.Body.Close()
+			_ = c.Close()
 		}
 		return e == nil
 	})
 
 	jar, _ := cookiejar.New(nil)
-	api := &apiClient{t: t, base: "http://" + cfg.Admin.Listen, hc: &http.Client{Jar: jar}}
+	api := &apiClient{t: t, base: "https://" + cfg.App.Listen, hc: testClient(jar)}
 	var lr struct{ CSRF string }
 	api.do("POST", "/api/login", map[string]string{"login": "admin", "password": "a-long-test-password"}, &lr)
 	api.csrf = lr.CSRF

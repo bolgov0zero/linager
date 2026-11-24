@@ -87,8 +87,8 @@ func TestNormalizeHost(t *testing.T) {
 
 func TestHostRulesInLists(t *testing.T) {
 	hosts := hostAddrs{"home.example.org": {netip.MustParseAddr("203.0.113.7"), netip.MustParseAddr("2001:db8::7")}}
-	cfg := AccessConfig{Mode: AccessWhite, White: rules("192.168.1.0/24", "Home.Example.org", "home.example.org.")}
-	norm, ar, err := compileAccess(cfg, hosts)
+	cfg := AppAccessConfig{Mode: AccessWhite, White: rules("192.168.1.0/24", "Home.Example.org", "home.example.org.")}
+	norm, ar, err := compileAppAccess(cfg, hosts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,21 +99,21 @@ func TestHostRulesInLists(t *testing.T) {
 		t.Fatalf("hosts %v unresolved %v", ar.hosts, ar.unresolved)
 	}
 	lan := netip.MustParseAddr("192.168.1.40")
-	if v := ar.decide(netip.MustParseAddr("203.0.113.7"), ""); !v.Allowed || v.Reason != reasonInWhite {
+	if v := ar.decide(netip.MustParseAddr("203.0.113.7")); !v.Allowed || v.Reason != reasonInWhite {
 		t.Errorf("the address of the name must pass: %+v", v)
 	}
-	if v := ar.decide(netip.MustParseAddr("2001:db8::7"), ""); !v.Allowed {
+	if v := ar.decide(netip.MustParseAddr("2001:db8::7")); !v.Allowed {
 		t.Errorf("the IPv6 address of the name must pass: %+v", v)
 	}
-	if v := ar.decide(netip.MustParseAddr("203.0.113.8"), ""); v.Allowed {
+	if v := ar.decide(netip.MustParseAddr("203.0.113.8")); v.Allowed {
 		t.Errorf("a neighbour of the address must not pass: %+v", v)
 	}
-	if got := ar.problems(lan, ""); len(got) != 0 {
+	if got := appProblems(ar, lan); len(got) != 0 {
 		t.Errorf("unexpected problems %+v", got)
 	}
 
 	// a name without an address is a problem, and in a black list it bans nobody
-	_, ar, err = compileAccess(cfg, nil)
+	_, ar, err = compileAppAccess(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,45 +121,35 @@ func TestHostRulesInLists(t *testing.T) {
 		t.Fatalf("unresolved %v", ar.unresolved)
 	}
 	found := false
-	for _, p := range ar.problems(lan, "") {
+	for _, p := range appProblems(ar, lan) {
 		if p.Code == problemHostNoAddr && p.Host == "home.example.org" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("an unresolved name must be reported: %+v", ar.problems(lan, ""))
+		t.Errorf("an unresolved name must be reported: %+v", appProblems(ar, lan))
 	}
-	black := mustRulesHosts(t, AccessConfig{Mode: AccessBlack, Black: rules("bad.example.org")}, hostAddrs{"bad.example.org": {netip.MustParseAddr("198.51.100.9")}})
-	if v := black.decide(netip.MustParseAddr("198.51.100.9"), ""); v.Allowed || v.Reason != reasonInBlack {
+	_, black, err := compileAppAccess(AppAccessConfig{Mode: AccessBlack, Black: rules("bad.example.org")}, hostAddrs{"bad.example.org": {netip.MustParseAddr("198.51.100.9")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := black.decide(netip.MustParseAddr("198.51.100.9")); v.Allowed || v.Reason != reasonInBlack {
 		t.Errorf("the address of a black-listed name must be refused: %+v", v)
 	}
-	if v := black.decide(netip.MustParseAddr("198.51.100.10"), ""); !v.Allowed {
+	if v := black.decide(netip.MustParseAddr("198.51.100.10")); !v.Allowed {
 		t.Errorf("other addresses pass: %+v", v)
 	}
 
-	// names are for the two lists only
-	if _, _, err := compileAccess(AccessConfig{Mode: AccessOff, Proxies: rules("proxy.example.org")}, nil); err == nil {
-		t.Error("a host name among the trusted proxies must be refused")
-	}
-	if _, _, err := compileAccess(AccessConfig{Mode: AccessOff, White: rules("1.2.3.4/33")}, nil); err == nil {
+	if _, _, err := compileAppAccess(AppAccessConfig{Mode: AccessOff, White: rules("1.2.3.4/33")}, nil); err == nil {
 		t.Error("a broken address must still be refused")
 	}
 	var many []string
 	for i := 0; i <= maxAccessHosts; i++ {
 		many = append(many, "h"+strings.Repeat("x", i)+".example.org")
 	}
-	if _, _, err := compileAccess(AccessConfig{Mode: AccessWhite, White: rules(many...)}, nil); err == nil {
+	if _, _, err := compileAppAccess(AppAccessConfig{Mode: AccessWhite, White: rules(many...)}, nil); err == nil {
 		t.Error("too many names must be refused")
 	}
-}
-
-func mustRulesHosts(t *testing.T, cfg AccessConfig, h hostAddrs) *accessRules {
-	t.Helper()
-	_, ar, err := compileAccess(cfg, h)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ar
 }
 
 func TestResolveHostFilters(t *testing.T) {

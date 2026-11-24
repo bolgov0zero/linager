@@ -7,7 +7,7 @@
   import Fold from './Fold.svelte';
 
   // Settings, "Application access": who may connect to the application port of the server. Its own white or black list of
-  // addresses, apart from the admin panel. The port is a direct connection, so the list judges the address of the
+  // addresses. The port is a direct connection, so the list judges the address of the
   // connection itself.
   let { onauthlost }: { onauthlost: () => void } = $props();
 
@@ -307,7 +307,6 @@
     <p class="dim">{t('dash.loading')}</p>
   {:else if srv && draft}
     {#if error}<div class="err" role="alert">{error}</div>{/if}
-    {#if !srv.configured}<p class="warnbox">{t('aa.inherited')}</p>{/if}
 
     <Fold title={t('aa.restrict')} meta={listMeta} tone={srv.config.mode === 'off' ? 'muted' : 'ok'} bind:open={openList}>
       <div class="radios" role="radiogroup" aria-label={t('aa.mode.label')}>
@@ -405,7 +404,7 @@
       <p class="dim">{t('aa.log.foot')}</p>
     </Fold>
 
-    {#if dirty || !srv.configured}
+    {#if dirty}
       <div class="applybar" role="region" aria-live="polite">
         {#if confirming}
           <div class="msg">
@@ -421,10 +420,9 @@
             {#if problems.length}
               <span class="critt">{t('aa.cannotApply')}</span>
               {#each problems as p (p.code + (p.host ?? ''))}<br />{problemText(p)}{/each}
-            {:else if dirty}{t('aa.dirty')}
-            {:else}{t('aa.separate')}{/if}
+            {:else}{t('aa.dirty')}{/if}
           </div>
-          {#if dirty}<button class="btn" type="button" onclick={revert}>{t('aa.revert')}</button>{/if}
+          <button class="btn" type="button" onclick={revert}>{t('aa.revert')}</button>
           <button class="btn primary" type="button" disabled={busy || problems.length > 0 || !check} onclick={() => (confirming = true)}>{t('aa.apply')}</button>
         {/if}
       </div>

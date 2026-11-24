@@ -28,7 +28,7 @@ const settingConnection = "connection"
 // ConnState is the stored part of the connection settings.
 type ConnState struct {
 	AgentPort int `json:"agent_port"`
-	// AppPort is the port of the desktop application listener; 0 switches it off.
+	// AppPort is the port of the desktop application listener, the only way to the interface.
 	AppPort int `json:"app_port"`
 	// LegacyPort is the previous agent port. It stays open while agents move to the new one; 0 means no move.
 	LegacyPort int `json:"legacy_port"`
@@ -69,8 +69,7 @@ type ConnStatus struct {
 	Host        string      `json:"host"`        // the address the listeners are bound to
 	Fingerprint string      `json:"fingerprint"` // of the certificate of both ports
 	MinAgent    string      `json:"min_agent"`   // the first agent version that follows a change of the agent port
-	AdminPort   int         `json:"admin_port"`
-	AppUp       bool        `json:"app_up"` // the application listener is really open
+	AppUp       bool        `json:"app_up"`      // the application listener is really open
 	Move        *ConnMove   `json:"move"`
 	Blockers    []ConnAgent `json:"blockers"` // online agents that would be cut off by a change of the agent port
 }
@@ -94,13 +93,12 @@ func (p *portListener) close() {
 
 // Connection owns the listeners of the agent port and of the application port and changes them while the server runs.
 type Connection struct {
-	db      *store.Store
-	hub     *Hub
-	agents  *AgentPort
-	ssh     *SSHInstaller // follows the agent port (nil in tests)
-	keys    *Keys
-	log     *slog.Logger
-	adminLn string // the admin listen address, for the conflict check
+	db     *store.Store
+	hub    *Hub
+	agents *AgentPort
+	ssh    *SSHInstaller // follows the agent port (nil in tests)
+	keys   *Keys
+	log    *slog.Logger
 
 	agentHost, appHost string
 
@@ -120,7 +118,7 @@ func NewConnection(ctx context.Context, cfg *config.Server, db *store.Store, hub
 	if err != nil {
 		return nil, err
 	}
-	c := &Connection{db: db, hub: hub, agents: agents, keys: keys, log: log, adminLn: cfg.Admin.Listen, agentHost: ah, appHost: ah}
+	c := &Connection{db: db, hub: hub, agents: agents, keys: keys, log: log, agentHost: ah, appHost: ah}
 	c.st.AgentPort, _ = strconv.Atoi(ap)
 	if cfg.App.Listen != "" {
 		if h, p, err := net.SplitHostPort(cfg.App.Listen); err == nil {
@@ -161,7 +159,7 @@ func stripForwarded(next http.Handler) http.Handler {
 		for _, h := range []string{"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host", "X-Forwarded-Port", "X-Real-Ip", "Forwarded"} {
 			r.Header.Del(h)
 		}
-		next.ServeHTTP(w, markDirect(r))
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -255,13 +253,11 @@ func (c *Connection) Status(ctx context.Context) (*ConnStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, adminPort, _ := net.SplitHostPort(c.adminLn)
-	ap, _ := strconv.Atoi(adminPort)
 	c.mu.Lock()
 	appUp := c.app != nil
 	c.mu.Unlock()
 	out := &ConnStatus{AgentPort: st.AgentPort, AppPort: st.AppPort, Host: c.agentHost, Fingerprint: pki.Fingerprint(c.keys.TLSDER), MinAgent: protocol.MoveMinAgent,
-		AdminPort: ap, AppUp: appUp, Blockers: []ConnAgent{}}
+		AppUp: appUp, Blockers: []ConnAgent{}}
 	for _, a := range list {
 		if a.Online && !a.Supported {
 			out.Blockers = append(out.Blockers, a)
@@ -292,14 +288,11 @@ func validPort(p int) bool { return p >= 1 && p <= 65535 }
 // Apply changes the ports. New ports are opened before anything is closed or stored, so a busy port leaves
 // everything as it was.
 func (c *Connection) Apply(ctx context.Context, req ConnReq) error {
-	if !validPort(req.AgentPort) || (req.AppPort != 0 && !validPort(req.AppPort)) {
+	// the application port is the only way to the interface: it cannot be switched off
+	if !validPort(req.AgentPort) || !validPort(req.AppPort) {
 		return &ConnError{Status: http.StatusBadRequest, Code: "bad_port", Detail: "a port is 1-65535"}
 	}
-	adminPort := portOf(c.adminLn)
-	switch {
-	case req.AgentPort == adminPort || (req.AppPort != 0 && req.AppPort == adminPort):
-		return &ConnError{Status: http.StatusConflict, Code: "port_conflict", Detail: "the port is used by the admin panel"}
-	case req.AppPort != 0 && req.AppPort == req.AgentPort:
+	if req.AppPort == req.AgentPort {
 		return &ConnError{Status: http.StatusConflict, Code: "port_conflict", Detail: "the agent port and the application port must differ"}
 	}
 	cur := c.State()
@@ -458,4 +451,61 @@ func (c *Connection) CloseLegacy(ctx context.Context) error {
 // Describe is a one-line summary for the log and the audit journal.
 func (s ConnState) Describe() string {
 	return fmt.Sprintf("agents %d, application %d", s.AgentPort, s.AppPort)
+}
+
+// storedConnState is what a server starts with: server.yaml, replaced by what the interface stored.
+func storedConnState(ctx context.Context, cfg *config.Server, db *store.Store) (ConnState, error) {
+	_, ap, err := net.SplitHostPort(cfg.Agents.Listen)
+	if err != nil {
+		return ConnState{}, err
+	}
+	var st ConnState
+	st.AgentPort, _ = strconv.Atoi(ap)
+	if cfg.App.Listen != "" {
+		st.AppPort = portOf(cfg.App.Listen)
+	}
+	if raw := db.SettingRaw(ctx, settingConnection); raw != nil {
+		var s ConnState
+		if json.Unmarshal(raw, &s) == nil && s.AgentPort > 0 {
+			st = s
+		}
+	}
+	return st, nil
+}
+
+// AppAccessPoint is what the application needs to connect: the port and the fingerprint of the certificate it must pin.
+type AppAccessPoint struct {
+	Port        int
+	Fingerprint string
+}
+
+// AppPortInfo reads the port of the application and the fingerprint of the certificate (`linager server app-port`).
+func AppPortInfo(ctx context.Context, cfg *config.Server, db *store.Store) (AppAccessPoint, error) {
+	st, err := storedConnState(ctx, cfg, db)
+	if err != nil {
+		return AppAccessPoint{}, err
+	}
+	keys, err := LoadKeys(cfg.DataDir)
+	if err != nil {
+		return AppAccessPoint{}, err
+	}
+	return AppAccessPoint{Port: st.AppPort, Fingerprint: pki.Fingerprint(keys.TLSDER)}, nil
+}
+
+// SetAppPort stores the application port in the database; the running server reads it when it starts. It is the way to
+// switch the application on for a server that has no port yet (the interface itself is the application).
+func SetAppPort(ctx context.Context, cfg *config.Server, db *store.Store, port int) error {
+	if !validPort(port) {
+		return errors.New("a port is 1-65535")
+	}
+	st, err := storedConnState(ctx, cfg, db)
+	if err != nil {
+		return err
+	}
+	if port == st.AgentPort || port == st.LegacyPort {
+		return errors.New("the port is used by the agent port")
+	}
+	st.AppPort = port
+	b, _ := json.Marshal(st)
+	return db.SetSettingRaw(ctx, settingConnection, b)
 }

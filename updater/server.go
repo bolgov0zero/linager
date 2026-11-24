@@ -5,6 +5,7 @@ package updater
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -25,7 +27,7 @@ import (
 	"github.com/bolgov0zero/linager/update"
 )
 
-// Step ids shown in the admin panel.
+// Step ids shown in the application.
 const (
 	StepVerify  = "verify"
 	StepBackup  = "backup"
@@ -435,24 +437,24 @@ func ApplyRequest(ctx context.Context, d Deps) error {
 	return ServerUpdate(ctx, d, req.Version, req.Channel)
 }
 
-// HealthCheck builds the default check: the admin panel answers 200 and the agent port accepts TCP.
+// HealthCheck builds the default check: the application port answers (an unauthenticated request of the API gets its 401,
+// that is, the server is up and the API is served) and the agent port accepts TCP. The application port is the one the
+// interface stored, or app.listen of the file.
 func HealthCheck(cfg *config.Server) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
-		host, port, err := net.SplitHostPort(cfg.Admin.Listen)
-		if err != nil {
-			return err
-		}
-		if host == "" || host == "0.0.0.0" || host == "::" {
-			host = "127.0.0.1"
-		}
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+net.JoinHostPort(host, port)+"/", nil)
-		resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
-		if err != nil {
-			return err
-		}
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("admin panel answered %s", resp.Status)
+		if port := appPort(ctx, cfg); port != "" {
+			// the certificate is the one of the server itself, asked on this very host
+			tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13}} //nolint:gosec // loopback health probe
+			defer tr.CloseIdleConnections()
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+net.JoinHostPort("127.0.0.1", port)+"/api/me", nil)
+			resp, err := (&http.Client{Timeout: 5 * time.Second, Transport: tr}).Do(req)
+			if err != nil {
+				return fmt.Errorf("application port: %w", err)
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode >= http.StatusInternalServerError {
+				return fmt.Errorf("application port answered %s", resp.Status)
+			}
 		}
 		_, ap, err := net.SplitHostPort(cfg.Agents.Listen)
 		if err != nil {
@@ -465,4 +467,33 @@ func HealthCheck(cfg *config.Server) func(ctx context.Context) error {
 		_ = c.Close()
 		return nil
 	}
+}
+
+// appPort is the port of the application: stored by the interface (the setting "connection") or app.listen of the file;
+// empty when there is none.
+func appPort(ctx context.Context, cfg *config.Server) string {
+	port := ""
+	if cfg.App.Listen != "" {
+		if _, p, err := net.SplitHostPort(cfg.App.Listen); err == nil {
+			port = p
+		}
+	}
+	db, err := store.Open(ctx, cfg.Database.DSN)
+	if err != nil {
+		return port
+	}
+	defer db.Close()
+	if raw := db.SettingRaw(ctx, "connection"); raw != nil {
+		var st struct {
+			AgentPort int `json:"agent_port"`
+			AppPort   int `json:"app_port"`
+		}
+		if json.Unmarshal(raw, &st) == nil && st.AgentPort > 0 {
+			port = ""
+			if st.AppPort > 0 {
+				port = strconv.Itoa(st.AppPort)
+			}
+		}
+	}
+	return port
 }

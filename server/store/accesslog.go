@@ -5,19 +5,17 @@ import (
 	"time"
 )
 
-// AccessLogRow is one visit of the admin panel as the admin UI shows it.
+// AccessLogRow is one connection to the application port as the application shows it.
 type AccessLogRow struct {
-	ID           int64  `json:"id"`
-	TS           int64  `json:"ts"`
-	ClientIP     string `json:"client_ip"`
-	RemoteAddr   string `json:"remote_addr"`
-	ViaProxy     bool   `json:"via_proxy"`
-	ProxyTrusted bool   `json:"proxy_trusted"`
-	Event        string `json:"event"`
-	Login        string `json:"login"`
-	Path         string `json:"path"`
-	UserAgent    string `json:"user_agent"`
-	Reason       string `json:"reason"`
+	ID         int64  `json:"id"`
+	TS         int64  `json:"ts"`
+	ClientIP   string `json:"client_ip"`
+	RemoteAddr string `json:"remote_addr"`
+	Event      string `json:"event"`
+	Login      string `json:"login"`
+	Path       string `json:"path"`
+	UserAgent  string `json:"user_agent"`
+	Reason     string `json:"reason"`
 }
 
 // Access log events.
@@ -33,8 +31,8 @@ const maxAccessLogRows = 50000
 
 // InsertAccessLog appends a visit.
 func (s *Store) InsertAccessLog(ctx context.Context, r AccessLogRow) error {
-	_, err := s.Pool.Exec(ctx, `INSERT INTO access_log (client_ip, remote_addr, via_proxy, proxy_trusted, event, login, path, user_agent, reason)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, r.ClientIP, r.RemoteAddr, r.ViaProxy, r.ProxyTrusted, r.Event, r.Login, clip(r.Path, 200), clip(r.UserAgent, 200), r.Reason)
+	_, err := s.Pool.Exec(ctx, `INSERT INTO access_log (client_ip, remote_addr, event, login, path, user_agent, reason)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)`, r.ClientIP, r.RemoteAddr, r.Event, r.Login, clip(r.Path, 200), clip(r.UserAgent, 200), r.Reason)
 	return err
 }
 
@@ -49,17 +47,16 @@ func clip(s string, n int) string {
 	return s[:n]
 }
 
-// AccessLogList returns visits newest first. filter is one of all, denied, login, fail, proxy, direct; onlyDirect keeps
-// the visits of the application port (a direct connection) whatever the filter is.
-func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, limit int, onlyDirect bool) ([]AccessLogRow, error) {
+// AccessLogList returns visits newest first. filter is one of all, denied, login, fail.
+func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, limit int) ([]AccessLogRow, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	rows, err := s.Pool.Query(ctx, `SELECT id, extract(epoch FROM ts)::bigint, client_ip, remote_addr, via_proxy, proxy_trusted, event, login, path, user_agent, reason
-		FROM access_log WHERE ($1::bigint = 0 OR id < $1) AND (NOT $4 OR NOT via_proxy) AND (
+	rows, err := s.Pool.Query(ctx, `SELECT id, extract(epoch FROM ts)::bigint, client_ip, remote_addr, event, login, path, user_agent, reason
+		FROM access_log WHERE ($1::bigint = 0 OR id < $1) AND (
 			$2 = 'all' OR ($2 = 'denied' AND event = 'denied') OR ($2 = 'login' AND event LIKE 'login.%')
-			OR ($2 = 'fail' AND event = 'login.fail') OR ($2 = 'proxy' AND via_proxy) OR ($2 = 'direct' AND NOT via_proxy))
-		ORDER BY id DESC LIMIT $3`, before, filter, limit, onlyDirect)
+			OR ($2 = 'fail' AND event = 'login.fail'))
+		ORDER BY id DESC LIMIT $3`, before, filter, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +64,7 @@ func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, 
 	out := []AccessLogRow{}
 	for rows.Next() {
 		var r AccessLogRow
-		if err := rows.Scan(&r.ID, &r.TS, &r.ClientIP, &r.RemoteAddr, &r.ViaProxy, &r.ProxyTrusted, &r.Event, &r.Login, &r.Path, &r.UserAgent, &r.Reason); err != nil {
+		if err := rows.Scan(&r.ID, &r.TS, &r.ClientIP, &r.RemoteAddr, &r.Event, &r.Login, &r.Path, &r.UserAgent, &r.Reason); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -75,10 +72,10 @@ func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, 
 	return out, rows.Err()
 }
 
-// AccessDeniedSince counts the refused requests since the given time; onlyDirect counts the application port only.
-func (s *Store) AccessDeniedSince(ctx context.Context, since time.Time, onlyDirect bool) (int, error) {
+// AccessDeniedSince counts the refused requests since the given time.
+func (s *Store) AccessDeniedSince(ctx context.Context, since time.Time) (int, error) {
 	var n int
-	err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM access_log WHERE event = 'denied' AND ts >= $1 AND (NOT $2 OR NOT via_proxy)`, since, onlyDirect).Scan(&n)
+	err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM access_log WHERE event = 'denied' AND ts >= $1`, since).Scan(&n)
 	return n, err
 }
 

@@ -22,8 +22,7 @@ func TestRouteTableIsComplete(t *testing.T) {
 	anyOK := map[string]bool{
 		"POST /api/logout": true, "GET /api/me": true, "POST /api/me/totp/setup": true, "POST /api/me/totp/enable": true,
 		"POST /api/me/totp/disable": true, "POST /api/me/password": true, "POST /api/me/recovery-codes": true,
-		"GET /api/me/passkeys": true, "POST /api/me/passkeys/begin": true, "POST /api/me/passkeys/finish": true,
-		"DELETE /api/me/passkeys/{id}": true, "GET /api/servers": true, "GET /api/groups": true, "GET /api/dashboard": true,
+		"GET /api/servers": true, "GET /api/groups": true, "GET /api/dashboard": true,
 		"PUT /api/dashboard/order": true, "GET /api/live": true,
 	}
 	srvOK := map[string]bool{

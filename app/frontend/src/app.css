@@ -769,3 +769,5 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .set-sec .panel.blk{display:flex;flex-direction:column;gap:12px;padding:16px 18px}
 
 .tokrow{display:flex;flex-direction:column;gap:8px;margin-top:6px;padding-top:12px;border-top:1px solid var(--border)}
+.fb.mid{left:50%;transform:translateX(-50%)}
+.fb.mid{width:max-content}

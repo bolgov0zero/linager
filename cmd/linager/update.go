@@ -107,7 +107,7 @@ func newUpdateCmd() *cobra.Command {
 	f.BoolVar(&check, "check", false, "only check, do not install")
 	f.BoolVar(&yes, "yes", false, "do not ask for confirmation")
 	f.BoolVar(&allowDowngrade, "allow-downgrade", false, "allow installing a version that is not newer than the current one")
-	f.BoolVar(&applyRequest, "apply-request", false, "process the update request written by the admin panel (used by systemd)")
+	f.BoolVar(&applyRequest, "apply-request", false, "process the update request written by the application (used by systemd)")
 	_ = f.MarkHidden("apply-request")
 	return cmd
 }

@@ -1,8 +1,8 @@
 # Linager documentation
 
 - [Installation](install.md)
-- [Reverse proxy](proxy.md)
-- [Admin panel access](access.md)
+- [Reverse proxy (no longer needed)](proxy.md)
+- [Server access](access.md)
 - [Connection: agent and application ports](connection.md)
 - [The Linager application](app.md)
 - [Agent modules and configuration](modules.md)

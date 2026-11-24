@@ -170,8 +170,8 @@ func serverRows(l installer.Lang, st *ServerStatus, version, latest string, shor
 			db = kv{tr(l, "s.db"), tr(l, "v.dbbad", st.DBErr), toneBad}
 		}
 		rows = append(rows, db)
-		if st.AdminListen != "" {
-			rows = append(rows, kv{tr(l, "s.admin"), st.AdminListen, toneNone})
+		if st.AppPort != "" {
+			rows = append(rows, kv{tr(l, "s.admin"), st.AppPort, toneNone})
 		}
 		if st.AgentListen != "" {
 			rows = append(rows, kv{tr(l, "s.agents"), st.AgentListen, toneNone})

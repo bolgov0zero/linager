@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/netip"
 	"regexp"
 	"strings"
 	"time"
@@ -88,19 +87,6 @@ type sshStartReq struct {
 	GroupID    *int64 `json:"group_id"`
 }
 
-func isLocalPanel(host string) bool {
-	h, _, err := net.SplitHostPort(host)
-	if err != nil {
-		h = host
-	}
-	h = strings.Trim(h, "[]")
-	if h == "localhost" {
-		return true
-	}
-	ip, err := netip.ParseAddr(h)
-	return err == nil && ip.IsLoopback()
-}
-
 func (a *Admin) sshStart(w http.ResponseWriter, r *http.Request, u *store.User) {
 	var req sshStartReq
 	if !decode(w, r, &req) {
@@ -124,8 +110,8 @@ func (a *Admin) sshStart(w http.ResponseWriter, r *http.Request, u *store.User) 
 		return
 	}
 	// a password must not cross the network in the clear
-	if !a.Trust.IsHTTPS(r) && !isLocalPanel(r.Host) {
-		jsonErr(w, http.StatusUnprocessableEntity, "open the panel over HTTPS to enter credentials")
+	if r.TLS == nil {
+		jsonErr(w, http.StatusUnprocessableEntity, "connect over TLS to enter credentials")
 		return
 	}
 	if req.GroupID != nil {

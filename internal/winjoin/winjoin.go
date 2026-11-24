@@ -30,7 +30,7 @@ func InstallCommand(host, port, pinFp, secret string) string {
 }
 
 func ScriptText(server, fp, pinFp, token, msiSHA256 string) string {
-	return `# Linager: install the Windows agent by a link made in the admin panel.
+	return `# Linager: install the Windows agent by a link made in the application.
 # The script comes from your Linager server; read it before you run it.
 ` + PinSetup(pinFp) + `
 $server = ` + psq(server) + `

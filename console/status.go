@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,7 +36,7 @@ type Service struct {
 // ServerStatus is what the menu shows about the server. A number of -1 means "could not be read".
 type ServerStatus struct {
 	Service     Service
-	AdminListen string
+	AppPort     string // the port of the application ("" when it is not set)
 	AgentListen string
 	DBOK        bool
 	DBErr       string
@@ -154,7 +155,8 @@ func (p *Probe) dropDB() {
 const statQuery = `SELECT (SELECT count(*) FROM servers),
 	(SELECT count(*) FROM enrollments WHERE status='pending' AND expires_at > now()),
 	(SELECT count(*) FROM users),
-	coalesce((SELECT value->>'mode' FROM settings WHERE key='access'), 'off')`
+	coalesce((SELECT value->>'mode' FROM settings WHERE key='app_access'), 'off'),
+	coalesce((SELECT value->>'app_port' FROM settings WHERE key='connection'), '')`
 
 // Server reads the state of the server; every part that cannot be read stays empty instead of failing the rest.
 func (p *Probe) Server(ctx context.Context) *ServerStatus {
@@ -169,14 +171,13 @@ func (p *Probe) Server(ctx context.Context) *ServerStatus {
 		st.ConfigErr = err.Error()
 		return st
 	}
-	st.AdminListen = cfg.Admin.Listen + cfg.Admin.BasePath
 	st.AgentListen = cfg.Agents.Listen
 
 	qctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	pool, err := p.db(qctx, cfg.Database.DSN)
 	if err == nil {
-		err = pool.QueryRow(qctx, statQuery).Scan(&st.Clients, &st.Pending, &st.Users, &st.Access)
+		err = pool.QueryRow(qctx, statQuery).Scan(&st.Clients, &st.Pending, &st.Users, &st.Access, &st.AppPort)
 	}
 	if err != nil {
 		p.dropDB()
@@ -186,6 +187,14 @@ func (p *Probe) Server(ctx context.Context) *ServerStatus {
 	st.DBOK = true
 	if st.Access == "" {
 		st.Access = "off"
+	}
+	if st.AppPort == "" && cfg.App.Listen != "" {
+		if _, p, err := net.SplitHostPort(cfg.App.Listen); err == nil {
+			st.AppPort = p
+		}
+	}
+	if st.AppPort == "0" {
+		st.AppPort = ""
 	}
 	return st
 }

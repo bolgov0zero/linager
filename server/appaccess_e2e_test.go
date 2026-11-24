@@ -9,8 +9,7 @@ import (
 	"github.com/bolgov0zero/linager/server"
 )
 
-// TestAppAccessAPI: the list of the application port is read, checked and saved by an administrator only; it is stored apart
-// from the admin panel, validated, written to the audit, and the lists of host names are refused.
+// TestAppAccessAPI: the list of the application port is read, checked and saved by an administrator only; it is validated, written to the audit, and the lists of host names are refused.
 func TestAppAccessAPI(t *testing.T) {
 	base, db := startAccountsServer(t)
 	admin := mustLogin(t, base, "admin", "a-long-test-password")
@@ -23,23 +22,13 @@ func TestAppAccessAPI(t *testing.T) {
 				Note string `json:"note"`
 			} `json:"white"`
 		} `json:"config"`
-		Configured bool `json:"configured"`
 	}
-	if code := admin.do("GET", "/api/app-access", nil, &st); code != 200 || st.Configured || st.Config.Mode != "off" {
+	if code := admin.do("GET", "/api/app-access", nil, &st); code != 200 || st.Config.Mode != "off" {
 		t.Fatalf("a new server: %d %+v", code, st)
 	}
-	in := map[string]any{"mode": "white", "white": []map[string]string{{"cidr": "10.0.0.9", "note": "office"}}, "black": []map[string]string{}}
-	if code := admin.do("PUT", "/api/app-access", in, &st); code != 200 || !st.Configured || st.Config.Mode != "white" || len(st.Config.White) != 1 || st.Config.White[0].CIDR != "10.0.0.9/32" {
+	in := map[string]any{"mode": "white", "white": []map[string]string{{"cidr": "10.0.0.9", "note": "office"}, {"cidr": "127.0.0.1"}}, "black": []map[string]string{}}
+	if code := admin.do("PUT", "/api/app-access", in, &st); code != 200 || st.Config.Mode != "white" || len(st.Config.White) != 2 || st.Config.White[0].CIDR != "10.0.0.9/32" {
 		t.Fatalf("save: %d %+v", code, st)
-	}
-	// the admin panel keeps its own restriction
-	var adm struct {
-		Config struct {
-			Mode string `json:"mode"`
-		} `json:"config"`
-	}
-	if code := admin.do("GET", "/api/access", nil, &adm); code != 200 || adm.Config.Mode != "off" {
-		t.Fatalf("the admin panel restriction is not touched: %d %+v", code, adm)
 	}
 	// a host name is accepted when DNS knows it, and refused (cannot be applied) when it does not
 	server.SetHostResolver(&dnsTable{m: map[string][]string{"home.example.com": {"203.0.113.50"}}})
@@ -64,7 +53,7 @@ func TestAppAccessAPI(t *testing.T) {
 			Error string `json:"error"`
 		} `json:"status"`
 	}
-	if code := admin.do("POST", "/api/access/resolve", map[string]string{"host": "nowhere.example.com"}, &why); code != http.StatusUnprocessableEntity || why.Status.Error == "" {
+	if code := admin.do("POST", "/api/app-access/resolve", map[string]string{"host": "nowhere.example.com"}, &why); code != http.StatusUnprocessableEntity || why.Status.Error == "" {
 		t.Fatalf("resolve of an unknown name: %d %+v", code, why)
 	}
 	// back to the list of the rest of the test
@@ -101,7 +90,7 @@ func TestAppAccessAPI(t *testing.T) {
 			CIDR string `json:"cidr"`
 		} `json:"white"`
 	}
-	if err := json.Unmarshal(db.SettingRaw(context.Background(), "app_access"), &stored); err != nil || stored.Mode != "off" || len(stored.White) != 1 {
+	if err := json.Unmarshal(db.SettingRaw(context.Background(), "app_access"), &stored); err != nil || stored.Mode != "off" || len(stored.White) != 2 {
 		t.Fatalf("the port is open again, the list is kept: %+v %v", stored, err)
 	}
 }

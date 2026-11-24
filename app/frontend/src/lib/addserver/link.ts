@@ -26,7 +26,7 @@ export function joinScriptText(token: string, command: string, fingerprint: stri
   const server = /https:\/\/([^/'\s]+)\/v1\/join\//.exec(command)?.[1] ?? '';
   return [
     '#!/bin/sh',
-    '# Linager: install the agent by a link made in the admin panel.',
+    '# Linager: install the agent by a link made in the application.',
     '# Abridged: the script served at the link also checks the OS and the checksum of the binary.',
     'set -eu',
     '',

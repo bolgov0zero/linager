@@ -9,7 +9,7 @@ export interface Tag {
   tone: 'ok' | 'warn' | 'crit' | 'mute';
 }
 
-// The same thresholds as the web panel, so a server looks the same in both.
+// The thresholds of the level of a server (the tray of the application uses the same ones, app/internal/tray).
 export function levelOf(c: ServerCard): Level {
   if (!c.online) return 'off';
   const s = c.sample;

@@ -19,7 +19,7 @@ import (
 	"github.com/bolgov0zero/linager/internal/protocol"
 )
 
-// ErrRevoked means the server no longer knows this agent (it was deleted in the admin panel).
+// ErrRevoked means the server no longer knows this agent (it was deleted in the application).
 var ErrRevoked = errors.New("this agent was removed from the server")
 
 // ErrUninstalled is returned after the server asked the agent to remove itself.

@@ -11,37 +11,20 @@ import (
 
 func TestRenderedServerConfigIsValid(t *testing.T) {
 	//nolint:gosec // fake DSN for rendering test
-	p := &ServerParams{AgentPort: 9443, AdminMode: "proxy", AdminPort: 8080, DSN: "postgres://linager:x@127.0.0.1:5432/linager?sslmode=disable", DataDir: "/var/lib/linager"}
+	p := &ServerParams{AgentPort: 9443, AppPort: 9444, DSN: "postgres://linager:x@127.0.0.1:5432/linager?sslmode=disable", DataDir: "/var/lib/linager"}
 	out := RenderServerConfig(p, []string{"host", "10.0.0.5"})
 	var c config.Server
 	if err := yaml.Unmarshal([]byte(out), &c); err != nil {
 		t.Fatal(err)
 	}
-	if c.Admin.Listen != "0.0.0.0:8080" || c.Agents.Listen != "0.0.0.0:9443" || len(c.Agents.Hosts) != 2 || c.Database.DSN != p.DSN {
+	if c.Agents.Listen != "0.0.0.0:9443" || c.App.Listen != "0.0.0.0:9444" || len(c.Agents.Hosts) != 2 || c.Database.DSN != p.DSN {
 		t.Fatalf("unexpected config: %+v", c)
 	}
-	p.AdminMode = "caddy"
-	p.AdminPort = 41000
-	if !strings.Contains(RenderServerConfig(p, nil), `"127.0.0.1:41000"`) {
-		t.Fatal("caddy mode must listen on loopback only")
+	if strings.Contains(out, "listen: \"0.0.0.0:8080\"") || strings.Contains(out, "trusted_proxies") || strings.Contains(out, "base_path") {
+		t.Fatalf("the admin panel is gone, its keys are not written:\n%s", out)
 	}
-}
-
-func TestCaddyBlock(t *testing.T) {
-	if got := RenderCaddyBlock("a.example.com", 443, 41000); !strings.Contains(got, "a.example.com {") || !strings.Contains(got, "reverse_proxy 127.0.0.1:41000") {
-		t.Fatal(got)
-	}
-	if !strings.Contains(RenderCaddyBlock("a.example.com", 8443, 1), "a.example.com:8443 {") {
-		t.Fatal("custom public port must be in the site address")
-	}
-}
-
-func TestDefaultCaddyfileDetection(t *testing.T) {
-	if !IsDefaultCaddyfile(":80 {\n\troot * /usr/share/caddy\n}") || !IsDefaultCaddyfile("") {
-		t.Fatal("stock file must be recognized")
-	}
-	if IsDefaultCaddyfile("example.com {\n\treverse_proxy :3000\n}") {
-		t.Fatal("user config must not be treated as default")
+	if err := c.Validate(); err != nil {
+		t.Fatalf("the rendered file must be valid: %v", err)
 	}
 }
 
@@ -87,24 +70,8 @@ func TestRandomString(t *testing.T) {
 	}
 }
 
-func TestMergeCaddyfile(t *testing.T) {
-	block := RenderCaddyBlock("a.example.com", 443, 41000)
-	if got := mergeCaddyfile(":80 {\n\troot * /usr/share/caddy\n}", block); got != block {
-		t.Fatal("stock Caddyfile must be replaced")
-	}
-	user := "site.example.com {\n\treverse_proxy :3000\n}\n"
-	got := mergeCaddyfile(user, block)
-	if !strings.HasPrefix(got, user) || !strings.Contains(got, "reverse_proxy 127.0.0.1:41000") {
-		t.Fatal("user content must be preserved and the block appended")
-	}
-	again := mergeCaddyfile(got, RenderCaddyBlock("b.example.com", 443, 42000))
-	if strings.Count(again, CaddyMarker) != 1 || strings.Contains(again, "41000") || !strings.Contains(again, "b.example.com") {
-		t.Fatalf("re-running must replace the managed block:\n%s", again)
-	}
-}
-
 func TestRenderedAppPort(t *testing.T) {
-	p := &ServerParams{AgentPort: 9443, AppPort: 9444, AdminMode: "proxy", AdminPort: 8080, DSN: "postgres://x", DataDir: "/var/lib/linager"}
+	p := &ServerParams{AgentPort: 9443, AppPort: 9444, DSN: "postgres://x", DataDir: "/var/lib/linager"}
 	var c config.Server
 	if err := yaml.Unmarshal([]byte(RenderServerConfig(p, nil)), &c); err != nil || c.App.Listen != "0.0.0.0:9444" {
 		t.Fatalf("app.listen: %v %+v", err, c.App)
@@ -126,7 +93,7 @@ func (fakeConsole) Wait(Waiting)                        {}
 func (fakeConsole) Lang() Lang                          { return ParseLang("en") }
 
 func TestServerParamsNeedAnApplicationPort(t *testing.T) {
-	base := ServerOpts{AgentPort: 39443, AdminMode: "proxy", AdminPort: 39080, AdminUser: "admin"}
+	base := ServerOpts{AgentPort: 39443, AdminUser: "admin"}
 	_, err := collectServerParams(fakeConsole{}, base)
 	if err == nil || !strings.Contains(err.Error(), "--app-port") {
 		t.Fatalf("the application port is required, got %v", err)
@@ -136,9 +103,10 @@ func TestServerParamsNeedAnApplicationPort(t *testing.T) {
 	if _, err := collectServerParams(fakeConsole{}, same); err == nil {
 		t.Fatal("the application port must differ from the agent port")
 	}
-	same.AppPort = base.AdminPort
-	if _, err := collectServerParams(fakeConsole{}, same); err == nil {
-		t.Fatal("the application port must differ from the admin port")
+	bad := base
+	bad.AppPort, bad.Domain = 39444, "not a domain"
+	if _, err := collectServerParams(fakeConsole{}, bad); err == nil {
+		t.Fatal("a DNS name for the certificate must be a domain")
 	}
 	ok := base
 	ok.AppPort = 39444

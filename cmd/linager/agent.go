@@ -48,7 +48,7 @@ func newAgentCmd() *cobra.Command {
 					return strings.EqualFold(strings.TrimSpace(ans), "yes")
 				},
 				Show: func(key, code, f string) {
-					_, _ = fmt.Fprintf(out, "\nKey:         %s\nCheck code:  %s\nFingerprint: %s\n\nEnter the key in the admin panel and make sure the check code matches. Waiting...\n", key, code, f)
+					_, _ = fmt.Fprintf(out, "\nKey:         %s\nCheck code:  %s\nFingerprint: %s\n\nEnter the key in the application and make sure the check code matches. Waiting...\n", key, code, f)
 				},
 			})
 			if err == nil {
@@ -59,7 +59,7 @@ func newAgentCmd() *cobra.Command {
 	}
 	enroll.Flags().StringVar(&srv, "server", "", "server agent port as host:port")
 	enroll.Flags().StringVar(&fp, "fingerprint", "", "expected server certificate fingerprint (SHA256:...)")
-	enroll.Flags().StringVar(&joinToken, "join-token", "", "secret of an install link made in the admin panel")
+	enroll.Flags().StringVar(&joinToken, "join-token", "", "secret of an install link made in the application")
 	_ = enroll.MarkFlagRequired("server")
 
 	run := &cobra.Command{

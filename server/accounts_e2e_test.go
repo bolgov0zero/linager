@@ -2,13 +2,7 @@ package server_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
-	"encoding/json"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
@@ -27,8 +21,8 @@ import (
 	"github.com/bolgov0zero/linager/server/store"
 )
 
-// startAccountsServer runs a panel on a throw-away database and returns its base URL (host "localhost",
-// so passkeys are allowed) and the database. The admin is "admin" / "a-long-test-password".
+// startAccountsServer runs a server on a throw-away database and returns the base URL of its application port (host
+// "localhost") and the database. The admin is "admin" / "a-long-test-password".
 func startAccountsServer(t *testing.T) (base string, db *store.Store) {
 	t.Helper()
 	dsn := os.Getenv("LINAGER_TEST_DSN")
@@ -51,7 +45,7 @@ func startAccountsServer(t *testing.T) (base string, db *store.Store) {
 	dir := t.TempDir()
 	cfg := &config.Server{DataDir: dir}
 	cfg.Database.DSN = dsn
-	cfg.Admin.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
+	cfg.App.Listen, cfg.Agents.Listen = freeAddr(t), freeAddr(t)
 	cfg.Agents.Hosts = []string{"127.0.0.1"}
 	cfg.Admin.CookieSecure = "never"
 	cfg.Admin.LoginRate = 1000 // the tests sign in many times a minute
@@ -68,7 +62,7 @@ func startAccountsServer(t *testing.T) (base string, db *store.Store) {
 	}
 	done := make(chan struct{})
 	go func() {
-		_ = server.Run(ctx, cfg, nil, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})))
+		_ = server.Run(ctx, cfg, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})))
 		close(done)
 	}()
 	t.Cleanup(func() { // the next test wipes the database: the server must be gone by then
@@ -79,19 +73,24 @@ func startAccountsServer(t *testing.T) (base string, db *store.Store) {
 		}
 	})
 	waitFor(t, "server", func() bool {
-		c, e := net.Dial("tcp", cfg.Admin.Listen)
+		c, e := net.Dial("tcp", cfg.App.Listen)
 		if e == nil {
 			_ = c.Close()
 		}
 		return e == nil
 	})
-	_, port, _ := net.SplitHostPort(cfg.Admin.Listen)
-	return "http://localhost:" + port, db
+	_, port, _ := net.SplitHostPort(cfg.App.Listen)
+	return "https://localhost:" + port, db
+}
+
+// testClient talks to the application port of a test server: TLS with the certificate of the server itself.
+func testClient(jar http.CookieJar) *http.Client {
+	return &http.Client{Jar: jar, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13}}} //nolint:gosec // a test server with its own certificate
 }
 
 func newClient(t *testing.T, base string) *apiClient {
 	jar, _ := cookiejar.New(nil)
-	return &apiClient{t: t, base: base, hc: &http.Client{Jar: jar}}
+	return &apiClient{t: t, base: base, hc: testClient(jar)}
 }
 
 func (c *apiClient) login(login, password string, extra map[string]string) (int, map[string]any) {
@@ -299,199 +298,6 @@ func TestUsersPasswordRecoveryAndSnippets(t *testing.T) {
 	}
 }
 
-// ---- a software authenticator for the passkey tests ----
-
-type softKey struct {
-	priv   *ecdsa.PrivateKey
-	credID []byte
-	signs  uint32
-}
-
-func b64(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
-
-// cbor helpers: just what an attestation object needs.
-func cborHead(major byte, n int) []byte {
-	switch {
-	case n < 24:
-		return []byte{major<<5 | byte(n)} //nolint:gosec // n < 24
-	case n < 256:
-		return []byte{major<<5 | 24, byte(n)}
-	default:
-		return []byte{major<<5 | 25, byte(n >> 8), byte(n)} //nolint:gosec // the helper only builds small structures
-	}
-}
-func cborInt(n int) []byte {
-	if n >= 0 {
-		return cborHead(0, n)
-	}
-	return cborHead(1, -1-n)
-}
-func cborBytes(b []byte) []byte { return append(cborHead(2, len(b)), b...) }
-func cborText(s string) []byte  { return append(cborHead(3, len(s)), s...) }
-func cborMap(pairs ...[]byte) []byte {
-	out := cborHead(5, len(pairs)/2)
-	for _, p := range pairs {
-		out = append(out, p...)
-	}
-	return out
-}
-
-func (k *softKey) authData(rpID string, flags byte, withCred bool) []byte {
-	h := sha256.Sum256([]byte(rpID))
-	out := append([]byte{}, h[:]...)
-	out = append(out, flags)
-	k.signs++
-	cnt := make([]byte, 4)
-	binary.BigEndian.PutUint32(cnt, k.signs)
-	out = append(out, cnt...)
-	if withCred {
-		out = append(out, make([]byte, 16)...)                         // aaguid
-		out = append(out, byte(len(k.credID)>>8), byte(len(k.credID))) //nolint:gosec // the id is 24 bytes
-		out = append(out, k.credID...)
-		pub, _ := k.priv.PublicKey.Bytes() // 0x04 | X | Y
-		x, y := pub[1:33], pub[33:65]
-		out = append(out, cborMap(cborInt(1), cborInt(2), cborInt(3), cborInt(-7), cborInt(-1), cborInt(1), cborInt(-2), cborBytes(x), cborInt(-3), cborBytes(y))...)
-	}
-	return out
-}
-
-type waOptions struct {
-	ID      string `json:"id"`
-	Options struct {
-		PublicKey struct {
-			Challenge string `json:"challenge"`
-			RPID      string `json:"rpId"` // sign-in options
-			RP        struct{ ID string }
-			User      struct{ ID string }
-		} `json:"publicKey"`
-	} `json:"options"`
-}
-
-// register answers a registration challenge like an authenticator with user verification would.
-func (k *softKey) register(origin string, o waOptions) map[string]any {
-	cd, _ := json.Marshal(map[string]any{"type": "webauthn.create", "challenge": o.Options.PublicKey.Challenge, "origin": origin, "crossOrigin": false})
-	att := cborMap(cborText("fmt"), cborText("none"), cborText("attStmt"), cborMap(), cborText("authData"), cborBytes(k.authData(o.Options.PublicKey.RP.ID, 0x45, true)))
-	return map[string]any{"id": b64(k.credID), "rawId": b64(k.credID), "type": "public-key",
-		"response":               map[string]any{"clientDataJSON": b64(cd), "attestationObject": b64(att)},
-		"clientExtensionResults": map[string]any{}}
-}
-
-// assert answers a sign-in challenge; userHandle is what the authenticator stored at registration.
-func (k *softKey) assert(origin string, o waOptions, userHandle string, key *ecdsa.PrivateKey) map[string]any {
-	cd, _ := json.Marshal(map[string]any{"type": "webauthn.get", "challenge": o.Options.PublicKey.Challenge, "origin": origin, "crossOrigin": false})
-	ad := k.authData(o.Options.PublicKey.RPID, 0x05, false)
-	cdh := sha256.Sum256(cd)
-	sum := sha256.Sum256(append(append([]byte{}, ad...), cdh[:]...))
-	sig, _ := ecdsa.SignASN1(rand.Reader, key, sum[:])
-	return map[string]any{"id": b64(k.credID), "rawId": b64(k.credID), "type": "public-key",
-		"response":               map[string]any{"clientDataJSON": b64(cd), "authenticatorData": b64(ad), "signature": b64(sig), "userHandle": userHandle},
-		"clientExtensionResults": map[string]any{}}
-}
-
-func TestPasskeySignIn(t *testing.T) {
-	base, _ := startAccountsServer(t)
-	admin := mustLogin(t, base, "admin", "a-long-test-password")
-
-	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	key := &softKey{priv: priv, credID: make([]byte, 24)}
-	_, _ = rand.Read(key.credID)
-
-	// registration (signed in)
-	var reg waOptions
-	if c := admin.do("POST", "/api/me/passkeys/begin", map[string]string{}, &reg); c != 200 || reg.ID == "" {
-		t.Fatalf("register begin: %d", c)
-	}
-	if reg.Options.PublicKey.RP.ID != "localhost" {
-		t.Fatalf("the relying party id must be the host: %q", reg.Options.PublicKey.RP.ID)
-	}
-	userHandle := reg.Options.PublicKey.User.ID
-	if c := admin.do("POST", "/api/me/passkeys/finish", map[string]any{"id": reg.ID, "name": "Test key", "response": key.register(base, reg)}, nil); c != 200 {
-		t.Fatalf("register finish: %d", c)
-	}
-	if c := admin.do("POST", "/api/me/passkeys/finish", map[string]any{"id": reg.ID, "name": "again", "response": key.register(base, reg)}, nil); c != http.StatusBadRequest {
-		t.Fatalf("a challenge is used once: %d", c)
-	}
-	var pl struct {
-		Passkeys []struct {
-			ID   string
-			Name string
-		}
-	}
-	admin.do("GET", "/api/me/passkeys", nil, &pl)
-	if len(pl.Passkeys) != 1 || pl.Passkeys[0].Name != "Test key" {
-		t.Fatalf("passkeys: %+v", pl)
-	}
-
-	// sign in with the passkey: no login, no password
-	signIn := func(sign func(o waOptions) map[string]any) (int, *apiClient) {
-		c := newClient(t, base)
-		var o waOptions
-		if code := c.do("POST", "/api/login/passkey/begin", map[string]string{}, &o); code != 200 {
-			t.Fatalf("login begin: %d", code)
-		}
-		var out map[string]any
-		code := c.do("POST", "/api/login/passkey/finish", map[string]any{"id": o.ID, "response": sign(o)}, &out)
-		if s, ok := out["csrf"].(string); ok {
-			c.csrf = s
-		}
-		return code, c
-	}
-	code, c := signIn(func(o waOptions) map[string]any { return key.assert(base, o, userHandle, priv) })
-	if code != 200 {
-		t.Fatalf("passkey sign-in: %d", code)
-	}
-	var me struct {
-		Login    string `json:"login"`
-		Passkeys int    `json:"passkeys"`
-	}
-	if c.do("GET", "/api/me", nil, &me); me.Login != "admin" || me.Passkeys != 1 {
-		t.Fatalf("session of the passkey sign-in: %+v", me)
-	}
-	// a signature of another key is refused
-	other, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if code, _ := signIn(func(o waOptions) map[string]any { return key.assert(base, o, userHandle, other) }); code != http.StatusUnauthorized {
-		t.Fatalf("a wrong signature must be refused: %d", code)
-	}
-	// an unknown user handle is refused
-	if code, _ := signIn(func(o waOptions) map[string]any { return key.assert(base, o, b64([]byte("nobody")), priv) }); code != http.StatusUnauthorized {
-		t.Fatalf("an unknown user handle must be refused: %d", code)
-	}
-	// a replayed finish (same challenge id) is refused
-	cc := newClient(t, base)
-	var o waOptions
-	cc.do("POST", "/api/login/passkey/begin", map[string]string{}, &o)
-	resp := key.assert(base, o, userHandle, priv)
-	if code := cc.do("POST", "/api/login/passkey/finish", map[string]any{"id": o.ID, "response": resp}, nil); code != 200 {
-		t.Fatalf("first finish: %d", code)
-	}
-	if code := cc.do("POST", "/api/login/passkey/finish", map[string]any{"id": o.ID, "response": resp}, nil); code != http.StatusBadRequest {
-		t.Fatalf("a replay must be refused: %d", code)
-	}
-	// another origin is refused
-	if code, _ := signIn(func(o waOptions) map[string]any { return key.assert("http://evil.example", o, userHandle, priv) }); code != http.StatusUnauthorized {
-		t.Fatalf("a foreign origin must be refused: %d", code)
-	}
-
-	// removing the passkey needs the password and stops the sign-in
-	if c := admin.do("DELETE", "/api/me/passkeys/"+pl.Passkeys[0].ID, map[string]string{"password": "wrong-wrong-wrong"}, nil); c != http.StatusForbidden {
-		t.Fatalf("delete needs the password: %d", c)
-	}
-	if c := admin.do("DELETE", "/api/me/passkeys/"+pl.Passkeys[0].ID, map[string]string{"password": "a-long-test-password"}, nil); c != 200 {
-		t.Fatalf("delete passkey: %d", c)
-	}
-	if code, _ := signIn(func(o waOptions) map[string]any { return key.assert(base, o, userHandle, priv) }); code != http.StatusUnauthorized {
-		t.Fatalf("a removed passkey must not sign in: %d", code)
-	}
-
-	// an IP address host cannot be a relying party
-	ipc := newClient(t, strings.Replace(base, "localhost", "127.0.0.1", 1))
-	if code := ipc.do("POST", "/api/login/passkey/begin", map[string]string{}, nil); code != http.StatusConflict {
-		t.Fatalf("passkeys must be refused on an IP host: %d", code)
-	}
-}
-
-// TestResetPasswordCLI is `linager server reset-password`: the new password works, the old one and the old
-// sessions do not, and a lock-out is lifted.
 func TestResetPasswordCLI(t *testing.T) {
 	base, db := startAccountsServer(t)
 	old := mustLogin(t, base, "admin", "a-long-test-password")

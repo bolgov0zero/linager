@@ -1,6 +1,6 @@
 // Package remote is the connection of the application to a Linager server: the TLS connection pinned to the
 // fingerprint of the server certificate, the session cookie kept on this side (the web view never sees it) and the
-// reverse proxy the web view talks to.
+// proxy the web view talks to.
 package remote
 
 import (
@@ -68,7 +68,6 @@ const SessionCookie = "linager_session"
 type Target struct {
 	Addr        string // host:port of the application port
 	Fingerprint string // pinned certificate
-	BasePath    string // path prefix of the panel (admin.base_path), usually empty
 }
 
 // Session is one connection to a server. It keeps the cookies of the panel, so the sign-in lives here and never
@@ -90,7 +89,6 @@ func NewSession(t Target) (*Session, error) {
 	if _, _, err := net.SplitHostPort(t.Addr); err != nil {
 		return nil, fmt.Errorf("address must be host:port: %w", err)
 	}
-	t.BasePath = strings.TrimRight(t.BasePath, "/")
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -123,7 +121,7 @@ func NewSession(t Target) (*Session, error) {
 }
 
 func (s *Session) upstream(path string) *url.URL {
-	return &url.URL{Scheme: "https", Host: s.T.Addr, Path: s.T.BasePath + path}
+	return &url.URL{Scheme: "https", Host: s.T.Addr, Path: path}
 }
 
 // rewrite points the request at the server. The cookies come from the jar, never from the web view, and nothing that
@@ -131,9 +129,9 @@ func (s *Session) upstream(path string) *url.URL {
 func (s *Session) rewrite(pr *httputil.ProxyRequest) {
 	pr.Out.URL.Scheme = "https"
 	pr.Out.URL.Host = s.T.Addr
-	pr.Out.URL.Path = s.T.BasePath + pr.In.URL.Path
+	pr.Out.URL.Path = pr.In.URL.Path
 	if pr.In.URL.RawPath != "" {
-		pr.Out.URL.RawPath = s.T.BasePath + pr.In.URL.RawPath
+		pr.Out.URL.RawPath = pr.In.URL.RawPath
 	}
 	pr.Out.Host = s.T.Addr
 	pr.Out.Header.Del("Cookie")

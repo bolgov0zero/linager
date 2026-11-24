@@ -1,6 +1,6 @@
 /** Known audit action keys. Each one has an `st.audit.action.<key>` translation; other keys are shown raw. */
 export const KNOWN_ACTIONS: ReadonlySet<string> = new Set([
-  'auth.login', 'auth.logout', 'auth.totp.enable', 'auth.totp.disable', 'auth.passkey.add', 'auth.passkey.delete', 'auth.recovery.regenerate',
+  'auth.login', 'auth.logout', 'auth.totp.enable', 'auth.totp.disable', 'auth.recovery.regenerate',
   'user.create', 'user.delete', 'user.password.change', 'user.password.reset', 'user.2fa.reset',
   'security.session.terminate',
   'hostuser.add', 'hostuser.update', 'hostuser.delete', 'hostuser.password', 'hostuser.kill',

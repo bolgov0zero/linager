@@ -3,41 +3,30 @@ package server
 import (
 	"net/http"
 	"net/netip"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/bolgov0zero/linager/server/store"
 )
 
-// Settings, "Access of the application": the white or black list of the application port, apart from the admin panel.
+// Settings, "Server access": the white or black list of the application port, a test of an address and the journal of the
+// connections.
 
 type appAccessState struct {
-	Config     AppAccessConfig `json:"config"`
-	Configured bool            `json:"configured"` // false: the port still follows the restriction of the admin panel
-	You        *verdict        `json:"you,omitempty"`
-	Denied24h  int             `json:"denied_24h"`
+	Config    AppAccessConfig `json:"config"`
+	You       *verdict        `json:"you,omitempty"`
+	Denied24h int             `json:"denied_24h"`
 	// Hosts describes the host names of the lists (what each points to now).
 	Hosts map[string]HostStatus `json:"hosts"`
 }
 
-// appCaller is the address the application port would judge for this request: the address of the connection when it came
-// to the application port; for a request that came through the admin panel there is no such address (direct is false).
-func appCaller(r *http.Request) (netip.Addr, bool) {
-	if !isDirect(r) {
-		return netip.Addr{}, false
-	}
-	return remoteAddr(r).Unmap(), true
-}
-
 func (a *Admin) appAccessState(r *http.Request) appAccessState {
-	cfg, configured := a.Access.AppCurrent()
-	n, _ := a.DB.AccessDeniedSince(r.Context(), time.Now().Add(-24*time.Hour), true)
-	st := appAccessState{Config: cfg, Configured: configured, Denied24h: n, Hosts: a.Access.hostStatuses(appHostNames(cfg))}
-	if ip, direct := appCaller(r); direct {
-		v := a.Access.decideApp(ip)
-		st.You = &v
-	}
-	return st
+	cfg := a.Access.AppCurrent()
+	n, _ := a.DB.AccessDeniedSince(r.Context(), time.Now().Add(-24*time.Hour))
+	v := a.Access.decideApp(remoteAddr(r))
+	return appAccessState{Config: cfg, You: &v, Denied24h: n, Hosts: a.Access.hostStatuses(appHostNames(cfg))}
 }
 
 func (a *Admin) appAccessGet(w http.ResponseWriter, r *http.Request, _ *store.User) {
@@ -67,14 +56,11 @@ func (a *Admin) appCheck(r *http.Request, cfg AppAccessConfig, testIP string) (A
 	if err != nil {
 		return cfg, appAccessCheckResp{}, err
 	}
-	caller, direct := appCaller(r)
-	resp := appAccessCheckResp{Problems: appProblems(ar, caller, direct), Hosts: a.Access.hostStatuses(ar.hosts)}
-	if direct {
-		v := ar.decide(caller, "")
-		resp.You = &v
-	}
+	caller := remoteAddr(r).Unmap()
+	you := ar.decide(caller)
+	resp := appAccessCheckResp{Problems: appProblems(ar, caller), You: &you, Hosts: a.Access.hostStatuses(ar.hosts)}
 	if ip, err := netip.ParseAddr(strings.TrimSpace(testIP)); err == nil {
-		v := ar.decide(ip.Unmap(), "")
+		v := ar.decide(ip.Unmap())
 		resp.Test = &v
 	}
 	return norm, resp, nil
@@ -114,4 +100,53 @@ func (a *Admin) appAccessPut(w http.ResponseWriter, r *http.Request, u *store.Us
 	a.Access.persistHosts(r.Context(), a.Access.trackedHosts())
 	a.audit(r, u, "appaccess.update", "access", "", norm.Mode, "ok", map[string]any{"mode": norm.Mode, "white": len(norm.White), "black": len(norm.Black)})
 	writeJSON(w, http.StatusOK, a.appAccessState(r))
+}
+
+func (a *Admin) appAccessLog(w http.ResponseWriter, r *http.Request, _ *store.User) {
+	q := r.URL.Query()
+	filter := q.Get("filter")
+	switch filter {
+	case "all", "denied", "login", "fail":
+	case "":
+		filter = "all"
+	default:
+		jsonErr(w, http.StatusBadRequest, "bad filter")
+		return
+	}
+	before, _ := strconv.ParseInt(q.Get("before"), 10, 64)
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	rows, err := a.DB.AccessLogList(r.Context(), filter, before, limit)
+	if err != nil {
+		jsonErr(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rows": rows})
+}
+
+// appAccessResolve looks a host name up right now (the interface asks when a name is added and by the button that
+// refreshes it). A name that is already in the list gets its new address in force at once.
+func (a *Admin) appAccessResolve(w http.ResponseWriter, r *http.Request, _ *store.User) {
+	var req struct {
+		Host string `json:"host"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	h, ok := normalizeHost(req.Host)
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad_host"})
+		return
+	}
+	g := a.Access
+	g.lookupHosts(r.Context(), []string{h}, 0)
+	if slices.Contains(g.trackedHosts(), h) {
+		g.reapplyApp()
+		g.persistHosts(r.Context(), g.trackedHosts())
+	}
+	st := g.hostStatuses([]string{h})[h]
+	if len(st.IPs) == 0 {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "unresolved", "host": h, "status": st})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"host": h, "status": st})
 }

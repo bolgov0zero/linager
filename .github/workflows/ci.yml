@@ -32,13 +32,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Build web
-        run: cd web && npm ci && npm run check && npm run build
       - name: Vet and test
         run: go vet ./... && go test -race ./...
       - uses: golangci/golangci-lint-action@v8
@@ -75,4 +68,4 @@ jobs:
         with:
           node-version: 22
       - name: npm audit (production dependencies)
-        run: cd web && npm audit --omit=dev --audit-level=high
+        run: cd app/frontend && npm audit --omit=dev --audit-level=high

@@ -206,7 +206,7 @@ func joinScriptText(server, fp, pin, token string, hashes map[string]string) str
 		}
 	}
 	return fmt.Sprintf(`#!/bin/sh
-# Linager: install the agent by a link made in the admin panel.
+# Linager: install the agent by a link made in the application.
 # The script comes from your Linager server; read it before you run it.
 set -eu
 

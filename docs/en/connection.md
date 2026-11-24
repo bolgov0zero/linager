@@ -5,18 +5,16 @@
 | Port | What is on it | Who connects |
 |---|---|---|
 | Agent port | TLS 1.3, mutual certificate check | agents on the managed servers |
-| Application port | TLS 1.3 with the certificate of the agent port, the same API as the admin panel | the Linager application |
-
-The admin panel port (behind Caddy or your own proxy) is not changed here: it is set at installation in `server.yaml`.
+| Application port | TLS 1.3 with the certificate of the agent port, the API of the server; the only way to the interface | the Linager application |
 
 Both ports use one certificate, so the section shows one fingerprint (SHA-256). The application remembers it on the first connection, the way SSH remembers a host key.
 
 ## Application port
 
-A separate port: a direct TLS connection without a reverse proxy. The installation wizard always asks for it (`--app-port` without questions). On a server installed earlier the port is not set: enter it in "Connection". An empty field switches the port off.
+A separate port: a direct TLS connection without a reverse proxy. The installation wizard always asks for it (`--app-port` without questions). The port cannot be switched off: there is no other way to the interface. If a server has no port (it was installed before the application), switch it on on the server: `sudo linager server app-port <port>`, then restart the service (`systemctl restart linager-server`); the same command without an argument shows the port and the fingerprint of the certificate. After changing the port in the application connect at the new address.
 
-- Reverse proxy headers (`X-Forwarded-For`, `X-Real-IP`, `Forwarded` and the like) are dropped on this port: a client cannot name its own address. The admin access restriction and the sign-in limits see the real address of the connection.
-- The admin access restriction ("Admin access") applies to this port too: the white and black lists judge the real address of the connection. The rule "only through a proxy" does not apply to it: the port is direct by design.
+- Reverse proxy headers (`X-Forwarded-For`, `X-Real-IP`, `Forwarded` and the like) are dropped on this port: a client cannot name its own address. The access restriction and the sign-in limits see the real address of the connection.
+- The access restriction ("Server access", [access.md](access.md)) applies to this port: the white and black lists judge the real address of the connection.
 - Open the port in the firewall (the wizard reminds you when nftables is active).
 - The value set in "Connection" is kept in the database and wins over `server.yaml` (the service cannot write to `/etc/linager`). The wizard writes it to `server.yaml`: `app.listen: "0.0.0.0:PORT"`.
 
@@ -42,4 +40,4 @@ Every change is written to the audit log (`connection.update`, `connection.close
 
 ## API
 
-`GET /api/connection`, `PUT /api/connection` (`{"agent_port": N, "app_port": N}`, 0 switches the application port off), `POST /api/connection/close-old`. Administrator only.
+`GET /api/connection`, `PUT /api/connection` (`{"agent_port": N, "app_port": N}`, the application port is required), `POST /api/connection/close-old`. Administrator only.

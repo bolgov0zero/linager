@@ -4,7 +4,7 @@ updates:
     directory: /
     schedule: { interval: weekly }
   - package-ecosystem: npm
-    directory: /web
+    directory: /app/frontend
     schedule: { interval: weekly }
   - package-ecosystem: npm
     directory: /site

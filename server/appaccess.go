@@ -8,26 +8,22 @@ import (
 	"sort"
 )
 
-var errUnknownMode = errors.New("unknown mode")
-
-// Access restriction of the application port: its own white or black list of addresses, apart from the restriction of the
-// admin panel. The port is a direct TLS connection (nothing stands in front of it, the forwarding headers are dropped), so
-// the lists judge the address of the connection itself; there are no proxies here. Host names (a DDNS name of a home
-// connection) are allowed like in the admin panel: they are resolved by the same job and judged as the addresses they point to.
-//
-// Until the list is saved for the first time, the application port follows the restriction of the admin panel (as it did
-// before this setting existed), so an upgrade never opens a port that was closed.
+// The lists of the application port: the white or the black list set in the application (Settings, "Server access"). Host
+// names (a DDNS name of a home connection) are allowed: they are resolved by the job of ipaccess_hosts.go and judged as the
+// addresses they point to.
 
 const appAccessSetting = "app_access"
 
-// AppAccessConfig is the restriction of the application port as the admin edits and stores it.
+var errUnknownMode = errors.New("unknown mode")
+
+// AppAccessConfig is the restriction of the application port as the administrator edits and stores it.
 type AppAccessConfig struct {
 	Mode  string       `json:"mode"`
 	White []AccessRule `json:"white"`
 	Black []AccessRule `json:"black"`
 }
 
-// appAccessSnapshot is the config in force; nil in the guard means "not saved yet: follow the admin panel".
+// appAccessSnapshot is the config in force; nil in the guard means "nothing saved: the port is open".
 type appAccessSnapshot struct {
 	cfg   AppAccessConfig
 	rules *accessRules
@@ -52,25 +48,12 @@ func appHostNames(cfg AppAccessConfig) []string {
 	return out
 }
 
-// trackedHosts is every host name of the lists of the admin panel and of the application port: the job that asks DNS
-// looks up all of them.
+// trackedHosts is every host name of the lists in force: the job that asks DNS looks up all of them.
 func (g *AccessGuard) trackedHosts() []string {
-	seen := map[string]bool{}
-	var out []string
-	add := func(list []string) {
-		for _, h := range list {
-			if !seen[h] {
-				seen[h] = true
-				out = append(out, h)
-			}
-		}
-	}
-	add(g.snap.Load().rules.hosts)
 	if s := g.app.Load(); s != nil {
-		add(s.rules.hosts)
+		return append([]string(nil), s.rules.hosts...)
 	}
-	sort.Strings(out)
-	return out
+	return nil
 }
 
 // reapplyApp compiles the list of the port again, for the new addresses of its host names.
@@ -86,7 +69,8 @@ func (g *AccessGuard) reapplyApp() {
 	}
 }
 
-// compileAppAccess validates and normalises a config.
+// compileAppAccess validates and normalises a config. hosts holds the addresses in force for the host names of the lists
+// (nil: none are known, which is fine for validation only).
 func compileAppAccess(cfg AppAccessConfig, hosts hostAddrs) (AppAccessConfig, *accessRules, error) {
 	switch cfg.Mode {
 	case AccessOff, AccessWhite, AccessBlack:
@@ -131,18 +115,17 @@ func compileAppAccess(cfg AppAccessConfig, hosts hostAddrs) (AppAccessConfig, *a
 // decideApp judges a connection to the application port.
 func (g *AccessGuard) decideApp(peer netip.Addr) verdict {
 	if s := g.app.Load(); s != nil {
-		return s.rules.decide(peer, "")
+		return s.rules.decide(peer)
 	}
-	return g.snap.Load().rules.decideDirect(peer)
+	return verdict{IP: peer.Unmap().String(), Allowed: true, Reason: reasonOff}
 }
 
-// AppCurrent is the restriction of the application port in force and whether it was saved (false: it follows the admin panel).
-func (g *AccessGuard) AppCurrent() (AppAccessConfig, bool) {
+// AppCurrent is the restriction in force (off when nothing is saved).
+func (g *AccessGuard) AppCurrent() AppAccessConfig {
 	if s := g.app.Load(); s != nil {
-		return s.cfg, true
+		return s.cfg
 	}
-	cfg := g.snap.Load().cfg
-	return AppAccessConfig{Mode: cfg.Mode, White: cfg.White, Black: cfg.Black}, false
+	return AppAccessConfig{Mode: AccessOff, White: []AccessRule{}, Black: []AccessRule{}}
 }
 
 func (g *AccessGuard) loadApp(ctx context.Context) {
@@ -184,8 +167,8 @@ func (g *AccessGuard) SaveApp(ctx context.Context, cfg AppAccessConfig) error {
 }
 
 // appProblems lists what is wrong with enabling the config for the caller: an empty white list refuses everybody, and the
-// caller (when the request came to the application port) must not lose access.
-func appProblems(ar *accessRules, caller netip.Addr, direct bool) []accessProblem {
+// caller must not lose access.
+func appProblems(ar *accessRules, caller netip.Addr) []accessProblem {
 	out := []accessProblem{}
 	if ar.mode == AccessOff {
 		return out
@@ -196,10 +179,8 @@ func appProblems(ar *accessRules, caller netip.Addr, direct bool) []accessProble
 	for _, h := range ar.unresolved {
 		out = append(out, accessProblem{Code: problemHostNoAddr, Host: h})
 	}
-	if direct {
-		if v := ar.decide(caller, ""); !v.Allowed {
-			out = append(out, accessProblem{Code: problemLockout, IP: v.IP, Reason: v.Reason})
-		}
+	if v := ar.decide(caller); !v.Allowed {
+		out = append(out, accessProblem{Code: problemLockout, IP: v.IP, Reason: v.Reason})
 	}
 	return out
 }

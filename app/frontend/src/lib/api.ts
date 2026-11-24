@@ -1,4 +1,4 @@
-// The API of the Linager server (the same one the web panel uses), reached through the proxy of the application.
+// The API of the Linager server, reached through the proxy of the application.
 // Paths are relative: the page lives under a random token path.
 
 export interface Session {
@@ -87,7 +87,7 @@ export interface Disk {
 export type Role = 'admin' | 'operator' | 'auditor';
 export interface UserAccess { servers: string[]; groups: number[]; modules: string[] }
 export interface UserRow {
-  id: number; login: string; role: string; totp_enabled: boolean; passkeys: number; recovery_left: number;
+  id: number; login: string; role: string; totp_enabled: boolean; recovery_left: number;
   created_at: string; current: boolean;
   /** Only for an operator or an auditor. */
   access?: UserAccess;
@@ -97,15 +97,15 @@ export interface UserRow {
 export interface AccessRule { cidr: string; note: string }
 export type AccessMode = 'off' | 'white' | 'black';
 export interface AccessProblem { code: string; ip?: string; reason?: string; host?: string }
-/** The restriction of the application port: its own lists, apart from the admin panel. */
+/** The restriction of the application port: its own lists. */
 export interface AppAccessConfig { mode: AccessMode; white: AccessRule[]; black: AccessRule[] }
 /** What a host name of a list points to now (checked_at: unix time of the last good lookup, 0 when there was none). */
 export interface AccessHost { ips: string[]; checked_at: number; failing: boolean; expired: boolean; error?: string }
-export interface AppAccessState { config: AppAccessConfig; configured: boolean; you?: { ip: string; allowed: boolean; reason: string }; denied_24h: number; hosts: Record<string, AccessHost> }
+export interface AppAccessState { config: AppAccessConfig; you?: { ip: string; allowed: boolean; reason: string }; denied_24h: number; hosts: Record<string, AccessHost> }
 export interface AppAccessCheck { problems: AccessProblem[]; you?: { ip: string; allowed: boolean; reason: string }; test?: { ip: string; allowed: boolean; reason: string }; hosts: Record<string, AccessHost> }
 
 export interface AccessLogRow {
-  id: number; ts: number; client_ip: string; remote_addr: string; via_proxy: boolean; proxy_trusted: boolean;
+  id: number; ts: number; client_ip: string; remote_addr: string;
   event: 'page' | 'login.ok' | 'login.fail' | 'denied'; login: string; path: string; user_agent: string; reason: string;
 }
 
@@ -122,7 +122,6 @@ export interface ConnectionState {
   fingerprint: string;
   /** The first agent version that follows a change of the agent port. */
   min_agent: string;
-  admin_port: number;
   app_up: boolean;
   move: ConnMove | null;
   /** Online agents that cannot follow: while there are any, the agent port cannot be changed. */
@@ -254,7 +253,6 @@ export interface AvailableServer { id: string; name: string; address: string; os
 export interface ConnectInfo { port: string; fingerprint: string; hosts: string[] }
 
 export interface TotpSetup { secret: string; uri: string }
-export interface PasskeyRow { id: string; name: string; created_at: string; last_used_at: string | null }
 
 export interface Group {
   id: number;
@@ -336,8 +334,6 @@ export const api = {
   totpDisable: (password: string) => request<void>('POST', 'api/me/totp/disable', { password }),
   changePassword: (current: string, password: string) => request<{ ok: boolean }>('POST', 'api/me/password', { current, password }),
   recoveryRegenerate: (password: string) => request<{ ok: boolean; recovery_codes: string[] }>('POST', 'api/me/recovery-codes', { password }),
-  passkeys: () => request<{ passkeys: PasskeyRow[] }>('GET', 'api/me/passkeys'),
-  passkeyDelete: (id: string, password: string) => request<{ ok: boolean }>('DELETE', `api/me/passkeys/${encodeURIComponent(id)}`, { password }),
 
   users: () => request<{ users: UserRow[] }>('GET', 'api/users'),
   userCreate: (login: string, password: string, role: Role = 'admin', access?: UserAccess) => request<{ ok: boolean; id: number }>('POST', 'api/users', { login, password, role, ...(access ?? {}) }),
@@ -349,8 +345,8 @@ export const api = {
   appAccess: () => request<AppAccessState>('GET', 'api/app-access'),
   appAccessSave: (config: AppAccessConfig) => request<AppAccessState>('PUT', 'api/app-access', config),
   appAccessCheck: (config: AppAccessConfig, testIp?: string) => request<AppAccessCheck>('POST', 'api/app-access/check', { config, test_ip: testIp ?? '' }),
-  accessResolve: (host: string) => request<{ host: string; status: AccessHost }>('POST', 'api/access/resolve', { host }),
-  appAccessLog: (filter: 'all' | 'denied' | 'login' | 'fail', before = 0) => request<{ rows: AccessLogRow[] }>('GET', `api/access/log?port=app&filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
+  accessResolve: (host: string) => request<{ host: string; status: AccessHost }>('POST', 'api/app-access/resolve', { host }),
+  appAccessLog: (filter: 'all' | 'denied' | 'login' | 'fail', before = 0) => request<{ rows: AccessLogRow[] }>('GET', `api/app-access/log?filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
 
   connection: () => request<ConnectionState>('GET', 'api/connection'),
   connectionSave: (agentPort: number, appPort: number) => request<ConnectionState>('PUT', 'api/connection', { agent_port: agentPort, app_port: appPort }),

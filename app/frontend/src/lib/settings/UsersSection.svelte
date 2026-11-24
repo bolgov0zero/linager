@@ -169,14 +169,13 @@
               <span class="badge {u.role === 'admin' ? 'b-mute' : 'b-info'}">{t(`st.users.role.${u.role}`)}</span>
               {#if u.access}<span class="dim">{summary(u)}</span>{/if}
               <span class="badge {u.totp_enabled ? 'b-ok' : 'b-mute'}">{u.totp_enabled ? t('st.users.2fa.on') : t('st.users.2fa.off')}</span>
-              {#if u.passkeys > 0}<span class="badge b-ok">{t('st.users.passkeys', { n: u.passkeys })}</span>{/if}
               <span class="dim">{t('st.users.created', { date: when(u.created_at) })}</span>
             </div>
             {#if !u.current}
               <div class="row">
                 <button class="btn sm" type="button" onclick={() => startEdit(u)}>{t('st.users.access')}</button>
                 <button class="btn sm" type="button" onclick={() => { editing = null; pwFor = u; resetPw = ''; actionError = ''; }}>{t('st.users.reset')}</button>
-                <button class="btn sm" type="button" disabled={busy || (!u.totp_enabled && u.passkeys === 0)} onclick={() => void reset2fa(u)}>{t('st.users.reset2fa')}</button>
+                <button class="btn sm" type="button" disabled={busy || !u.totp_enabled} onclick={() => void reset2fa(u)}>{t('st.users.reset2fa')}</button>
                 <button class="btn sm danger" type="button" disabled={busy} onclick={() => void remove(u)}>{t('st.users.delete')}</button>
               </div>
             {/if}
