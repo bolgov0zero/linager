@@ -453,3 +453,35 @@ func TestUnzipSkipsMacOSExtraFiles(t *testing.T) {
 		t.Fatal("the real file must be there")
 	}
 }
+
+func TestTheChosenChannelDecidesWhatIsOffered(t *testing.T) {
+	f := newFake(t)
+	f.release("v1.1.0-beta.1", relOpt{prerelease: true, body: tarGz(t, "linager-app", []byte("b"))})
+	f.release("v1.0.1", relOpt{body: tarGz(t, "linager-app", []byte("s"))})
+	// a stable version that follows the betas sees the beta
+	u := f.updater("1.0.0", "linux", "amd64")
+	u.SetChannel("beta")
+	if info, _ := u.Check(context.Background()); info.Channel != "beta" || info.Latest != "1.1.0-beta.1" {
+		t.Fatalf("beta channel: %+v", info)
+	}
+	// a beta that follows the stable ones sees none of the betas
+	u = f.updater("1.0.0-beta.2", "linux", "amd64")
+	u.SetChannel("stable")
+	info, _ := u.Check(context.Background())
+	if info.Channel != "stable" || info.Latest != "1.0.1" {
+		t.Fatalf("stable channel: %+v", info)
+	}
+	if got := u.Info().Channel; got != "stable" {
+		t.Fatalf("Info must report the chosen channel: %s", got)
+	}
+	// changing the channel drops what was offered: it belongs to the other one
+	u.SetChannel("beta")
+	if in := u.Info(); in.Newer || in.Channel != "beta" {
+		t.Fatalf("after the change: %+v", in)
+	}
+	// anything else goes back to the channel of the running version
+	u.SetChannel("")
+	if got := u.Info().Channel; got != "beta" {
+		t.Fatalf("follow the version: %s", got)
+	}
+}

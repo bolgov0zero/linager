@@ -5,7 +5,7 @@
   import { t } from '../i18n.svelte';
 
   // The Assistant in a window of its own.
-  let { id, title }: { id: string; title: string } = $props();
+  let { id, title, nativeWindows = false }: { id: string; title: string; nativeWindows?: boolean } = $props();
   let s = $state<ServerDetail | null>(null);
 
   async function load(): Promise<void> {
@@ -20,5 +20,5 @@
 </script>
 
 <div class="win-full win-pane">
-  {#if s}<AssistantPane serverId={s.id} name={s.name} online={s.online} />{:else}<p class="dim pad">{t('dash.loading')}</p>{/if}
+  {#if s}<AssistantPane serverId={s.id} name={s.name} online={s.online} {nativeWindows} />{:else}<p class="dim pad">{t('dash.loading')}</p>{/if}
 </div>

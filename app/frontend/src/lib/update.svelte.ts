@@ -29,6 +29,15 @@ export const upd = $state<{ info: UpdateInfo | null; status: UpdateStatus; check
 });
 
 const AUTO = 'linager.update.auto';
+const CHANNEL = 'linager.update.channel';
+/** The channel the person chose; '' follows the running version (a beta follows the betas, a release the releases). */
+export const chosenChannel = (): string => {
+  const v = getPref(CHANNEL);
+  return v === 'stable' || v === 'beta' ? v : '';
+};
+export const setChannel = (c: 'stable' | 'beta'): void => setPref(CHANNEL, c);
+const channelQuery = (): string => (chosenChannel() ? `?channel=${chosenChannel()}` : '');
+
 export const autoCheck = (): boolean => getPref(AUTO) !== '0';
 export const setAutoCheck = (on: boolean): void => setPref(AUTO, on ? '1' : '0');
 
@@ -43,7 +52,7 @@ export async function checkUpdate(): Promise<void> {
   if (upd.checking) return;
   upd.checking = true;
   try {
-    const r = await json<UpdateInfo & { info?: UpdateInfo }>('POST', 'check');
+    const r = await json<UpdateInfo & { info?: UpdateInfo }>('POST', `check${channelQuery()}`);
     upd.failed = !r.ok;
     upd.info = r.ok ? r.data : (r.data.info ?? upd.info);
   } catch {
@@ -58,7 +67,7 @@ let follow: ReturnType<typeof setInterval> | undefined;
 
 /** Starts the checks: once soon after the start, then every six hours, unless the person turned them off. */
 export function startAutoCheck(): () => void {
-  void json<UpdateInfo>('GET', 'info').then((r) => (upd.info = r.data)).catch(() => undefined);
+  void json<UpdateInfo>('GET', `info${channelQuery()}`).then((r) => (upd.info = r.data)).catch(() => undefined);
   const run = (): void => {
     if (autoCheck() && upd.info?.supported) void checkUpdate();
   };

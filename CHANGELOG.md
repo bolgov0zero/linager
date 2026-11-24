@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0-beta.8
+
+- Change (application): in the Console the buttons "Files" and "Manager" of a terminal are icons only. The RDP and Assistant tabs of the Console, the server page and their windows have the same two buttons (icons: Files, Manager) next to "In a separate window".
+- Fix (application): the table of the agents in Settings → Updates keeps every row in one line: the system is shortened ("Debian 12"), the version and the status do not wrap, the progress of an update is a bar and one line ("3/8 · replace") and an error is cut with the full text in the tooltip, so a row no longer grows when an update starts or fails. The stages of a failed run open under the row on a click.
+- New (application): **deleting a server** like in the web panel: the dialog asks to type the name of the server and offers "Also remove the agent from the server" (on by default; for an offline server it stays on and locked: the agent is removed when it connects). It is used from the server page and from the edit mode of the dashboard.
+- New (application): **export of the metrics**: the button "Export CSV" of the Metrics tab saves the chosen period (a native "Save" dialog, the file is written by the application).
+- New (application): **the banner "the agent is outdated"** on the server page for an administrator: the new version, "Update agent" with a confirmation, the progress and the stages of the update, the result and the rollback; it follows the updates of the page "Updates".
+- New (application): **the update channel can be chosen** in Settings → Application (Beta or Stable); before, it was fixed by the running version (a beta followed the betas). The choice is remembered. Beta offers every release, Stable only finished ones; the application never goes back to an earlier version, and changing the channel drops the update that was offered.
+
 ## 0.10.0-beta.7
 
 - New (application): **Add server**: the button "Add server" of the dashboard (with the number of agents that wait) opens a dialog with three tabs. **Confirmations**: the agents that ask to join (the code and the key to type, or a request that came by a link), the connected servers that are not on the dashboard yet, and the data to connect a client by hand (the address, the port and the fingerprint). **Install by a link**: a one-time link with a lifetime, the number of servers, a group, allowed networks and automatic approval, the commands for Linux and Windows (the local and the external one) and the text of the script, the list of links with their use and revoking. **Install over SSH**: the form (address, port, login, a password or a key), the check by stages, the questions to the person (the host key, the sudo password, the address the host reaches this server by, a reinstall), the install with its output and the open page of the new server. Passwords and keys stay in the memory of the dialog and of the server and are wiped at the end.

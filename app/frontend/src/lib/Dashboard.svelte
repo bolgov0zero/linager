@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { api, serverApi, subscribeLive, type Group, type ServerCard } from './api';
+  import { api, subscribeLive, type Group, type ServerCard } from './api';
   import Card from './Card.svelte';
   import CustomSelect from './CustomSelect.svelte';
   import Icon from './Icon.svelte';
@@ -12,9 +12,10 @@
   import SearchField from './SearchField.svelte';
   import AddServerModal from './addserver/AddServerModal.svelte';
   import { confirmAsk } from './dialogs.svelte';
+  import DeleteServerModal from './DeleteServerModal.svelte';
   import EditBar from './EditBar.svelte';
   import type { RowEdit } from './dash-edit';
-  import { errorText, isUnauthorized } from './errors';
+  import { isUnauthorized } from './errors';
   import { showToast } from './toast';
   import { openServer } from './route.svelte';
   import { levelOf, sparkPath, summarize } from './status';
@@ -192,16 +193,10 @@
     cards = next;
     scheduleOrderSave();
   }
-  async function deleteCard(card: ServerCard): Promise<void> {
-    if (!(await confirmAsk({ title: t('dash.deleteServer'), text: t('sp.delete.text', { name: card.name }), ok: t('sp.delete'), danger: true }))) return;
-    try {
-      await serverApi.deleteServer(card.id, card.name, false);
-      cards = cards.filter((c) => c.id !== card.id);
-      void load();
-    } catch (e) {
-      showToast(errorText(e));
-    }
-  }
+  let deleting = $state<ServerCard | null>(null);
+  const deleteCard = (card: ServerCard): void => {
+    deleting = card;
+  };
   function toggleEdit(): void {
     if (editing) {
       // leaving the mode saves what is waiting
@@ -235,7 +230,7 @@
     dragId = null;
     overId = null;
   }
-  const rowEdit = $derived<RowEdit | null>(editing ? { groups, move, group: (id, v) => { const c = cards.find((x) => x.id === id); if (c) void setCardGroup(c, v); }, remove: (id) => { const c = cards.find((x) => x.id === id); if (c) void removeCard(c); }, del: (id) => { const c = cards.find((x) => x.id === id); if (c) void deleteCard(c); }, dragStart, dragOver, drop, dragEnd, overId: () => overId, dragId: () => dragId } : null);
+  const rowEdit = $derived<RowEdit | null>(editing ? { groups, move, group: (id, v) => { const c = cards.find((x) => x.id === id); if (c) void setCardGroup(c, v); }, remove: (id) => { const c = cards.find((x) => x.id === id); if (c) void removeCard(c); }, del: (id) => { const c = cards.find((x) => x.id === id); if (c) deleteCard(c); }, dragStart, dragOver, drop, dragEnd, overId: () => overId, dragId: () => dragId } : null);
 
   function openIn(c: ServerCard, kind: 'terminal' | 'rdp' | 'asst'): void {
     void native.openWindow(kind, c.id, c.name, nativeWindows);
@@ -319,14 +314,14 @@
   <div class="dash-scroll"><div class="grid mini-grid">{#each shown as c (c.id)}
     <div class="slot" class:editing class:over={editing && overId === c.id && dragId !== c.id} class:dragging={dragId === c.id} draggable={editing} role="presentation" ondragstart={(e) => dragStart(e, c.id)} ondragover={(e) => dragOver(e, c.id)} ondrop={(e) => drop(e, c.id)} ondragend={dragEnd}>
       <Mini card={c} {editing} onopen={openIn} />
-      {#if editing}<EditBar card={c} index={visibleIndex(c.id)} count={shown.length} {groups} onmove={(d) => move(c.id, d)} ongroup={(v) => void setCardGroup(c, v)} onremove={() => void removeCard(c)} ondelete={() => void deleteCard(c)} />{/if}
+      {#if editing}<EditBar card={c} index={visibleIndex(c.id)} count={shown.length} {groups} onmove={(d) => move(c.id, d)} ongroup={(v) => void setCardGroup(c, v)} onremove={() => void removeCard(c)} ondelete={() => deleteCard(c)} />{/if}
     </div>
   {/each}</div></div>
 {:else}
   <div class="dash-scroll"><div class="grid">{#each shown as c (c.id)}
     <div class="slot" class:editing class:over={editing && overId === c.id && dragId !== c.id} class:dragging={dragId === c.id} draggable={editing} role="presentation" ondragstart={(e) => dragStart(e, c.id)} ondragover={(e) => dragOver(e, c.id)} ondrop={(e) => drop(e, c.id)} ondragend={dragEnd}>
       <Card card={c} {now} {editing} onopen={openIn} />
-      {#if editing}<EditBar card={c} index={visibleIndex(c.id)} count={shown.length} {groups} onmove={(d) => move(c.id, d)} ongroup={(v) => void setCardGroup(c, v)} onremove={() => void removeCard(c)} ondelete={() => void deleteCard(c)} />{/if}
+      {#if editing}<EditBar card={c} index={visibleIndex(c.id)} count={shown.length} {groups} onmove={(d) => move(c.id, d)} ongroup={(v) => void setCardGroup(c, v)} onremove={() => void removeCard(c)} ondelete={() => deleteCard(c)} />{/if}
     </div>
   {/each}</div></div>
 {/if}
@@ -341,4 +336,8 @@
     <span>{t('dash.undo.text', { name: pending.card.name })}</span>
     <button class="btn sm" type="button" onclick={undoRemoval}>{t('dash.undo.button')}</button>
   </div>
+{/if}
+
+{#if deleting}
+  <DeleteServerModal server={deleting} onclose={() => (deleting = null)} ondeleted={() => { const gone = deleting; deleting = null; if (gone) cards = cards.filter((c) => c.id !== gone.id); void load(); }} />
 {/if}

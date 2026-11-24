@@ -177,8 +177,8 @@
         <div class="con-pane" hidden={tab.id !== con.active}>
           {#if visited[tab.id]}
             {#if tab.mode === 'term'}<Terminal id={tab.serverId} title={tab.name} embedded {nativeWindows} />
-            {:else if tab.mode === 'rdp'}<DesktopPane serverId={tab.serverId} name={tab.name} address={byId.get(tab.serverId)?.address ?? ''} online={byId.get(tab.serverId)?.online ?? false} onwindow={() => inWindow(tab, 'rdp')} />
-            {:else if tab.mode === 'asst'}<AssistantPane serverId={tab.serverId} name={tab.name} online={byId.get(tab.serverId)?.online ?? false} paused={tab.id !== con.active} onwindow={() => inWindow(tab, 'asst')} />
+            {:else if tab.mode === 'rdp'}<DesktopPane serverId={tab.serverId} name={tab.name} address={byId.get(tab.serverId)?.address ?? ''} online={byId.get(tab.serverId)?.online ?? false} {nativeWindows} onwindow={() => inWindow(tab, 'rdp')} />
+            {:else if tab.mode === 'asst'}<AssistantPane serverId={tab.serverId} name={tab.name} online={byId.get(tab.serverId)?.online ?? false} paused={tab.id !== con.active} {nativeWindows} onwindow={() => inWindow(tab, 'asst')} />
             {:else}<div class="empty big"><Icon name={tabIcon(tab.mode)} size={28} /><h3>{modeLabel(tab.mode)}</h3><p>{t('pult.soon')}</p></div>{/if}
           {/if}
         </div>

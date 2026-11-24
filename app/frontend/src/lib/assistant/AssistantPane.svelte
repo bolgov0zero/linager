@@ -3,6 +3,7 @@
   import ContextMenu, { type CtxItem } from '../ContextMenu.svelte';
   import { t } from '../i18n.svelte';
   import Icon from '../Icon.svelte';
+  import { native } from '../native';
   import AssistantBadge from './AssistantBadge.svelte';
   import AssistantQuality from './AssistantQuality.svelte';
   import AssistantSessionView, { type AssistInfo, type AssistPhase } from './AssistantSession.svelte';
@@ -15,7 +16,7 @@
 
   // The Assistant of a computer: the bar (the session, the display, Ctrl+Alt+Del, the menu), the screen and the line under it.
   // Used in a Console tab and on the server page. A hidden pane stops the pictures (paused).
-  let { serverId, name, online, paused = false, onwindow }: { serverId: string; name: string; online: boolean; paused?: boolean; onwindow?: () => void } = $props();
+  let { serverId, name, online, paused = false, nativeWindows = false, onwindow }: { serverId: string; name: string; online: boolean; paused?: boolean; nativeWindows?: boolean; onwindow?: () => void } = $props();
 
   let phase = $state<AssistPhase>('connecting');
   let info = $state<AssistInfo | null>(null);
@@ -118,6 +119,8 @@
         <button class="btn sm" type="button" onclick={(e) => open(moreItems, e)}>{t('assist.more')}<Icon name="chevron-down" size={13} /></button>
       {/if}
     {/if}
+    <button class="btn sm icon" type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', serverId, name, nativeWindows)}><Icon name="folder" size={14} /></button>
+    <button class="btn sm icon" type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', serverId, name, nativeWindows)}><Icon name="activity" size={14} /></button>
     {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
   </div>
   {#if !online}<p class="dim pad">{t('assist.offline')}</p>

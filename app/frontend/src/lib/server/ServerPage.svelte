@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { ApiError, serverApi, subscribeLive, type ServerDetail } from '../api';
   import { confirmAsk } from '../dialogs.svelte';
+  import DeleteServerModal from '../DeleteServerModal.svelte';
+  import AgentUpdateBanner from './AgentUpdateBanner.svelte';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
   import { native } from '../native';
@@ -119,16 +121,7 @@
     }
   }
 
-  async function doDelete(): Promise<void> {
-    if (!s || !(await confirmAsk({ title: t('sp.delete'), text: t('sp.delete.text', { name: s.name }), ok: t('sp.delete'), danger: true }))) return;
-    try {
-      await serverApi.deleteServer(id, s.name, false);
-      openDashboard();
-    } catch {
-      // the server stays in the list
-    }
-  }
-
+  let deleting = $state(false);
   function pick(it: Item): void {
     if (!it.ready) return;
     openServer(id, it.key);
@@ -178,16 +171,17 @@
         <span class="grow"></span>
         <button class="btn sm" type="button" onclick={() => native.openWindow('note', id, s!.name, nativeWindows)}><Icon name="sticky-note" size={14} />{t('sp.note')}{#if s.note}<i class="nd"></i>{/if}</button>
         <button class="btn sm" type="button" disabled={!s.online} onclick={doReboot}><Icon name="power" size={14} />{t('sp.reboot')}</button>
-        <button class="btn sm danger" type="button" onclick={doDelete} title={t('sp.delete')}><Icon name="trash-2" size={14} /></button>
+        <button class="btn sm danger" type="button" onclick={() => (deleting = true)} title={t('sp.delete')}><Icon name="trash-2" size={14} /></button>
       </div>
+      <AgentUpdateBanner server={s} onchanged={() => void load()} />
       {#if reboot}<div class="banner"><Icon name="triangle-alert" size={14} />{t('sp.reboot.needed')}</div>{/if}
       <div class="sp-body">
         {#key current.key}
           {#if current.key === 'overview'}<OverviewTab {s} />
           {:else if current.key === 'metrics'}<MetricsTab {s} />
           {:else if current.key === 'terminal'}<TerminalTab {s} {nativeWindows} />
-          {:else if current.key === 'desktop'}<div class="sp-asst"><DesktopPane serverId={s.id} name={s.name} address={s.address} online={s.online} /></div>
-          {:else if current.key === 'assistant'}<div class="sp-asst"><AssistantPane serverId={s.id} name={s.name} online={s.online} /></div>
+          {:else if current.key === 'desktop'}<div class="sp-asst"><DesktopPane serverId={s.id} name={s.name} address={s.address} online={s.online} {nativeWindows} /></div>
+          {:else if current.key === 'assistant'}<div class="sp-asst"><AssistantPane serverId={s.id} name={s.name} online={s.online} {nativeWindows} /></div>
           {:else if current.key === 'services'}<ServicesTab {s} />
           {:else if current.key === 'processes'}<ProcessesTab {s} />
           {:else if current.key === 'logs'}<LogsTab {s} />
@@ -205,4 +199,8 @@
       </div>
     </section>
   </div>
+{/if}
+
+{#if deleting && s}
+  <DeleteServerModal server={s} onclose={() => (deleting = false)} ondeleted={() => { deleting = false; openDashboard(); }} />
 {/if}

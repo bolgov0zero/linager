@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AgentUpdateRow, RolloutMode, UpdatesInfo } from '../api';
   import CustomSelect from '../CustomSelect.svelte';
+  import { shortOs } from '../status';
   import { t } from '../i18n.svelte';
   import Fold from './Fold.svelte';
   import UpdAgentSteps from './UpdAgentSteps.svelte';
@@ -62,7 +63,7 @@
     <button class="btn sm primary" type="button" disabled={!canAct || applicable.length === 0} onclick={() => run('all')}>{t('st.upd.agents.runAll', { count: applicable.length })}</button>
   </div>
 
-  <div class="panel flush" style="margin:0"><table class="tbl compact">
+  <div class="panel flush" style="margin:0"><table class="tbl compact uag">
     <thead><tr>
       <th style="width:34px"><input type="checkbox" aria-label={t('st.upd.agents.selectAll')} checked={allSelected} disabled={!canAct || applicable.length === 0} onchange={(e) => toggleAll(e.currentTarget.checked)} /></th>
       <th>{t('st.upd.agents.colServer')}</th><th>{t('st.upd.agents.colVersion')}</th><th>{t('st.upd.agents.colStatus')}</th><th>{t('st.upd.agents.colProgress')}</th><th></th>
@@ -72,29 +73,31 @@
         {@const isApplicable = APPLICABLE.has(agent.status)}
         <tr>
           <td>{#if isApplicable}<input type="checkbox" aria-label={t('st.upd.agents.select', { name: agent.name })} bind:checked={picked[agent.id]} disabled={!canAct} />{/if}</td>
-          <td><div><b>{agent.name}</b></div><div class="dim">{agent.os} · {agent.address}</div></td>
+          <td class="srvc"><div class="cut"><b>{agent.name}</b></div><div class="dim cut" title="{agent.os} · {agent.address}">{shortOs(agent.os)} · {agent.address}</div></td>
           <td class="mono">{agent.version}</td>
-          <td>
+          <td class="stc">
             {#if agent.status === 'current' && agent.manual}<span class="badge b-warn">{t('st.upd.ag.manual', { version: agent.target ?? '' })}</span>
             {:else if agent.status === 'current'}<span class="badge b-ok">{t('st.upd.ag.current')}</span>
             {:else if agent.status === 'available'}<span class="badge b-warn">{t('st.upd.ag.available', { version: agent.target ?? info.server.available ?? '' })}</span>
             {:else if agent.status === 'unsupported'}<span class="badge b-crit">{t('st.upd.ag.unsupported')}</span>
-            {:else if agent.status === 'updating'}<span class="badge b-warn">{t('st.upd.ag.updating')}</span><div class="dim">{t('st.upd.ag.step', { n: agent.step ?? 0, total: agent.steps_total || TOTAL_STEPS, name: stepName(agent) })}</div>
-            {:else if agent.status === 'queued'}<span class="badge b-mute">{t('st.upd.ag.queued')}</span>{#if !agent.online}<div class="dim">{t('st.upd.ag.waiting')}</div>{/if}
+            {:else if agent.status === 'updating'}<span class="badge b-warn">{t('st.upd.ag.updating')}</span>
+            {:else if agent.status === 'queued'}<span class="badge b-mute">{t('st.upd.ag.queued')}</span>{#if !agent.online}<span class="dim" title={t('st.upd.ag.waiting')}> {t('st.upd.ag.waiting')}</span>{/if}
             {:else if agent.status === 'rollback'}<span class="badge b-crit">{t('st.upd.ag.rollback')}</span>
             {:else}<span class="badge b-crit">{t('st.upd.ag.failed')}</span>{/if}
           </td>
-          <td>
+          <td class="pgc">
             {#if agent.status === 'updating'}
-              <div class="upb" aria-hidden="true">{#each Array.from({ length: agent.steps_total || TOTAL_STEPS }) as _, i (i)}<i class:on={i < (agent.step ?? 0)}></i>{/each}</div>
-              {#if agent.message}<div class="dim">{agent.message}</div>{/if}
+              <div class="prow" title="{t('st.upd.ag.step', { n: agent.step ?? 0, total: agent.steps_total || TOTAL_STEPS, name: stepName(agent) })}{agent.message ? ` · ${agent.message}` : ''}">
+                <div class="upb" aria-hidden="true">{#each Array.from({ length: agent.steps_total || TOTAL_STEPS }) as _, i (i)}<i class:on={i < (agent.step ?? 0)}></i>{/each}</div>
+                <span class="dim cut">{agent.step ?? 0}/{agent.steps_total || TOTAL_STEPS} · {stepName(agent)}</span>
+              </div>
             {:else if agent.status === 'rollback' || agent.status === 'failed'}
-              <span class="critt">{agent.message ?? ''}</span>
-              {#if agent.steps?.length}
-                <div><button class="linkbtn" type="button" aria-expanded={Boolean(opened[agent.id])} onclick={() => (opened = { ...opened, [agent.id]: !opened[agent.id] })}>{opened[agent.id] ? t('st.upd.agstep.hide') : t('st.upd.agstep.show')}</button></div>
-                {#if opened[agent.id]}<UpdAgentSteps steps={agent.steps} nowMs={agent.now_ms} rollbackAt={agent.rollback_at} />{/if}
-              {/if}
-            {:else if agent.status === 'queued' && agent.message}<span class="dim">{agent.message}</span>
+              <div class="prow">
+                <span class="critt cut" title={agent.message ?? ''}>{agent.message ?? ''}</span>
+                {#if agent.steps?.length}<button class="linkbtn" type="button" aria-expanded={Boolean(opened[agent.id])} onclick={() => (opened = { ...opened, [agent.id]: !opened[agent.id] })}>{opened[agent.id] ? t('st.upd.agstep.hide') : t('st.upd.agstep.show')}</button>{/if}
+              </div>
+              {#if opened[agent.id] && agent.steps?.length}<div class="uag-steps"><UpdAgentSteps steps={agent.steps} nowMs={agent.now_ms} rollbackAt={agent.rollback_at} /></div>{/if}
+            {:else if agent.status === 'queued' && agent.message}<span class="dim cut" title={agent.message}>{agent.message}</span>
             {:else}<span class="dim">—</span>{/if}
           </td>
           <td class="r">{#if isApplicable}<button class="btn sm" type="button" disabled={!canAct} onclick={() => run([agent.id])}>{t('st.upd.agents.update')}</button>{/if}</td>

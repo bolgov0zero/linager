@@ -109,8 +109,8 @@
     <span class="spacer"></span>
     {#if phase !== 'open'}<span class="muted" style="font-size:12px">{phase === 'connecting' ? t('term.connecting') : t('term.closed')}</span>{/if}
     {#if phase === 'closed'}<button class="btn sm" type="button" onclick={() => (attempt += 1)}>{t('term.reconnect')}</button>{/if}
-    <button class="btn sm" type="button" onclick={() => native.openWindow('files', id, title, nativeWindows)}><Icon name="folder" size={14} />{t('term.files')}</button>
-    <button class="btn sm" type="button" onclick={() => native.openWindow('manager', id, title, nativeWindows)}><Icon name="activity" size={14} />{t('term.manager')}</button>
+    <button class="btn sm" class:icon={embedded} type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', id, title, nativeWindows)}><Icon name="folder" size={14} />{#if !embedded}{t('term.files')}{/if}</button>
+    <button class="btn sm" class:icon={embedded} type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', id, title, nativeWindows)}><Icon name="activity" size={14} />{#if !embedded}{t('term.manager')}{/if}</button>
   </div>
   <div class="term-host" bind:this={host}></div>
   {#if note}<div class="term-note">{note}</div>{/if}

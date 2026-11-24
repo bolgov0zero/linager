@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { serverApi, type History, type MetricKey, type Period, type ServerDetail } from '../api';
+  import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
+  import { startDownload } from '../files-clip.svelte';
   import { fmtRate } from '../status';
+  import { showToast } from '../toast';
 
   let { s }: { s: ServerDetail } = $props();
 
@@ -27,6 +30,14 @@
     const i = setInterval(() => void load(), 30_000);
     return () => clearInterval(i);
   });
+
+  async function exportCsv(): Promise<void> {
+    try {
+      await startDownload(`api/servers/${encodeURIComponent(s.id)}/metrics.csv?period=${period}`, `${s.name}-${period}.csv`);
+    } catch {
+      showToast(t('common.genericError'));
+    }
+  }
 
   const CHARTS: { key: MetricKey; title: string; pct: boolean }[] = [
     { key: 'cpu', title: 'CPU', pct: true },
@@ -79,6 +90,8 @@
   <div class="seg sm">{#each PERIODS as p (p)}<button type="button" class:on={period === p} aria-pressed={period === p} onclick={() => (period = p)}>{p}</button>{/each}</div>
   <label class="ck"><input type="checkbox" bind:checked={sync} />{t('sp.metrics.sync')}</label>
   <span class="dim">{t('sp.metrics.hint')}</span>
+  <span class="grow"></span>
+  <button class="btn sm" type="button" onclick={() => void exportCsv()}><Icon name="download" size={14} />{t('srv.metrics.csv')}</button>
 </div>
 
 {#if failed && !h}

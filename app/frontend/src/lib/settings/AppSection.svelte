@@ -1,11 +1,18 @@
 <script lang="ts">
   import { t } from '../i18n.svelte';
   import { fmtBytes } from '../status';
-  import { autoCheck, checkUpdate, installUpdate, setAutoCheck, startAutoCheck, upd, updateBusy } from '../update.svelte';
+  import CustomSelect from '../CustomSelect.svelte';
+  import { autoCheck, checkUpdate, installUpdate, setAutoCheck, setChannel, startAutoCheck, upd, updateBusy } from '../update.svelte';
   import { onMount } from 'svelte';
 
   let auto = $state(autoCheck());
   const info = $derived(upd.info);
+  const channels = $derived([{ v: 'stable', t: t('set.upd.ch.stable') }, { v: 'beta', t: t('set.upd.ch.beta') }]);
+  function pickChannel(v: string): void {
+    setChannel(v as 'stable' | 'beta');
+    if (upd.info) upd.info = { ...upd.info, channel: v, newer: false, latest: undefined };
+    void checkUpdate();
+  }
   const phaseText = $derived(
     upd.status.phase === 'downloading' ? t('set.upd.downloading', { pct: upd.status.pct }) : upd.status.phase === 'installing' ? t('set.upd.installing') : upd.status.phase === 'restarting' ? t('set.upd.restarting') : '',
   );
@@ -21,7 +28,7 @@
   <h3>{t('set.upd.title')}</h3>
   <dl class="facts">
     <div><dt>{t('set.upd.current')}</dt><dd class="mono">{info?.current ?? '—'}</dd></div>
-    <div><dt>{t('set.upd.channel')}</dt><dd>{info ? t(`set.upd.ch.${info.channel}`) : '—'}</dd></div>
+    <div><dt>{t('set.upd.channel')}</dt><dd>{#if info?.supported}<CustomSelect small value={info.channel} options={channels} onchange={pickChannel} />{:else}{info ? t(`set.upd.ch.${info.channel}`) : '—'}{/if}</dd></div>
   </dl>
   {#if reason}<p class="dim">{reason}</p>{/if}
   {#if info?.supported}
@@ -45,6 +52,7 @@
       <span class="grow"></span>
       <label class="ck"><input type="checkbox" bind:checked={auto} onchange={() => setAutoCheck(auto)} />{t('set.upd.auto')}</label>
     </div>
+    <p class="dim">{t('set.upd.channelHint')}</p>
     <p class="dim">{t('set.upd.hint')}</p>
   {/if}
 </div>

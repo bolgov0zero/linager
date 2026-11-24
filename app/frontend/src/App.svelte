@@ -100,9 +100,9 @@
 {:else if stage === 'window' && win && win.kind === 'settings' && session}
   <SettingsWindow {session} start={win.arg} />
 {:else if stage === 'window' && win && win.kind === 'rdp'}
-  <DesktopWindow id={win.id} title={win.title} />
+  <DesktopWindow id={win.id} title={win.title} nativeWindows={st?.native ?? false} />
 {:else if stage === 'window' && win && win.kind === 'asst'}
-  <AssistantWindow id={win.id} title={win.title} />
+  <AssistantWindow id={win.id} title={win.title} nativeWindows={st?.native ?? false} />
 {:else if stage === 'window' && win && win.kind === 'editor'}
   <EditorWindow id={win.id} path={win.arg} />
 {:else if stage === 'main' && st && session}

@@ -91,6 +91,9 @@ type Updater struct {
 	// AllowHTTP lets a test serve the files over plain http.
 	AllowHTTP bool
 
+	// channel is the one the person chose ("stable" or "beta"); empty follows the running version.
+	channel string
+
 	mu     sync.Mutex
 	info   Info
 	rel    Release
@@ -120,6 +123,35 @@ func ChannelOf(version string) string {
 	return "beta"
 }
 
+// SetChannel chooses the channel to follow ("stable" or "beta"); anything else goes back to the one of the running version.
+func (u *Updater) SetChannel(c string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if c != "stable" && c != "beta" {
+		c = ""
+	}
+	if c == u.channel {
+		return
+	}
+	u.channel = c
+	// what was offered belongs to the other channel
+	u.info, u.rel, u.asset = Info{}, Release{}, Asset{}
+}
+
+func (u *Updater) channelLocked() string {
+	if u.channel != "" {
+		return u.channel
+	}
+	return ChannelOf(u.Current)
+}
+
+// followed is the channel in use: the chosen one, or the one of the running version.
+func (u *Updater) followed() string {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.channelLocked()
+}
+
 // supported says whether a build can update itself; a build from a working tree (version "dev" or "...-dev") cannot.
 func (u *Updater) supported() (bool, string) {
 	v := ParseVersion(u.Current)
@@ -139,9 +171,11 @@ func (u *Updater) Info() Info {
 	if u.info.Current == "" {
 		// nothing checked yet: what is known without asking
 		ok, why := u.supported()
-		return Info{Supported: ok, Reason: why, Current: u.Current, Channel: ChannelOf(u.Current)}
+		return Info{Supported: ok, Reason: why, Current: u.Current, Channel: u.channelLocked()}
 	}
-	return u.info
+	in := u.info
+	in.Channel = u.channelLocked()
+	return in
 }
 
 // Status returns the progress of the installation.
@@ -267,7 +301,7 @@ func notes(body string) []string {
 // its signed manifest. A release that is not signed, or whose manifest does not match, is never offered.
 func (u *Updater) Check(ctx context.Context) (Info, error) {
 	ok, why := u.supported()
-	info := Info{Supported: ok, Reason: why, Current: u.Current, Channel: ChannelOf(u.Current), CheckedAt: time.Now().Unix()}
+	info := Info{Supported: ok, Reason: why, Current: u.Current, Channel: u.followed(), CheckedAt: time.Now().Unix()}
 	if !ok {
 		// a build that cannot replace itself has nothing to look for
 		u.mu.Lock()

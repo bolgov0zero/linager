@@ -324,6 +324,11 @@ func TestDownloadIsSavedByTheApplication(t *testing.T) {
 			t.Fatalf("%s: %d", p, code)
 		}
 	}
+	// the CSV of the metrics is saved the same way
+	csv := map[string]string{"path": "api/servers/abc-1/metrics.csv?period=24h", "name": "abc-1-24h.csv"}
+	if code := call(t, "POST", s.URL()+"app/download", csv, &out); code != 200 {
+		t.Fatalf("csv: %d", code)
+	}
 	s.o.SaveFile = func(string) (string, bool, error) { return "", false, nil }
 	var c struct{ Cancelled bool }
 	if code := call(t, "POST", s.URL()+"app/download", good, &c); code != 200 || !c.Cancelled {

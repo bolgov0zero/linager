@@ -2,10 +2,11 @@
   import ContextMenu, { type CtxItem } from '../ContextMenu.svelte';
   import { t } from '../i18n.svelte';
   import Icon from '../Icon.svelte';
+  import { native } from '../native';
   import DesktopSessionView, { type DeskPhase } from './DesktopSession.svelte';
 
   // The remote desktop (RDP) of a Windows computer: the bar, then the client. Used in a Console tab and on the server page.
-  let { serverId, name, address, online, onwindow }: { serverId: string; name: string; address: string; online: boolean; onwindow?: () => void } = $props();
+  let { serverId, name, address, online, nativeWindows = false, onwindow }: { serverId: string; name: string; address: string; online: boolean; nativeWindows?: boolean; onwindow?: () => void } = $props();
 
   let phase = $state<DeskPhase>('form');
   let autoResize = $state(true);
@@ -47,6 +48,8 @@
       <button class="btn sm" type="button" title={t('desk.cadHint')} onclick={() => session?.ctrlAltDel()}>Ctrl+Alt+Del</button>
       <button class="btn sm" type="button" onclick={more}>{t('desk.more')}<Icon name="chevron-down" size={13} /></button>
     {/if}
+    <button class="btn sm icon" type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', serverId, name, nativeWindows)}><Icon name="folder" size={14} /></button>
+    <button class="btn sm icon" type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', serverId, name, nativeWindows)}><Icon name="activity" size={14} /></button>
     {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
   </div>
   {#if !online}<p class="dim pad">{t('desk.offline')}</p>

@@ -491,8 +491,8 @@ func (s *Server) vaultSave(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"saved": dest, "name": filepath.Base(dest)})
 }
 
-// downloadPath is what a download may fetch: the file or the zip of the file manager of a server.
-var downloadPath = regexp.MustCompile(`^api/servers/[A-Za-z0-9-]+/files/(download|zip)\?`)
+// downloadPath is what a download may fetch: the file or the zip of the file manager of a server, or the CSV of its metrics.
+var downloadPath = regexp.MustCompile(`^api/servers/[A-Za-z0-9-]+/(files/(download|zip)|metrics\.csv)\?`)
 
 // download saves a file of the server to the disk: the web view of the application does not handle a download by
 // itself, so the application asks where (a native dialog) and writes the file.
@@ -584,10 +584,17 @@ func (s *Server) prefsPut(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateInfo answers what the last check found; without an updater the build cannot update itself.
-func (s *Server) updateInfo(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) updateInfo(w http.ResponseWriter, r *http.Request) {
 	if s.o.Update == nil {
-		writeJSON(w, http.StatusOK, update.Info{Reason: "headless", Current: s.o.Version, Channel: update.ChannelOf(s.o.Version)})
+		ch := update.ChannelOf(s.o.Version)
+		if c := r.URL.Query().Get("channel"); c == "stable" || c == "beta" {
+			ch = c
+		}
+		writeJSON(w, http.StatusOK, update.Info{Reason: "headless", Current: s.o.Version, Channel: ch})
 		return
+	}
+	if r.URL.Query().Has("channel") {
+		s.o.Update.SetChannel(r.URL.Query().Get("channel"))
 	}
 	writeJSON(w, http.StatusOK, s.o.Update.Info())
 }
@@ -597,6 +604,8 @@ func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
 		s.updateInfo(w, r)
 		return
 	}
+	// the channel the person chose is sent with the check ("stable" or "beta"; anything else follows the running version)
+	s.o.Update.SetChannel(r.URL.Query().Get("channel"))
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	info, err := s.o.Update.Check(ctx)
