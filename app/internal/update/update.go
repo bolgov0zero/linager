@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -63,6 +64,33 @@ type Info struct {
 	CheckedAt int64    `json:"checked_at,omitempty"`
 }
 
+// StatusError is an answer of a server that is not 200. Reset is when GitHub says the request limit of this address is
+// renewed (zero when it does not say).
+type StatusError struct {
+	URL    string
+	Code   int
+	Status string
+	Reset  time.Time
+}
+
+func (e *StatusError) Error() string { return e.URL + ": " + e.Status }
+
+// RateLimited says whether GitHub refused for the number of requests (an address may ask 60 times an hour without signing in).
+func (e *StatusError) RateLimited() bool {
+	return e.Code == http.StatusTooManyRequests || e.Code == http.StatusForbidden
+}
+
+// retryAfter reads when a refused request may be repeated: X-RateLimit-Reset (a unix time) or Retry-After (seconds).
+func retryAfter(h http.Header, now time.Time) time.Time {
+	if v, err := strconv.ParseInt(h.Get("X-RateLimit-Reset"), 10, 64); err == nil && v > 0 {
+		return time.Unix(v, 0)
+	}
+	if v, err := strconv.Atoi(h.Get("Retry-After")); err == nil && v > 0 {
+		return now.Add(time.Duration(v) * time.Second)
+	}
+	return time.Time{}
+}
+
 // Status is the progress of an installation.
 type Status struct {
 	// Phase: idle, downloading, installing, restarting or error.
@@ -90,6 +118,9 @@ type Updater struct {
 	Dir string
 	// AllowHTTP lets a test serve the files over plain http.
 	AllowHTTP bool
+	// Token returns the GitHub token the person gave (empty: none). It is sent with the request of the list of releases only,
+	// so that the request counts against the limit of the token (5000 an hour) and not against the one of the address (60).
+	Token func() string
 
 	// channel is the one the person chose ("stable" or "beta"); empty follows the running version.
 	channel string
@@ -185,6 +216,34 @@ func (u *Updater) Status() Status {
 	return u.status
 }
 
+// VerifyToken asks GitHub whether a token is accepted (the request of the limit itself costs nothing). A refused token is a
+// *StatusError with the code 401.
+func (u *Updater) VerifyToken(ctx context.Context, token string) error {
+	pu, err := neturl.Parse(u.API)
+	if err != nil || pu.Host == "" {
+		return errors.New("bad address of the release list")
+	}
+	url := pu.Scheme + "://" + pu.Host + "/rate_limit"
+	if !strings.HasPrefix(url, "https://") && !(u.AllowHTTP && strings.HasPrefix(url, "http://")) {
+		return errors.New("only https addresses are used")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "linager-app-updater")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := u.Client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return &StatusError{URL: url, Code: resp.StatusCode, Status: resp.Status, Reset: retryAfter(resp.Header, time.Now())}
+	}
+	return nil
+}
+
 func (u *Updater) get(ctx context.Context, url string, limit int64) ([]byte, error) {
 	resp, err := u.fetch(ctx, url)
 	if err != nil {
@@ -202,6 +261,12 @@ func (u *Updater) get(ctx context.Context, url string, limit int64) ([]byte, err
 }
 
 func (u *Updater) fetch(ctx context.Context, url string) (*http.Response, error) {
+	return u.fetchTag(ctx, url, "")
+}
+
+// fetchTag is fetch with an ETag the caller already has: 304 (not changed) is answered as it is, and GitHub does not count
+// such a request against the limit.
+func (u *Updater) fetchTag(ctx context.Context, url, etag string) (*http.Response, error) {
 	if !strings.HasPrefix(url, "https://") && !(u.AllowHTTP && strings.HasPrefix(url, "http://")) {
 		return nil, errors.New("only https addresses are used")
 	}
@@ -210,13 +275,24 @@ func (u *Updater) fetch(ctx context.Context, url string) (*http.Response, error)
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "linager-app-updater")
+	if etag != "" {
+		req.Header.Set("If-None-Match", etag)
+	}
+	if u.Token != nil && url == u.API {
+		if tok := u.Token(); tok != "" {
+			req.Header.Set("Authorization", "Bearer "+tok)
+		}
+	}
 	resp, err := u.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode == http.StatusNotModified && etag != "" {
+		return resp, nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("%s: %s", url, resp.Status)
+		return nil, &StatusError{URL: url, Code: resp.StatusCode, Status: resp.Status, Reset: retryAfter(resp.Header, time.Now())}
 	}
 	return resp, nil
 }
@@ -232,8 +308,60 @@ type ghRelease struct {
 	} `json:"assets"`
 }
 
+// releasesCache is the last list of releases with its ETag: asking again with the ETag costs nothing of the request limit.
+type releasesCache struct {
+	ETag string `json:"etag"`
+	Body []byte `json:"body"`
+}
+
+func (u *Updater) cachePath() string { return filepath.Join(u.Dir, "releases-cache.json") }
+
+func (u *Updater) loadCache() releasesCache {
+	var c releasesCache
+	if b, err := os.ReadFile(u.cachePath()); err == nil { //nolint:gosec // the application's own file
+		_ = json.Unmarshal(b, &c)
+	}
+	return c
+}
+
+func (u *Updater) saveCache(c releasesCache) {
+	if err := os.MkdirAll(u.Dir, 0o700); err != nil {
+		return
+	}
+	if b, err := json.Marshal(c); err == nil {
+		_ = os.WriteFile(u.cachePath(), b, 0o600)
+	}
+}
+
+// listBody reads the list of releases; a "not modified" answer gives the cached list.
+func (u *Updater) listBody(ctx context.Context) ([]byte, error) {
+	c := u.loadCache()
+	if len(c.Body) == 0 {
+		c.ETag = ""
+	}
+	resp, err := u.fetchTag(ctx, u.API, c.ETag)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotModified {
+		return c.Body, nil
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > 8<<20 {
+		return nil, errors.New("answer too big")
+	}
+	if tag := resp.Header.Get("ETag"); tag != "" {
+		u.saveCache(releasesCache{ETag: tag, Body: b})
+	}
+	return b, nil
+}
+
 func (u *Updater) releases(ctx context.Context) ([]Release, error) {
-	b, err := u.get(ctx, u.API, 8<<20)
+	b, err := u.listBody(ctx)
 	if err != nil {
 		return nil, err
 	}

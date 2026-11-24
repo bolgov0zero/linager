@@ -12,6 +12,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -62,6 +64,12 @@ type fake struct {
 	srv   *httptest.Server
 	files map[string][]byte // path -> body
 	rels  []map[string]any
+	// the list of releases: an ETag is given, a request that has it gets 304, refuse makes every request answer this status
+	listFull, list304, refuse int
+	reset                     string
+	// what the requests carried: the Authorization header of the list, and of every other request
+	listAuth, otherAuth string
+	badToken            bool
 }
 
 func sign(priv ed25519.PrivateKey, id [8]byte, msg []byte) string {
@@ -77,8 +85,36 @@ func newFake(t *testing.T) *fake {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	f := &fake{t: t, pub: pub, priv: priv, files: map[string][]byte{}}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rate_limit" {
+			if f.badToken || r.Header.Get("Authorization") == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		if r.URL.Path != "/releases" {
+			f.otherAuth += r.Header.Get("Authorization")
+		}
 		if r.URL.Path == "/releases" {
-			_ = json.NewEncoder(w).Encode(f.rels)
+			f.listAuth = r.Header.Get("Authorization")
+			if f.refuse != 0 {
+				if f.reset != "" {
+					w.Header().Set("X-RateLimit-Reset", f.reset)
+				}
+				w.WriteHeader(f.refuse)
+				return
+			}
+			body, _ := json.Marshal(f.rels)
+			tag := fmt.Sprintf(`"%x"`, sha256.Sum256(body))
+			w.Header().Set("ETag", tag)
+			if r.Header.Get("If-None-Match") == tag {
+				f.list304++
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			f.listFull++
+			_, _ = w.Write(body)
 			return
 		}
 		b, ok := f.files[r.URL.Path]
@@ -483,5 +519,73 @@ func TestTheChosenChannelDecidesWhatIsOffered(t *testing.T) {
 	u.SetChannel("")
 	if got := u.Info().Channel; got != "beta" {
 		t.Fatalf("follow the version: %s", got)
+	}
+}
+
+// The list of releases is asked with its ETag: an unchanged list costs nothing of the limit of GitHub.
+func TestTheListOfReleasesIsAskedWithItsETag(t *testing.T) {
+	f := newFake(t)
+	f.release("v0.10.0-beta.4", relOpt{prerelease: true, body: tarGz(t, "linager-app", []byte("new"))})
+	u := f.updater("0.10.0-beta.3", "linux", "amd64")
+	for i := 0; i < 3; i++ {
+		info, err := u.Check(context.Background())
+		if err != nil || !info.Newer || info.Latest != "0.10.0-beta.4" {
+			t.Fatalf("check %d: %+v %v", i, info, err)
+		}
+	}
+	if f.listFull != 1 || f.list304 != 2 {
+		t.Fatalf("one full answer, then \"not modified\": %d and %d", f.listFull, f.list304)
+	}
+	// a new release changes the ETag: the new list is read
+	f.release("v0.10.0-beta.5", relOpt{prerelease: true, body: tarGz(t, "linager-app", []byte("newer"))})
+	if info, err := u.Check(context.Background()); err != nil || info.Latest != "0.10.0-beta.5" {
+		t.Fatalf("after a new release: %+v %v", info, err)
+	}
+}
+
+// When GitHub refuses for the number of requests, the error says so and when the address may ask again.
+func TestACheckRefusedForTheLimitSaysSo(t *testing.T) {
+	f := newFake(t)
+	f.release("v0.10.0-beta.4", relOpt{prerelease: true, body: tarGz(t, "linager-app", []byte("new"))})
+	f.refuse, f.reset = http.StatusForbidden, "1795540000"
+	u := f.updater("0.10.0-beta.3", "linux", "amd64")
+	_, err := u.Check(context.Background())
+	var se *StatusError
+	if !errors.As(err, &se) || !se.RateLimited() || se.Reset.Unix() != 1795540000 {
+		t.Fatalf("a refusal for the limit: %v", err)
+	}
+	f.refuse = http.StatusInternalServerError
+	if _, err := u.Check(context.Background()); !errors.As(err, &se) || se.RateLimited() {
+		t.Fatalf("another refusal is not the limit: %v", err)
+	}
+}
+
+// A GitHub token goes with the request of the list of releases only (that is what it is for), never with the downloads.
+func TestTheTokenGoesWithTheListOnly(t *testing.T) {
+	f := newFake(t)
+	f.release("v0.10.0-beta.4", relOpt{prerelease: true, body: tarGz(t, "linager-app", []byte("new"))})
+	u := f.updater("0.10.0-beta.3", "linux", "amd64")
+	if _, err := u.Check(context.Background()); err != nil || f.listAuth != "" {
+		t.Fatalf("without a token nothing is sent: %q %v", f.listAuth, err)
+	}
+	u.Token = func() string { return "ghp_secret" }
+	if _, err := u.Check(context.Background()); err != nil || f.listAuth != "Bearer ghp_secret" {
+		t.Fatalf("the list carries the token: %q %v", f.listAuth, err)
+	}
+	if f.otherAuth != "" {
+		t.Fatalf("the manifest and the files go without it: %q", f.otherAuth)
+	}
+}
+
+func TestVerifyTokenSaysWhenGitHubRefusesIt(t *testing.T) {
+	f := newFake(t)
+	u := f.updater("0.10.0-beta.3", "linux", "amd64")
+	if err := u.VerifyToken(context.Background(), "good"); err != nil {
+		t.Fatal(err)
+	}
+	f.badToken = true
+	var se *StatusError
+	if err := u.VerifyToken(context.Background(), "bad"); !errors.As(err, &se) || se.Code != http.StatusUnauthorized {
+		t.Fatalf("a refused token: %v", err)
 	}
 }

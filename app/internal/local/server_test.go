@@ -564,3 +564,92 @@ func TestFullscreenEndpoints(t *testing.T) {
 		t.Fatalf("off: %d %+v", c, out)
 	}
 }
+
+// A check that GitHub refuses for the number of requests says so, with the time it may be repeated.
+func TestUpdateCheckSaysWhenGitHubRefusesForTheLimit(t *testing.T) {
+	rel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-RateLimit-Reset", "1795540000")
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(rel.Close)
+	up, _ := update.New("0.10.0-beta.3", t.TempDir(), func() {})
+	up.API, up.AllowHTTP = rel.URL, true
+	store, err := profiles.Open(filepath.Join(t.TempDir(), "p.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Options{Assets: fstest.MapFS{"index.html": {Data: []byte("x")}}, Profiles: store, Update: up, Version: "0.10.0-beta.3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = s.Serve() }()
+	t.Cleanup(s.Close)
+	var out struct {
+		Error   string `json:"error"`
+		Problem string `json:"problem"`
+		RetryAt int64  `json:"retry_at"`
+	}
+	if c := call(t, "POST", s.URL()+"app/update/check", nil, &out); c != http.StatusBadGateway || out.Problem != "rate_limited" || out.RetryAt != 1795540000 {
+		t.Fatalf("limit: %d %+v", c, out)
+	}
+}
+
+// The GitHub token of the update checks is verified with GitHub, kept in the keychain and never given back to the page.
+func TestGitHubTokenEndpoints(t *testing.T) {
+	var asked string
+	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = r.Header.Get("Authorization")
+		if r.URL.Path == "/rate_limit" && asked == "Bearer good-token" {
+			_, _ = io.WriteString(w, "{}")
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(gh.Close)
+	up, _ := update.New("0.10.0-beta.3", t.TempDir(), func() {})
+	up.API, up.AllowHTTP = gh.URL+"/releases", true
+	secrets := &profiles.Memory{}
+	store, err := profiles.Open(filepath.Join(t.TempDir(), "p.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Options{Assets: fstest.MapFS{"index.html": {Data: []byte("x")}}, Profiles: store, Update: up, Secrets: secrets, Version: "0.10.0-beta.3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = s.Serve() }()
+	t.Cleanup(s.Close)
+	var out map[string]any
+	if c := call(t, "GET", s.URL()+"app/update/token", nil, &out); c != 200 || out["set"] != false {
+		t.Fatalf("none yet: %d %v", c, out)
+	}
+	if c := call(t, "PUT", s.URL()+"app/update/token", map[string]string{"token": "bad token"}, nil); c != http.StatusBadRequest {
+		t.Fatalf("a token with a space: %d", c)
+	}
+	if c := call(t, "PUT", s.URL()+"app/update/token", map[string]string{"token": "wrong"}, nil); c != http.StatusUnprocessableEntity {
+		t.Fatalf("a token that GitHub refuses: %d", c)
+	}
+	if _, err := secrets.Get("github-token"); err == nil {
+		t.Fatal("a refused token must not be kept")
+	}
+	if c := call(t, "PUT", s.URL()+"app/update/token", map[string]string{"token": "good-token"}, &out); c != 200 || out["set"] != true {
+		t.Fatalf("good: %d %v", c, out)
+	}
+	if v, _ := secrets.Get("github-token"); v != "good-token" {
+		t.Fatalf("kept in the keychain: %q", v)
+	}
+	var raw map[string]any
+	if c := call(t, "GET", s.URL()+"app/update/token", nil, &raw); c != 200 || raw["set"] != true || len(raw) != 2 {
+		t.Fatalf("the page learns only that there is one: %d %v", c, raw)
+	}
+	// the checks use it
+	if got := up.Token(); got != "good-token" {
+		t.Fatalf("the updater reads it: %q", got)
+	}
+	if c := call(t, "DELETE", s.URL()+"app/update/token", nil, &out); c != 200 || out["set"] != false {
+		t.Fatalf("delete: %d %v", c, out)
+	}
+	if _, err := secrets.Get("github-token"); err == nil {
+		t.Fatal("deleted")
+	}
+}

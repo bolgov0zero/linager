@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0-beta.16
+
+- Fix (application): **the check for updates** failed with "No connection to GitHub?" when GitHub refused for the number of requests (an address may ask its API 60 times an hour; one address shared by several programs or computers reaches it). Now the list of releases is asked **with its ETag**: an unchanged list answers "not modified" and costs nothing of the limit, so the checks at the start and every six hours almost never touch it. When GitHub still refuses, the message says so and when the address may ask again; the green "The latest version is installed" is not shown after a failed check.
+- New (application): **a GitHub token for the checks** (Settings → Application → Updates, optional). Without it everything works as before; with it the request of the list of releases counts against the limit of the token (5000 an hour) and not against the one of the address (60 an hour). The token is checked with GitHub when it is saved, kept in the keychain of the system, never given back to the page and sent only with the request of the list of releases (not with the downloads). A token without rights is enough (a fine-grained one for public repositories).
+
 ## 0.10.0-beta.15
 
 - Change (application, server): when DNS of the server cannot resolve a host name of the list (Settings → Server access), the message and the row of the table say **what DNS answered** (for example "lookup ya.ru: i/o timeout"). The name is resolved by the machine where the Linager server runs, not by the application.

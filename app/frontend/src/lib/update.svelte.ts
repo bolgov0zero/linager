@@ -21,11 +21,15 @@ export interface UpdateStatus {
   error?: string;
 }
 
-export const upd = $state<{ info: UpdateInfo | null; status: UpdateStatus; checking: boolean; failed: boolean }>({
+/** Why the last check failed: GitHub refused for the number of requests (retryAt: unix time it may be asked again), or something else. */
+export interface UpdateProblem { kind: 'rate_limited' | 'network' | 'other'; retryAt?: number }
+
+export const upd = $state<{ info: UpdateInfo | null; status: UpdateStatus; checking: boolean; failed: boolean; problem: UpdateProblem | null }>({
   info: null,
   status: { phase: 'idle', pct: 0 },
   checking: false,
   failed: false,
+  problem: null,
 });
 
 const AUTO = 'linager.update.auto';
@@ -47,16 +51,32 @@ async function json<T>(method: string, path: string): Promise<{ ok: boolean; dat
   return { ok: res.ok, data: (text ? JSON.parse(text) : {}) as T };
 }
 
+/** The GitHub token of the checks (kept by the application in the keychain; the page never gets it back). */
+export const githubToken = {
+  /** Whether a token is kept. */
+  get: async (): Promise<boolean> => (await json<{ set?: boolean }>('GET', 'token')).data.set === true,
+  /** Checks the token with GitHub and keeps it; resolves with an error code ('invalid_token', 'bad_token', 'network') or ''. */
+  set: async (token: string): Promise<string> => {
+    const res = await fetch('app/update/token', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+    if (res.ok) return '';
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return body.error ?? 'network';
+  },
+  clear: async (): Promise<void> => void (await fetch('app/update/token', { method: 'DELETE' })),
+};
+
 /** Asks the application to look for a new version. */
 export async function checkUpdate(): Promise<void> {
   if (upd.checking) return;
   upd.checking = true;
   try {
-    const r = await json<UpdateInfo & { info?: UpdateInfo }>('POST', `check${channelQuery()}`);
+    const r = await json<UpdateInfo & { info?: UpdateInfo; problem?: UpdateProblem['kind']; retry_at?: number }>('POST', `check${channelQuery()}`);
     upd.failed = !r.ok;
+    upd.problem = r.ok ? null : { kind: r.data.problem ?? 'network', retryAt: r.data.retry_at };
     upd.info = r.ok ? r.data : (r.data.info ?? upd.info);
   } catch {
     upd.failed = true;
+    upd.problem = { kind: 'network' };
   } finally {
     upd.checking = false;
   }

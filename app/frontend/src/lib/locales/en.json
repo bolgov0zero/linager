@@ -2855,5 +2855,14 @@
   "aa.ago.h": "{n} h",
   "aa.err.dupHost": "This name is already in the list.",
   "aa.err.unresolved": "DNS does not know {host}. Check the DDNS record.",
-  "aa.problem.host_unresolved": "DNS does not know {host}: it has no address. Check the DDNS record or remove the name from the list."
+  "aa.problem.host_unresolved": "DNS does not know {host}: it has no address. Check the DDNS record or remove the name from the list.",
+  "set.upd.rateLimited": "GitHub has limited the number of requests from your address for now (60 an hour). Try again later.",
+  "set.upd.rateLimitedAt": "GitHub has limited the number of requests from your address for now (60 an hour). Try again after {time}.",
+  "set.upd.token.title": "GitHub token (optional)",
+  "set.upd.token.set": "A token is set, the checks use it",
+  "set.upd.token.remove": "Remove",
+  "set.upd.token.hint": "Without a token GitHub allows 60 requests an hour per address; with a token, 5000 an hour for the token itself, not shared with others. The token needs no rights: github.com → Settings → Developer settings → Fine-grained tokens, access to public repositories only, no permissions. It is kept in the keychain of the system and goes only with the request of the list of releases.",
+  "set.upd.token.invalid": "GitHub did not accept this token.",
+  "set.upd.token.bad": "The token looks wrong (no spaces, up to 255 characters).",
+  "set.upd.token.network": "No connection to GitHub, the token was not checked."
 }

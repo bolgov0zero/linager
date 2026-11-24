@@ -91,6 +91,13 @@ func New(o Options) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{o: o, token: hex.EncodeToString(b), ln: ln, vault: newVaultMemo(o.VaultMemo)}
+	if o.Update != nil {
+		// the checks use the GitHub token of the person when there is one
+		o.Update.Token = func() string {
+			v, _ := s.o.Secrets.Get(githubTokenKey)
+			return v
+		}
+	}
 	s.srv = &http.Server{Handler: s.handler(), ReadHeaderTimeout: 10 * time.Second}
 	return s, nil
 }
@@ -149,6 +156,9 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("GET /app/update/info", s.updateInfo)
 	inner.HandleFunc("POST /app/update/install", s.updateInstall)
 	inner.HandleFunc("GET /app/update/status", s.updateStatus)
+	inner.HandleFunc("GET /app/update/token", s.tokenGet)
+	inner.HandleFunc("PUT /app/update/token", s.tokenPut)
+	inner.HandleFunc("DELETE /app/update/token", s.tokenDelete)
 	inner.HandleFunc("/api/", s.api)
 	if s.o.Assets != nil {
 		inner.Handle("/", http.FileServerFS(s.o.Assets))
@@ -747,10 +757,74 @@ func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	info, err := s.o.Update.Check(ctx)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "update_check", "info": info})
+		body := map[string]any{"error": "update_check", "info": info, "problem": "network"}
+		// GitHub lets an address ask 60 times an hour; when it refuses for that, say when it may be asked again
+		var se *update.StatusError
+		if errors.As(err, &se) {
+			body["problem"] = "other"
+			if se.RateLimited() {
+				body["problem"] = "rate_limited"
+				if !se.Reset.IsZero() {
+					body["retry_at"] = se.Reset.Unix()
+				}
+			}
+		}
+		writeJSON(w, http.StatusBadGateway, body)
 		return
 	}
 	writeJSON(w, http.StatusOK, info)
+}
+
+// githubTokenKey is where the GitHub token of the update checks lives in the keychain (it never goes to the page).
+const githubTokenKey = "github-token"
+
+func (s *Server) hasToken() bool {
+	v, err := s.o.Secrets.Get(githubTokenKey)
+	return err == nil && v != ""
+}
+
+func (s *Server) tokenGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"set": s.hasToken(), "supported": s.o.Update != nil})
+}
+
+// tokenPut checks a GitHub token with GitHub and keeps it in the keychain. The checks of updates then count against its limit.
+func (s *Server) tokenPut(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if s.o.Update == nil {
+		fail(w, http.StatusNotImplemented, "not_supported")
+		return
+	}
+	tok := strings.TrimSpace(req.Token)
+	if tok == "" || len(tok) > 255 || strings.ContainsAny(tok, " \t\r\n") {
+		fail(w, http.StatusBadRequest, "bad_token")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	if err := s.o.Update.VerifyToken(ctx, tok); err != nil {
+		var se *update.StatusError
+		if errors.As(err, &se) && (se.Code == http.StatusUnauthorized || se.Code == http.StatusForbidden) {
+			fail(w, http.StatusUnprocessableEntity, "invalid_token")
+			return
+		}
+		fail(w, http.StatusBadGateway, "network")
+		return
+	}
+	if err := s.o.Secrets.Set(githubTokenKey, tok); err != nil {
+		fail(w, http.StatusInternalServerError, "keychain")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"set": true})
+}
+
+func (s *Server) tokenDelete(w http.ResponseWriter, _ *http.Request) {
+	_ = s.o.Secrets.Delete(githubTokenKey)
+	writeJSON(w, http.StatusOK, map[string]bool{"set": false})
 }
 
 // updateInstall starts the installation and answers at once; the page follows it through /app/update/status.

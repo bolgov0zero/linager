@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { t } from '../i18n.svelte';
+  import { i18n, t } from '../i18n.svelte';
   import { fmtBytes } from '../status';
   import CustomSelect from '../CustomSelect.svelte';
-  import { autoCheck, checkUpdate, installUpdate, setAutoCheck, setChannel, startAutoCheck, upd, updateBusy } from '../update.svelte';
+  import { autoCheck, checkUpdate, githubToken, installUpdate, setAutoCheck, setChannel, startAutoCheck, upd, updateBusy } from '../update.svelte';
   import { onMount } from 'svelte';
   import { native } from '../native';
 
@@ -17,8 +17,40 @@
   const phaseText = $derived(
     upd.status.phase === 'downloading' ? t('set.upd.downloading', { pct: upd.status.pct }) : upd.status.phase === 'installing' ? t('set.upd.installing') : upd.status.phase === 'restarting' ? t('set.upd.restarting') : '',
   );
+  /** What went wrong with the last check: the limit of GitHub (with the time it ends), or no connection. */
+  const failText = $derived.by(() => {
+    const p = upd.problem;
+    if (p?.kind === 'rate_limited') {
+      const when = p.retryAt ? new Date(p.retryAt * 1000).toLocaleTimeString(i18n.locale === 'ru' ? 'ru-RU' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+      return when ? t('set.upd.rateLimitedAt', { time: when }) : t('set.upd.rateLimited');
+    }
+    return t('set.upd.checkFailed');
+  });
   const reason = $derived(info?.reason === 'headless' ? t('set.upd.headless') : info?.reason === 'dev' ? t('set.upd.dev') : '');
   // this window has its own page: it reads what is known and asks again
+  // the GitHub token of the checks (optional): with it the limit of GitHub is 5000 requests an hour for the token, not 60 for the address
+  let tokenSet = $state(false);
+  let tokenDraft = $state('');
+  let tokenBusy = $state(false);
+  let tokenError = $state('');
+  async function saveToken(): Promise<void> {
+    if (!tokenDraft.trim() || tokenBusy) return;
+    tokenBusy = true;
+    tokenError = '';
+    const code = await githubToken.set(tokenDraft.trim());
+    tokenBusy = false;
+    if (code) {
+      tokenError = t(code === 'invalid_token' ? 'set.upd.token.invalid' : code === 'bad_token' ? 'set.upd.token.bad' : 'set.upd.token.network');
+      return;
+    }
+    tokenSet = true;
+    tokenDraft = '';
+    void checkUpdate();
+  }
+  async function clearToken(): Promise<void> {
+    await githubToken.clear();
+    tokenSet = false;
+  }
   let login = $state<{ supported: boolean; enabled: boolean } | null>(null);
   let loginBusy = $state(false);
   async function setLogin(on: boolean): Promise<void> {
@@ -32,6 +64,7 @@
     }
   }
   onMount(() => {
+    void githubToken.get().then((v) => (tokenSet = v)).catch(() => undefined);
     void native.autostartGet().then((r) => (login = r)).catch(() => undefined);
     const stop = startAutoCheck();
     return stop;
@@ -58,10 +91,10 @@
         {/if}
         {#if upd.status.phase === 'error'}<div class="err" role="alert">{t('set.upd.failed')}: {upd.status.error}</div>{/if}
       </div>
-    {:else if info.checked_at}
+    {:else if info.checked_at && !upd.failed}
       <p class="ok-t">{t('set.upd.latest')}</p>
     {/if}
-    {#if upd.failed}<div class="err" role="alert">{t('set.upd.checkFailed')}</div>{/if}
+    {#if upd.failed}<div class="err" role="alert">{failText}</div>{/if}
     <div class="row">
       <button class="btn" type="button" disabled={upd.checking || updateBusy()} onclick={checkUpdate}>{upd.checking ? t('set.upd.checking') : t('set.upd.check')}</button>
       <span class="grow"></span>
@@ -69,6 +102,19 @@
     </div>
     <p class="dim">{t('set.upd.channelHint')}</p>
     <p class="dim">{t('set.upd.hint')}</p>
+    <div class="tokrow">
+      <b>{t('set.upd.token.title')}</b>
+      {#if tokenSet}
+        <div class="row"><span class="ok-t">{t('set.upd.token.set')}</span><span class="grow"></span><button class="btn sm danger" type="button" onclick={clearToken}>{t('set.upd.token.remove')}</button></div>
+      {:else}
+        <form class="row" autocomplete="off" onsubmit={(e) => { e.preventDefault(); void saveToken(); }}>
+          <span class="field grow"><input type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label={t('set.upd.token.title')} bind:value={tokenDraft} oninput={() => (tokenError = '')} /></span>
+          <button class="btn" type="submit" disabled={tokenBusy || !tokenDraft.trim()}>{t('common.save')}</button>
+        </form>
+      {/if}
+      {#if tokenError}<div class="err" role="alert">{tokenError}</div>{/if}
+      <p class="dim">{t('set.upd.token.hint')}</p>
+    </div>
   {/if}
 </section>
 
