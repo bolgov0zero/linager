@@ -1,13 +1,14 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
 
+  // An option may carry a depth `d` (the list indents it, for a tree) and a longer label `b` for the button (the path of a folder).
   let {
     value,
     options,
     icon = '',
     small = false,
     onchange,
-  }: { value: string; options: { v: string; t: string }[]; icon?: string; small?: boolean; onchange: (v: string) => void } = $props();
+  }: { value: string; options: { v: string; t: string; d?: number; b?: string }[]; icon?: string; small?: boolean; onchange: (v: string) => void } = $props();
 
   let open = $state(false);
   let btn = $state<HTMLButtonElement | null>(null);
@@ -46,14 +47,14 @@
 
 <button bind:this={btn} type="button" class="csel" class:sm={small} aria-haspopup="listbox" aria-expanded={open} onclick={toggle}>
   {#if icon}<Icon name={icon} size={14} />{/if}
-  <span>{current?.t}</span>
+  <span>{current?.b ?? current?.t}</span>
   <Icon name="chevron-down" size={13} />
 </button>
 
 {#if open}
   <div bind:this={pop} class="pop" role="listbox" style="left:{pos.left}px;top:{pos.top}px;min-width:{pos.minWidth}px">
     {#each options as o (o.v)}
-      <button type="button" role="option" aria-selected={o.v === value} onclick={() => pick(o.v)}>
+      <button type="button" role="option" aria-selected={o.v === value} style={o.d ? `padding-left:${9 + o.d * 14}px` : undefined} onclick={() => pick(o.v)}>
         {o.t}{#if o.v === value}<Icon name="check" size={14} />{/if}
       </button>
     {/each}

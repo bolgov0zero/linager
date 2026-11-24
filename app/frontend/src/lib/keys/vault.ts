@@ -241,8 +241,10 @@ export async function openVault(bytes: Uint8Array, passphrase: string): Promise<
 /** The server the form is opened for. */
 export interface Target {
   serverId: string;
-  /** The id of its group, null when it has none. */
+  /** The id of its folder, null when it has none. */
   groupId: number | null;
+  /** The folder and the folders above it (a key bound to any of them is for this server). Without it only `groupId` counts. */
+  groupChain?: number[];
 }
 
 /** The servers and the groups the panel knows now: a key bound only to things that are gone is "not found". */
@@ -274,11 +276,12 @@ export interface Sections {
 /** The keys for a form, in the order shown: this server, its group, all, then the rest. `use` keeps the type that fits ("any" fits both). */
 export function sectionsFor(entries: readonly Entry[], target: Target, known: Known, use: 'rdp' | 'uac'): Sections {
   const out: Sections = { here: [], group: [], all: [], other: [] };
+  const chain = target.groupChain ?? (target.groupId !== null ? [target.groupId] : []);
   for (const e of entries) {
     if (e.type !== 'any' && e.type !== use) continue;
     if (isForAll(e) || isLost(e, known)) out.all.push(e);
     else if (e.servers.some((s) => s.id === target.serverId)) out.here.push(e);
-    else if (target.groupId !== null && e.groups.some((g) => g.id === String(target.groupId))) out.group.push(e);
+    else if (chain.some((id) => e.groups.some((g) => g.id === String(id)))) out.group.push(e);
     else out.other.push(e);
   }
   const byName = (a: Entry, b: Entry) => a.name.localeCompare(b.name);

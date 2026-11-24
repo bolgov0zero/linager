@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { api, subscribeLive, type Group, type ServerCard } from '../api';
+  import { buildTree, chainOf, type FolderNode } from '../folders';
   import ContextMenu, { type CtxItem } from '../ContextMenu.svelte';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
@@ -42,11 +43,33 @@
   }
   const shownCards = $derived(cards.filter((c) => passes(con.filter, isWindows(c.os), c.online) && (!q.trim() || `${c.name} ${c.address}`.toLowerCase().includes(q.trim().toLowerCase()))));
   const counts = $derived(Object.fromEntries(MODES.map((m) => [m.id, shownCards.filter((c) => has(c, m.id)).length])) as Record<ConMode, number>);
-  const sections = $derived.by(() => {
-    const list: { key: string; name: string; cards: ServerCard[] }[] = [];
-    for (const g of groups) list.push({ key: String(g.id), name: g.name, cards: shownCards.filter((c) => c.group_id === g.id && has(c, con.mode)) });
-    list.push({ key: 'none', name: t('pult.noGroup'), cards: shownCards.filter((c) => c.group_id === null && has(c, con.mode)) });
-    return list.filter((x) => x.cards.length > 0);
+  // the sidebar is the tree of the folders: a folder shows how many servers are under it (the subfolders included) and folds
+  // as a whole; a folder with nothing to show under it is left out
+  type Entry = { k: 'f'; key: string; name: string; depth: number; count: number } | { k: 'u'; key: string; name: string; depth: number; count: number } | { k: 's'; key: string; card: ServerCard; depth: number };
+  const entries = $derived.by(() => {
+    const visible = shownCards.filter((c) => has(c, con.mode));
+    const under = new Map<number, number>();
+    for (const c of visible) for (const id of chainOf(groups, c.group_id)) under.set(id, (under.get(id) ?? 0) + 1);
+    const out: Entry[] = [];
+    const walk = (nodes: FolderNode[]): void => {
+      for (const n of nodes) {
+        const total = under.get(n.id) ?? 0;
+        if (total === 0) continue;
+        const key = String(n.id);
+        out.push({ k: 'f', key, name: n.name, depth: n.depth, count: total });
+        if (!con.collapsed[key]) {
+          walk(n.children);
+          for (const c of visible) if (c.group_id === n.id) out.push({ k: 's', key: c.id, card: c, depth: n.depth + 1 });
+        }
+      }
+    };
+    walk(buildTree(groups));
+    const free = visible.filter((c) => c.group_id === null);
+    if (free.length > 0) {
+      out.push({ k: 'u', key: 'none', name: t('pult.noGroup'), depth: 0, count: free.length });
+      if (!con.collapsed.none) for (const c of free) out.push({ k: 's', key: c.id, card: c, depth: 1 });
+    }
+    return out;
   });
   const filterCount = $derived((con.filter.os !== 'all' ? 1 : 0) + (con.filter.status !== 'all' ? 1 : 0));
   const byId = $derived(new Map(cards.map((c) => [c.id, c])));
@@ -129,19 +152,17 @@
     <div class="con-list">
       {#if !loaded}<p class="dim pad">{t('dash.loading')}</p>
       {:else if failed && cards.length === 0}<p class="dim pad">{t('pult.loadFailed')}</p>
-      {:else if sections.length === 0}<p class="dim pad">{filterCount > 0 || q ? t('pult.emptyFiltered') : t('pult.empty')}</p>
+      {:else if entries.length === 0}<p class="dim pad">{filterCount > 0 || q ? t('pult.emptyFiltered') : t('pult.empty')}</p>
       {:else}
-        {#each sections as g (g.key)}
-          <div class="con-grp">
-            <button class="con-gh" type="button" onclick={() => toggleGroup(g.key)}><Icon name={con.collapsed[g.key] ? 'chevron-right' : 'chevron-down'} size={13} /><span>{g.name}</span><em>{g.cards.length}</em></button>
-            {#if !con.collapsed[g.key]}
-              {#each g.cards as c (c.id)}
-                <button class="con-srv" class:off={!c.online} class:on={con.tabs.some((x) => x.serverId === c.id && x.mode === con.mode && x.id === con.active)} type="button" title={c.online ? t('pult.hintOpen') : t('pult.offline')} onclick={() => open(c)} oncontextmenu={(e) => rowMenu(c, e)}>
+        {#each entries as e (e.k + e.key)}
+          {#if e.k === 's'}
+            {@const c = e.card}
+            <button class="con-srv" style="--d:{e.depth}" class:off={!c.online} class:on={con.tabs.some((x) => x.serverId === c.id && x.mode === con.mode && x.id === con.active)} type="button" title={c.online ? t('pult.hintOpen') : t('pult.offline')} onclick={() => open(c)} oncontextmenu={(e) => rowMenu(c, e)}>
                   <span class="dot {levelOf(c)}"></span><span class="nm">{c.name}</span><span class="os" class:os-windows={isWindows(c.os)}>{isWindows(c.os) ? 'WIN' : 'LIN'}</span>
                 </button>
-              {/each}
-            {/if}
-          </div>
+          {:else}
+            <button class="con-gh" style="--d:{e.depth}" type="button" aria-expanded={!con.collapsed[e.key]} onclick={() => toggleGroup(e.key)}><Icon name={con.collapsed[e.key] ? 'chevron-right' : 'chevron-down'} size={13} /><span>{e.name}</span><em>{e.count}</em></button>
+          {/if}
         {/each}
       {/if}
     </div>

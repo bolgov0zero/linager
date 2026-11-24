@@ -212,7 +212,7 @@
 {/if}
 
 {#if settingsOpen && s}
-  <ServerSettingsModal server={{ id: s.id, name: s.name, tags: s.tags ?? [] }} {offered} nativeApp={nativeWindows} onclose={() => (settingsOpen = false)} onsaved={(tags) => { if (s) s.tags = tags; }} />
+  <ServerSettingsModal server={{ id: s.id, name: s.name, tags: s.tag_items ?? [] }} {offered} nativeApp={nativeWindows} onclose={() => (settingsOpen = false)} onsaved={(items) => { if (s) { s.tag_items = items; s.tags = items.map((x) => x.name); } }} />
 {/if}
 {#if rebooting && s}
   <RebootServerModal server={s} onclose={() => (rebooting = false)} />

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linager · макет: Настройки → Папки</title>
+<!-- Mockup of ONE tab: Settings → Folders (the groups become nested folders). Same tokens, fonts and icons as index.html. -->
+<link rel="stylesheet" href="style.css">
+<style>
+/* the Settings window, as in the application (app.css) */
+.set{display:grid;grid-template-columns:200px minmax(0,1fr);height:100vh;background:var(--bg)}
+.set-nav{display:flex;flex-direction:column;gap:2px;padding:14px 10px;border-right:1px solid var(--border);background:var(--bg2);overflow:auto}
+.set-nav h2{margin:2px 8px 10px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3)}
+.set-nav .sn{display:flex;align-items:center;width:100%;height:30px;padding:0 10px;border:0;border-radius:var(--radius-sm);background:none;color:var(--text2);font-size:13px;text-align:left}
+.set-nav .sn:hover{background:var(--hover);color:var(--text)}.set-nav .sn[aria-current=true]{background:var(--accent-soft);color:var(--text)}
+.set-nav .nf{margin-top:auto;display:flex;flex-direction:column;gap:6px;padding:10px 4px 0;border-top:1px solid var(--border);font-size:11.5px;color:var(--text3)}
+.set-nav .nf .row{display:flex;gap:6px}
+.set-body{overflow:auto;padding:20px 26px}
+
+/* the tab */
+.fx{display:flex;flex-direction:column;gap:12px;max-width:880px}
+.fx h3{font-size:15px;font-weight:650}
+.fx-hint{color:var(--text3);font-size:12.5px;max-width:74ch}
+.fx-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fx-bar .field{width:230px;color:var(--text3)}
+.fx-bar .field input{border:0;background:none;outline:0;flex:1;min-width:0;color:var(--text)}
+.fx-bar .field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.fx-bar .tgl{display:inline-flex;align-items:center;gap:7px}
+.fx-bar .tgl[aria-pressed=true]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.fx-meta{margin-left:auto;color:var(--text3);font-size:12px;font-family:var(--mono)}
+
+.tree{position:relative;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel-bg);padding:4px;user-select:none;-webkit-user-select:none}
+.fxr{position:relative;display:flex;align-items:center;height:34px;border-radius:var(--radius-sm);padding-right:6px;border:1px solid transparent;color:var(--text)}
+.fxr:hover{background:var(--hover)}
+.fxr:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.fxr .gr{width:18px;height:34px;flex:none;display:grid;place-items:center;color:var(--text3);opacity:0;cursor:grab}
+.fxr:hover .gr,.fxr:focus-within .gr,.fxr.kb .gr{opacity:1}
+.fxr .g{width:22px;height:34px;flex:none;background:linear-gradient(var(--border),var(--border)) 11px 0/1px 100% no-repeat}
+.fxr .cv{width:22px;height:34px;flex:none;display:grid;place-items:center;border:0;background:none;color:var(--text3);border-radius:4px}
+.fxr .cv:hover{color:var(--text);background:var(--hover)}
+.fxr .cv svg{transition:transform .12s}.fxr .cv.open svg{transform:rotate(90deg)}
+.fxr .cv.fxnil{visibility:hidden}
+.fxr .ico{flex:none;color:var(--text2);margin-right:8px;display:block}
+.fxr.f .ico{color:var(--accent-t)}
+.fxr .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.fxr.s .nm{font-weight:400;color:var(--text2)}
+.fxr.u .nm{color:var(--text2);font-style:italic;font-weight:400}
+.fxr mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;border-radius:2px}
+.fxr .fxsp{flex:1;min-width:8px}
+.fxr .pill{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:5px;color:var(--text3);font:500 11.5px var(--mono);margin-left:6px}
+.fxr .pill.fxacc{color:var(--accent-t);background:var(--accent-soft)}
+.fxr .addr{color:var(--text3);font:400 11.5px var(--mono);margin-left:10px}
+.fxr .fxos{font:600 10.5px var(--mono);padding:0 5px;height:18px;display:inline-flex;align-items:center;border:1px solid var(--border-h);border-radius:4px;color:var(--text3);margin-left:8px}
+.fxr .fxos.isw{color:var(--accent-t);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.fxr .ra{display:flex;gap:1px;margin-left:6px;opacity:0}
+.fxr:hover .ra,.fxr:focus-within .ra,.fxr.kb .ra{opacity:1}
+.fxr .rn{flex:1;min-width:120px;max-width:300px;height:26px;padding:0 8px;border:1px solid var(--accent);border-radius:5px;background:var(--input-bg);outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
+.fxr .rn.err{border-color:var(--crit);box-shadow:0 0 0 3px var(--crit-s)}
+.fxr .er{color:var(--crit-t);font-size:12px;margin-left:10px;white-space:nowrap}
+.fxr.src{opacity:.38}
+.fxr.into{background:var(--accent-soft);border-color:var(--accent)}
+.fxr.bad{background:var(--crit-s);border-color:color-mix(in srgb,var(--crit) 55%,transparent)}
+.fxr.flash{animation:fl 1.3s ease-out}
+@keyframes fl{from{background:color-mix(in srgb,var(--accent) 38%,transparent)}to{background:transparent}}
+.fxl{position:absolute;height:2px;border-radius:2px;background:var(--accent);pointer-events:none;z-index:4}
+.fxl::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.fxl.bad{background:var(--crit)}.fxl.bad::before{background:var(--crit)}
+.fxe{padding:34px 16px;text-align:center;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:10px}
+.fxg{position:fixed;z-index:1000;pointer-events:none;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:1px solid var(--accent);border-radius:var(--radius-sm);background:var(--pop-bg);box-shadow:var(--shadow-pop);font-weight:500;transform:translate(14px,-50%);white-space:nowrap}
+.fxg.bad{border-color:var(--crit)}
+.fxg b{display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px}
+.fxg .why{color:var(--crit-t);font-weight:400;font-size:12px}
+body.dnd,body.dnd *{cursor:grabbing!important}
+body.dnd .fxr.bad,body.dnd .fxr.bad *{cursor:not-allowed!important}
+.fx-help{display:flex;gap:18px;flex-wrap:wrap;color:var(--text3);font-size:12px}
+.fx-help span{display:inline-flex;align-items:center;gap:6px}
+.fx-help b{color:var(--text2);font-weight:500}
+.fx-help kbd{font:500 11px var(--mono);padding:1px 5px;border:1px solid var(--border-h);border-radius:4px;background:var(--bg2);color:var(--text2)}
+
+.pop{min-width:210px}
+.pop .sep{height:1px;background:var(--border);margin:3px 2px}
+.pop button.danger{color:var(--crit-t)}
+.pop button .l{display:flex;align-items:center;gap:9px}
+.pop button kbd{font:500 11px var(--mono);color:var(--text3)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:500}
+.dlg{width:min(500px,92vw);max-height:86vh;display:flex;flex-direction:column;background:var(--pop-bg);border:1px solid var(--border-h);border-radius:var(--radius);box-shadow:var(--shadow-pop)}
+.dlg h4{padding:14px 16px 0;font-size:14px;font-weight:650}
+.dlg .bd{padding:10px 16px 12px;color:var(--text2);display:flex;flex-direction:column;gap:10px;overflow:auto}
+.dlg .ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--border)}
+.imp{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--panel-bg)}
+.imp .u{display:flex;flex-direction:column;gap:3px}
+.imp .u b{font:600 12.5px var(--mono);color:var(--text)}.imp .u span.r{color:var(--text3);font-size:12px;margin-left:6px}
+.imp .lose{color:var(--crit-t)}.imp .gain{color:var(--ok-t)}.imp .u i{font-style:normal;font-size:12px}
+.pick{display:flex;flex-direction:column;gap:1px;max-height:300px;overflow:auto;padding:4px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--panel-bg)}
+.pick button{display:flex;align-items:center;gap:8px;height:30px;padding-right:8px;border:1px solid transparent;border-radius:5px;background:none;text-align:left;color:var(--text)}
+.pick button:hover:not(:disabled){background:var(--hover)}
+.pick button.on{background:var(--accent-soft);border-color:var(--accent)}
+.pick button:disabled{opacity:.4;cursor:not-allowed}
+.fxt{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:8px 10px 8px 14px;background:var(--pop-bg);border:1px solid var(--border-h);border-radius:var(--radius);box-shadow:var(--shadow-pop);z-index:600;max-width:92vw}
+.fxt .ic.ok{color:var(--ok-t)}
+</style>
+</head>
+<body>
+<div class="set">
+  <nav class="set-nav" aria-label="Разделы настроек">
+    <h2>Настройки</h2>
+    <button class="sn" type="button">Приложение</button>
+    <button class="sn" type="button">Профиль</button>
+    <button class="sn" type="button">Пользователи</button>
+    <button class="sn" type="button">Сниппеты</button>
+    <button class="sn" type="button" aria-current="true">Папки</button>
+    <button class="sn" type="button">Теги</button>
+    <button class="sn" type="button">Доступ к серверу</button>
+    <button class="sn" type="button">Подключение</button>
+    <button class="sn" type="button">Обновления</button>
+    <button class="sn" type="button">Журнал</button>
+    <div class="nf">
+      <span>Макет вкладки «Папки»</span>
+      <div class="row">
+        <button class="btn sm" type="button" id="theme">Тема</button>
+        <button class="btn sm" type="button" id="reset">Сбросить</button>
+      </div>
+    </div>
+  </nav>
+  <div class="set-body" id="body"><div class="fx" id="fx"></div></div>
+</div>
+<div id="layer"></div>
+
+<script src="icons.js"></script>
+<script>
+/* ---------- icons (Lucide, ISC); the few that icons.js does not have ---------- */
+Object.assign(ICONS, {
+  'grip-vertical': '<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>',
+  'chevrons-up-down': '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+  'chevrons-down-up': '<path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/>',
+  'folder-open': '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+  'folder-input': '<path d="M2 9V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1"/><path d="M2 13h10"/><path d="m9 16 3-3-3-3"/>'
+});
+const ic = (n, s = 16, cls = '') => `<svg class="ic ${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- demo data ---------- */
+const MAX_DEPTH = 8, MAX_NAME = 40;
+const demo = () => ({
+  folders: [
+    { id: 1, name: 'Прод', parent: null }, { id: 2, name: 'Веб', parent: 1 }, { id: 3, name: 'Фронт', parent: 2 }, { id: 4, name: 'Базы данных', parent: 1 },
+    { id: 5, name: 'Тест', parent: null }, { id: 6, name: 'Стенды', parent: 5 },
+    { id: 7, name: 'Офис', parent: null }, { id: 8, name: 'Дом', parent: null }],
+  servers: [
+    { id: 's1', name: 'web-01', os: 'lin', addr: '10.0.1.11', folder: 2 }, { id: 's2', name: 'web-02', os: 'lin', addr: '10.0.1.12', folder: 2 },
+    { id: 's3', name: 'front-cdn', os: 'lin', addr: '10.0.1.20', folder: 3 },
+    { id: 's4', name: 'pg-main', os: 'lin', addr: '10.0.2.10', folder: 4 }, { id: 's5', name: 'pg-replica', os: 'lin', addr: '10.0.2.11', folder: 4 },
+    { id: 's6', name: 'build-01', os: 'lin', addr: '10.1.0.5', folder: 5 },
+    { id: 's7', name: 'stage-web', os: 'lin', addr: '10.1.1.11', folder: 6 }, { id: 's8', name: 'stage-db', os: 'lin', addr: '10.1.1.12', folder: 6 },
+    { id: 's9', name: 'office-dc', os: 'win', addr: '192.168.1.2', folder: 7 }, { id: 's10', name: 'print-srv', os: 'win', addr: '192.168.1.9', folder: 7 },
+    { id: 's11', name: 'pihole', os: 'lin', addr: '192.168.8.2', folder: 8 },
+    { id: 's12', name: 'monitor-01', os: 'lin', addr: '10.9.0.4', folder: null }, { id: 's13', name: 'backup-ext', os: 'lin', addr: '203.0.113.7', folder: null }],
+  users: [{ login: 'oper', role: 'оператор', folders: [1] }, { login: 'audi', role: 'аудитор', folders: [2] }]
+});
+let S = demo();
+let nextId = 100;
+const UI = { open: { 1: true, 2: true, 5: true, u: true }, filter: '', showServers: true, rename: null, focus: 'f1', flash: null, drag: null, drop: null };
+
+/* ---------- model ---------- */
+const F = id => S.folders.find(f => f.id === id);
+const kids = pid => S.folders.filter(f => f.parent === pid);
+const srvIn = fid => S.servers.filter(s => s.folder === fid);
+const within = (id, anc, st = S) => { for (let c = id, n = 0; c != null && n < 99; n++) { if (c === anc) return true; const f = st.folders.find(x => x.id === c); c = f ? f.parent : null; } return false; };
+const depthOf = id => { let d = 0; for (let c = F(id); c && c.parent != null; c = F(c.parent)) d++; return d; };
+const height = id => 1 + Math.max(0, ...kids(id).map(k => height(k.id)));
+const subIds = id => [id, ...kids(id).flatMap(k => subIds(k.id))];
+const count = id => { const ids = new Set(subIds(id)); return S.servers.filter(s => ids.has(s.folder)).length; };
+const subFolders = id => subIds(id).length - 1;
+const grants = id => S.users.filter(u => u.folders.includes(id));
+const path = id => { const p = []; for (let c = F(id); c; c = F(c.parent)) p.unshift(c.name); return p.join(' / '); };
+const norm = s => s.trim().replace(/\s+/g, ' ');
+const dupe = (name, parent, selfId) => kids(parent).find(f => f.id !== selfId && f.name.toLowerCase() === name.toLowerCase());
+const clone = x => JSON.parse(JSON.stringify(x));
+const visibleFor = (u, st) => new Set(st.servers.filter(s => s.folder != null && u.folders.some(g => within(s.folder, g, st))).map(s => s.id));
+/* who sees what before and after (st1 -> st2): the effect of a move or a delete on the access given by folders */
+function impact(st1, st2) {
+  const out = [];
+  for (const u1 of st1.users) {
+    const u2 = st2.users.find(u => u.login === u1.login) || u1;
+    const a = visibleFor(u1, st1), b = visibleFor(u2, st2);
+    const nm = id => (st2.servers.find(s => s.id === id) || st1.servers.find(s => s.id === id)).name;
+    const lose = [...a].filter(x => !b.has(x)).map(nm), gain = [...b].filter(x => !a.has(x)).map(nm);
+    if (lose.length || gain.length) out.push({ u: u1, lose, gain });
+  }
+  return out;
+}
+
+/* ---------- visible rows ---------- */
+const q = () => UI.filter.trim().toLowerCase();
+const hit = s => !q() || s.toLowerCase().includes(q());
+const fMatch = f => hit(f.name) || kids(f.id).some(fMatch) || (UI.showServers && srvIn(f.id).some(s => hit(s.name)));
+const isOpen = f => q() ? true : !!UI.open[f.id];
+function rows() {
+  const out = [];
+  const walk = (pid, depth) => {
+    for (const f of kids(pid)) {
+      if (q() && !fMatch(f)) continue;
+      out.push({ t: 'f', f, depth });
+      if (isOpen(f)) { walk(f.id, depth + 1); if (UI.showServers) for (const s of srvIn(f.id)) if (hit(s.name)) out.push({ t: 's', s, depth: depth + 1 }); }
+    }
+  };
+  walk(null, 0);
+  if (UI.showServers) {
+    const free = srvIn(null).filter(s => hit(s.name));
+    if (!q() || free.length) {
+      out.push({ t: 'u', depth: 0 });
+      if (q() || UI.open.u) for (const s of free) out.push({ t: 's', s, depth: 1 });
+    }
+  }
+  return out;
+}
+const keyOf = r => r.t === 'f' ? 'f' + r.f.id : r.t === 's' ? 's' + r.s.id : 'u';
+
+/* ---------- render ---------- */
+const $ = s => document.querySelector(s);
+const hl = name => { const k = q(); if (!k) return esc(name); const i = name.toLowerCase().indexOf(k); return i < 0 ? esc(name) : esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + k.length)) + '</mark>' + esc(name.slice(i + k.length)); };
+let renameError = '';
+
+function rowHtml(r) {
+  const key = keyOf(r), g = '<span class="g"></span>'.repeat(r.depth);
+  const drag = UI.drag, kb = UI.focus === key;
+  let cls = 'fxr ' + r.t + (kb ? ' kb' : '') + (UI.flash === key ? ' flash' : '');
+  if (drag) {
+    if (drag.k === 'f' && r.t === 'f' && within(r.f.id, drag.id)) cls += ' src';
+    if (drag.k === 'f' && r.t === 's' && r.s.folder != null && within(r.s.folder, drag.id)) cls += ' src';
+    if (drag.k === 's' && r.t === 's' && r.s.id === drag.id) cls += ' src';
+    if (UI.drop && UI.drop.row === key) cls += UI.drop.ok ? (UI.drop.pos === 'into' ? ' into' : '') : ' bad';
+  }
+  const attrs = `class="${cls}" data-k="${r.t}" data-id="${r.t === 'f' ? r.f.id : r.t === 's' ? r.s.id : ''}" data-key="${key}" tabindex="${kb ? 0 : -1}"`;
+  const grip = r.t === 'u' ? '<span class="gr"></span>' : `<span class="gr" title="Перетащить">${ic('grip-vertical', 14)}</span>`;
+  if (r.t === 'f') {
+    const f = r.f, open = isOpen(f), has = kids(f.id).length || (UI.showServers && srvIn(f.id).length);
+    const n = count(f.id), gs = grants(f.id);
+    const nameCell = UI.rename && UI.rename.id === f.id
+      ? `<input class="rn${renameError ? ' err' : ''}" value="${esc(f.name)}" maxlength="${MAX_NAME}" placeholder="Название папки" aria-label="Название папки">${renameError ? `<span class="er">${esc(renameError)}</span>` : ''}`
+      : `<span class="nm">${hl(f.name)}</span>`;
+    const pills = UI.rename && UI.rename.id === f.id ? '' :
+      `<span class="fxsp"></span>${gs.length ? `<span class="pill fxacc" title="Доступ выдан этой папкой: ${esc(gs.map(u => u.login).join(', '))}">${ic('user', 12)}${gs.length}</span>` : ''}<span class="pill" title="Серверов в папке и во вложенных">${ic('server', 12)}${n}</span>
+      <span class="ra"><button class="btn xs" data-a="add" title="Новая подпапка" aria-label="Новая подпапка">${ic('folder-plus', 15)}</button><button class="btn xs" data-a="ren" title="Переименовать (F2)" aria-label="Переименовать">${ic('pencil', 14)}</button><button class="btn xs" data-a="menu" title="Ещё" aria-label="Ещё">${ic('ellipsis', 15)}</button></span>`;
+    return `<div ${attrs}>${grip}${g}<button class="cv${open ? ' open' : ''}${has ? '' : ' fxnil'}" data-a="tog" tabindex="-1" aria-label="${open ? 'Свернуть' : 'Развернуть'}">${ic('chevron-right', 14)}</button><span class="ico">${ic(open && has ? 'folder-open' : 'folder', 16)}</span>${nameCell}${pills}</div>`;
+  }
+  if (r.t === 's') {
+    const s = r.s;
+    return `<div ${attrs}>${grip}${g}<span class="cv fxnil"></span><span class="ico">${ic('server', 15)}</span><span class="nm">${hl(s.name)}</span><span class="fxos${s.os === 'win' ? ' isw' : ''}">${s.os === 'win' ? 'WIN' : 'LIN'}</span><span class="addr">${esc(s.addr)}</span><span class="fxsp"></span><span class="ra"><button class="btn xs" data-a="menu" title="Ещё" aria-label="Ещё">${ic('ellipsis', 15)}</button></span></div>`;
+  }
+  const open = q() || UI.open.u, n = srvIn(null).length;
+  return `<div ${attrs}>${grip}<span class="cv${open ? ' open' : ''}${n ? '' : ' fxnil'}" data-a="tog" style="cursor:pointer">${ic('chevron-right', 14)}</span><span class="ico">${ic('folder-input', 16)}</span><span class="nm">Без папки</span><span class="fxsp"></span><span class="pill" title="Серверов вне папок">${ic('server', 12)}${n}</span></div>`;
+}
+
+function render() {
+  const rs = rows(), total = S.servers.length, nf = S.folders.length;
+  const tree = $('#fx .tree');
+  const keep = $('#body').scrollTop;
+  let html = `
+    <h3>Папки серверов</h3>
+    <p class="fx-hint">Папки вкладываются друг в друга на любую глубину (до ${MAX_DEPTH} уровней). Сервер лежит ровно в одной папке. Доступ, выданный папке, действует на все её вложенные папки и серверы, в том числе будущие.</p>
+    <div class="fx-bar">
+      <button class="btn primary" type="button" data-b="add">${ic('folder-plus', 15)}Папка</button>
+      <label class="field">${ic('search', 14)}<input id="q" placeholder="Найти папку или сервер" autocomplete="off" spellcheck="false" value="${esc(UI.filter)}"></label>
+      <button class="btn tgl" type="button" data-b="srv" aria-pressed="${UI.showServers}">${ic(UI.showServers ? 'check' : 'minus', 14)}Серверы в дереве</button>
+      <button class="btn icon" type="button" data-b="expand" title="Развернуть всё" aria-label="Развернуть всё">${ic('chevrons-up-down', 15)}</button>
+      <button class="btn icon" type="button" data-b="collapse" title="Свернуть всё" aria-label="Свернуть всё">${ic('chevrons-down-up', 15)}</button>
+      <span class="fx-meta">папок ${nf} · серверов ${total}</span>
+    </div>
+    <div class="tree" role="tree" aria-label="Папки и серверы">`;
+  if (!nf) html += `<div class="fxe">${ic('folders', 28)}<div>Папок пока нет.</div><button class="btn primary" data-b="add">${ic('folder-plus', 15)}Создать первую папку</button></div>`;
+  else if (!rs.length) html += `<div class="fxe">${ic('search', 24)}<div>Ничего не найдено.</div></div>`;
+  else html += rs.map(rowHtml).join('');
+  html += `</div>
+    <div class="fx-help">
+      <span>${ic('grip-vertical', 13)}<span>Тяните строку: <b>между строк</b> это порядок, <b>на папку</b> это вложение</span></span>
+      <span><kbd>F2</kbd>переименовать</span><span><kbd>Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd>порядок</span><span><kbd>Del</kbd>удалить</span>
+    </div>`;
+  $('#fx').innerHTML = html;
+  $('#body').scrollTop = keep;
+  if (UI.rename) { const i = $('#fx .rn'); if (i) { i.focus(); i.setSelectionRange(0, i.value.length); } }
+  if (UI.flash) { const k = UI.flash; setTimeout(() => { if (UI.flash === k) UI.flash = null; }, 1400); }
+}
+
+/* ---------- toast, dialogs, menu ---------- */
+let toastTimer = 0;
+function toast(text, undo) {
+  clearTimeout(toastTimer);
+  const el = document.createElement('div');
+  el.className = 'fxt'; el.setAttribute('role', 'status');
+  el.innerHTML = `${ic('circle-check', 16, 'ok')}<span>${text}</span>${undo ? '<button class="btn sm" data-u>Отменить</button>' : ''}<button class="btn xs" data-x aria-label="Закрыть">${ic('x', 14)}</button>`;
+  $('#layer').querySelectorAll('.fxt').forEach(t => t.remove());
+  $('#layer').appendChild(el);
+  el.querySelector('[data-x]').onclick = () => el.remove();
+  if (undo) el.querySelector('[data-u]').onclick = () => { undo(); el.remove(); };
+  toastTimer = setTimeout(() => el.remove(), 7000);
+}
+function dialog({ title, body, ok = 'Готово', danger = false, onok, cancel = 'Отмена', okOff = false }) {
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h4>${esc(title)}</h4><div class="bd">${body}</div><div class="ft"><button class="btn" data-c>${cancel}</button><button class="btn ${danger ? 'danger' : 'primary'}" data-o ${okOff ? 'disabled' : ''}>${ok}</button></div></div>`;
+  $('#layer').appendChild(ov);
+  const close = () => { ov.remove(); document.removeEventListener('keydown', esc_); };
+  const esc_ = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc_);
+  ov.querySelector('[data-c]').onclick = close;
+  ov.addEventListener('pointerdown', e => { if (e.target === ov) close(); });
+  ov.querySelector('[data-o]').onclick = () => { close(); onok && onok(); };
+  ov.querySelector('[data-o]').focus();
+  return ov;
+}
+const impactHtml = list => list.length ? `<div class="imp">${list.map(x => `<div class="u"><div><b>${esc(x.u.login)}</b><span class="r">${esc(x.u.role)}</span></div>${x.lose.length ? `<i class="lose">теряет доступ: ${esc(x.lose.join(', '))}</i>` : ''}${x.gain.length ? `<i class="gain">получает доступ: ${esc(x.gain.join(', '))}</i>` : ''}</div>`).join('')}</div>` : '';
+
+function closeMenu() { document.querySelectorAll('.pop').forEach(p => p.remove()); }
+function menu(x, y, items) {
+  closeMenu();
+  const m = document.createElement('div');
+  m.className = 'pop'; m.setAttribute('role', 'menu');
+  m.innerHTML = items.map((it, i) => it === '-' ? '<div class="sep"></div>' : `<button role="menuitem" data-i="${i}" class="${it.danger ? 'danger' : ''}"><span class="l">${ic(it.icon, 15)}${it.label}</span>${it.kbd ? `<kbd>${it.kbd}</kbd>` : ''}</button>`).join('');
+  $('#layer').appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth - r.width - 8) + 'px'; m.style.top = Math.min(y, innerHeight - r.height - 8) + 'px';
+  m.onclick = e => { const b = e.target.closest('button'); if (!b) return; closeMenu(); items[+b.dataset.i].fn(); };
+}
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop') && !e.target.closest('[data-a=menu]')) closeMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+/* ---------- actions ---------- */
+let undoSnap = null;
+const snap = () => { undoSnap = clone(S); };
+const restore = () => { if (undoSnap) { S = undoSnap; undoSnap = null; UI.rename = null; render(); } };
+
+function addFolder(parent) {
+  snap();
+  const f = { id: nextId++, name: '', parent, fresh: true };
+  S.folders.push(f);
+  if (parent != null) UI.open[parent] = true;
+  UI.rename = { id: f.id }; UI.focus = 'f' + f.id; renameError = '';
+  render();
+}
+function commitRename(id, value, cancel) {
+  const f = F(id); if (!f) return;
+  const name = norm(value);
+  if (cancel || (!name && f.fresh)) { if (f.fresh) { S.folders = S.folders.filter(x => x.id !== id); } UI.rename = null; renameError = ''; render(); return; }
+  if (!name) { renameError = 'Название не может быть пустым'; render(); return; }
+  if (dupe(name, f.parent, id)) { renameError = 'В этой папке уже есть «' + dupe(name, f.parent, id).name + '»'; render(); const i = $('#fx .rn'); if (i) i.value = value; return; }
+  const was = f.name, fresh = f.fresh;
+  if (!fresh) snap();
+  f.name = name; delete f.fresh; UI.rename = null; renameError = ''; UI.flash = 'f' + id;
+  render();
+  if (fresh) toast(`Папка «${esc(name)}» создана`, restore);
+  else if (was !== name) toast(`«${esc(was)}» переименована в «${esc(name)}»`, restore);
+}
+function startRename(id) { snap(); UI.rename = { id }; renameError = ''; render(); }
+
+function applyMove(st, drag, drop) {
+  const G = id => st.folders.find(f => f.id === id), K = pid => st.folders.filter(f => f.parent === pid), SI = fid => st.servers.filter(s => s.folder === fid);
+  if (drag.k === 'f') {
+    const f = G(drag.id); st.folders = st.folders.filter(x => x !== f);
+    const t = drop.target;
+    if (drop.pos === 'into') { f.parent = t; st.folders.push(f); }
+    else if (drop.pos === 'first') { f.parent = t; const first = K(t)[0]; if (first) st.folders.splice(st.folders.indexOf(first), 0, f); else st.folders.push(f); }
+    else if (drop.pos === 'before') { const tf = G(t); f.parent = tf.parent; st.folders.splice(st.folders.indexOf(tf), 0, f); }
+    else if (drop.pos === 'after') { const tf = G(t); f.parent = tf.parent; st.folders.splice(st.folders.indexOf(tf) + 1, 0, f); }
+    else { f.parent = null; st.folders.push(f); } // the end of the top level
+  } else {
+    const s = st.servers.find(x => x.id === drag.id); st.servers = st.servers.filter(x => x !== s);
+    if (drop.pos === 'into') { s.folder = drop.target; st.servers.push(s); }
+    else if (drop.pos === 'bucket') { s.folder = null; st.servers.push(s); }
+    else { const ts = st.servers.find(x => x.id === drop.target); s.folder = ts.folder; st.servers.splice(st.servers.indexOf(ts) + (drop.pos === 'after' ? 1 : 0), 0, s); }
+  }
+}
+/* where a drag would land and whether that is allowed */
+function resolveDrop(drag, rowEl, y) {
+  const k = rowEl.dataset.k, id = rowEl.dataset.id, key = rowEl.dataset.key;
+  const r = rowEl.getBoundingClientRect(), rel = (y - r.top) / r.height;
+  let d = null;
+  if (drag.k === 'f') {
+    if (k === 'f') {
+      const f = F(+id), vis = isOpen(f) && (kids(f.id).length || (UI.showServers && srvIn(f.id).length));
+      if (rel < .28) d = { pos: 'before', target: f.id, parent: f.parent };
+      else if (rel > .72) d = vis ? { pos: 'first', target: f.id, parent: f.id } : { pos: 'after', target: f.id, parent: f.parent };
+      else d = { pos: 'into', target: f.id, parent: f.id };
+    } else if (k === 's') { const s = S.servers.find(x => x.id === id); d = s.folder == null ? { pos: 'end', target: null, parent: null } : { pos: 'into', target: s.folder, parent: s.folder }; }
+    else d = { pos: 'end', target: null, parent: null };
+    d.row = d.pos === 'into' ? (k === 's' && d.target != null ? 'f' + d.target : key) : key;
+    let ok = true, why = '';
+    if (d.parent != null && within(d.parent, drag.id)) { ok = false; why = 'Нельзя переместить папку внутрь самой себя'; }
+    else if ((d.parent == null ? 0 : depthOf(d.parent) + 1) + height(drag.id) > MAX_DEPTH) { ok = false; why = `Не больше ${MAX_DEPTH} уровней вложенности`; }
+    else { const nm = F(drag.id).name, du = dupe(nm, d.parent, drag.id); if (du) { ok = false; why = `В «${d.parent != null ? F(d.parent).name : 'корне'}» уже есть «${nm}»`; } }
+    d.ok = ok; d.why = why;
+  } else {
+    if (k === 'f') d = { pos: 'into', target: +id, row: key };
+    else if (k === 's') { const s = S.servers.find(x => x.id === id); d = { pos: rel < .5 ? 'before' : 'after', target: id, row: key, bucket: s.folder == null }; if (s.id === drag.id) d = { pos: 'noop', row: key }; }
+    else d = { pos: 'bucket', target: null, row: key };
+    d.ok = true; d.why = '';
+  }
+  return d;
+}
+
+function doDrop(drag, drop) {
+  const before = clone(S);
+  const after = clone(S); applyMove(after, drag, drop);
+  if (JSON.stringify(before.folders) === JSON.stringify(after.folders) && JSON.stringify(before.servers) === JSON.stringify(after.servers)) return;
+  const imp = impact(before, after);
+  const label = drag.k === 'f' ? F(drag.id).name : S.servers.find(s => s.id === drag.id).name;
+  const dest = drag.k === 'f'
+    ? (drop.pos === 'into' || drop.pos === 'first' ? `в «${esc(F(drop.target).name)}»` : drop.pos === 'end' ? 'на верхний уровень' : (() => { const t = F(drop.target); return t.parent == null ? 'на верхний уровень' : `в «${esc(F(t.parent).name)}»`; })())
+    : (drop.pos === 'bucket' ? 'в «Без папки»' : drop.pos === 'into' ? `в «${esc(F(drop.target).name)}»` : (() => { const t = S.servers.find(s => s.id === drop.target); return t.folder == null ? 'в «Без папки»' : `в «${esc(F(t.folder).name)}»`; })());
+  const go = () => {
+    snap(); applyMove(S, drag, drop);
+    if (drop.pos === 'into' || drop.pos === 'first') UI.open[drop.target] = true;
+    if (drop.pos === 'bucket') UI.open.u = true;
+    UI.flash = drag.k === 'f' ? 'f' + drag.id : 's' + drag.id;
+    render();
+    toast(`${drag.k === 'f' ? 'Папка' : 'Сервер'} «${esc(label)}» ${drag.k === 'f' ? 'перемещена' : 'перемещён'} ${dest}`, restore);
+  };
+  if (imp.length) dialog({ title: 'Перемещение изменит доступ', body: `<div>${drag.k === 'f' ? 'Папка' : 'Сервер'} «${esc(label)}» переедет ${dest}. Доступ, выданный папками, пересчитается:</div>${impactHtml(imp)}`, ok: 'Переместить', onok: go });
+  else go();
+}
+
+function deleteFolder(id) {
+  const f = F(id), subs = kids(id).length, srvs = srvIn(id).length;
+  const after = clone(S);
+  const af = after.folders.find(x => x.id === id);
+  after.folders.forEach(x => { if (x.parent === id) x.parent = af.parent; });
+  after.servers.forEach(s => { if (s.folder === id) s.folder = af.parent; });
+  after.folders = after.folders.filter(x => x.id !== id);
+  after.users.forEach(u => { u.folders = u.folders.filter(g => g !== id); });
+  const imp = impact(S, after), gs = grants(id);
+  const dest = f.parent == null ? 'на верхний уровень' : `в «${esc(F(f.parent).name)}»`;
+  const go = () => { snap(); S = after; UI.flash = null; render(); toast(`Папка «${esc(f.name)}» удалена`, restore); };
+  if (!subs && !srvs && !gs.length) return go();
+  const moved = [subs ? `подпапок: ${subs}` : '', srvs ? `серверов: ${srvs}` : ''].filter(Boolean).join(', ');
+  dialog({
+    title: `Удалить папку «${f.name}»?`,
+    body: `<div>${moved ? `Содержимое (${moved}) переедет ${dest}, серверы не удаляются.` : 'Папка пуста.'}</div>${gs.length ? `<div>Доступ, выданный именно этой папкой (${esc(gs.map(u => u.login).join(', '))}), пропадёт.</div>` : ''}${impactHtml(imp)}`,
+    ok: 'Удалить', danger: true, onok: go
+  });
+}
+
+function pickDestination(kind, id) {
+  const cur = kind === 'f' ? F(id).parent : S.servers.find(s => s.id === id).folder;
+  let chosen;
+  const opts = [{ id: null, depth: 0, name: kind === 'f' ? 'Верхний уровень' : 'Без папки', icon: kind === 'f' ? 'folders' : 'folder-input', bad: false }];
+  const walk = (pid, depth) => kids(pid).forEach(f => {
+    let bad = false, why = '';
+    if (kind === 'f') {
+      if (within(f.id, id)) { bad = true; why = 'внутри самой папки'; }
+      else if (depthOf(f.id) + 1 + height(id) + 0 > MAX_DEPTH) { bad = true; why = 'слишком глубоко'; }
+      else if (dupe(F(id).name, f.id, id)) { bad = true; why = 'такое имя уже есть'; }
+    }
+    opts.push({ id: f.id, depth: depth + 1, name: f.name, icon: 'folder', bad, why }); walk(f.id, depth + 1);
+  });
+  walk(null, 0);
+  if (kind === 'f' && dupe(F(id).name, null, id)) { opts[0].bad = true; opts[0].why = 'такое имя уже есть'; }
+  const html = `<div class="pick">${opts.map((o, i) => `<button data-i="${i}" ${o.bad ? 'disabled' : ''} style="padding-left:${8 + o.depth * 18}px">${ic(o.icon, 15)}<span>${esc(o.name)}</span>${o.bad ? `<span class="dim" style="margin-left:auto;font-size:12px">${o.why}</span>` : (o.id === cur ? '<span class="dim" style="margin-left:auto;font-size:12px">сейчас здесь</span>' : '')}</button>`).join('')}</div>`;
+  const label = kind === 'f' ? F(id).name : S.servers.find(s => s.id === id).name;
+  const ov = dialog({
+    title: `Переместить «${label}»`, body: html, ok: 'Переместить', okOff: true,
+    onok: () => { const o = opts[chosen]; doDrop({ k: kind, id }, kind === 'f' ? (o.id == null ? { pos: 'end', target: null } : { pos: 'into', target: o.id }) : (o.id == null ? { pos: 'bucket', target: null } : { pos: 'into', target: o.id })); }
+  });
+  ov.querySelector('.pick').onclick = e => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    chosen = +b.dataset.i; ov.querySelectorAll('.pick button').forEach(x => x.classList.toggle('on', x === b));
+    ov.querySelector('[data-o]').disabled = opts[chosen].id === cur;
+  };
+}
+
+function rowMenu(el, x, y) {
+  const k = el.dataset.k, id = el.dataset.id;
+  if (k === 'f') {
+    const fid = +id;
+    menu(x, y, [
+      { icon: 'folder-plus', label: 'Новая подпапка', fn: () => addFolder(fid) },
+      { icon: 'pencil', label: 'Переименовать', kbd: 'F2', fn: () => startRename(fid) },
+      { icon: 'folder-input', label: 'Переместить в…', fn: () => pickDestination('f', fid) },
+      '-',
+      { icon: 'trash-2', label: 'Удалить…', kbd: 'Del', danger: true, fn: () => deleteFolder(fid) }]);
+  } else if (k === 's') menu(x, y, [{ icon: 'folder-input', label: 'Переместить в…', fn: () => pickDestination('s', id) }]);
+}
+
+/* ---------- events ---------- */
+const fx = $('#fx');
+fx.addEventListener('click', e => {
+  const b = e.target.closest('[data-b]');
+  if (b) {
+    const a = b.dataset.b;
+    if (a === 'add') addFolder(null);
+    if (a === 'srv') { UI.showServers = !UI.showServers; render(); }
+    if (a === 'expand') { S.folders.forEach(f => UI.open[f.id] = true); UI.open.u = true; render(); }
+    if (a === 'collapse') { UI.open = {}; render(); }
+    return;
+  }
+  const row = e.target.closest('.fxr'); if (!row) return;
+  UI.focus = row.dataset.key;
+  const a = e.target.closest('[data-a]');
+  if (a) {
+    const act = a.dataset.a;
+    if (act === 'tog') { const id = row.dataset.k === 'u' ? 'u' : +row.dataset.id; UI.open[id] = !UI.open[id]; render(); }
+    if (act === 'add') addFolder(+row.dataset.id);
+    if (act === 'ren') startRename(+row.dataset.id);
+    if (act === 'menu') { const r = a.getBoundingClientRect(); rowMenu(row, r.left, r.bottom + 4); }
+    return;
+  }
+  render(); focusRow();
+});
+fx.addEventListener('dblclick', e => { const row = e.target.closest('.fxr.f'); if (row && !e.target.closest('button,input')) startRename(+row.dataset.id); });
+fx.addEventListener('contextmenu', e => { const row = e.target.closest('.fxr'); if (row && row.dataset.k !== 'u') { e.preventDefault(); rowMenu(row, e.clientX, e.clientY); } });
+fx.addEventListener('input', e => { if (e.target.id === 'q') { UI.filter = e.target.value; const pos = e.target.selectionStart; render(); const i = $('#q'); i.focus(); i.setSelectionRange(pos, pos); } });
+fx.addEventListener('keydown', e => {
+  if (e.target.classList.contains('rn')) {
+    if (e.key === 'Enter') { e.preventDefault(); commitRename(UI.rename.id, e.target.value, false); }
+    if (e.key === 'Escape') { e.preventDefault(); const f = F(UI.rename.id); if (f && !f.fresh) undoSnap = null; commitRename(UI.rename.id, e.target.value, true); }
+    return;
+  }
+  const row = e.target.closest('.fxr'); if (!row) return;
+  const rs = rows(), i = rs.findIndex(r => keyOf(r) === row.dataset.key), r = rs[i];
+  const go = j => { if (rs[j]) { UI.focus = keyOf(rs[j]); render(); focusRow(); } };
+  if (e.key === 'ArrowDown') { e.preventDefault(); go(i + 1); }
+  else if (e.key === 'ArrowUp' && !e.altKey) { e.preventDefault(); go(i - 1); }
+  else if (e.key === 'ArrowRight' && r.t === 'f') { e.preventDefault(); if (!isOpen(r.f)) { UI.open[r.f.id] = true; render(); focusRow(); } else go(i + 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); if (r.t === 'f' && isOpen(r.f) && !q()) { UI.open[r.f.id] = false; render(); focusRow(); } else if (r.t === 'f' && r.f.parent != null) go(rs.findIndex(x => x.t === 'f' && x.f.id === r.f.parent)); }
+  else if (e.key === 'F2' && r.t === 'f') { e.preventDefault(); startRename(r.f.id); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && r.t === 'f') { e.preventDefault(); deleteFolder(r.f.id); }
+  else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && r.t === 'f') {
+    e.preventDefault();
+    const sib = kids(r.f.parent), j = sib.indexOf(r.f) + (e.key === 'ArrowUp' ? -1 : 1);
+    if (sib[j]) { snap(); const a = S.folders.indexOf(r.f), b = S.folders.indexOf(sib[j]); [S.folders[a], S.folders[b]] = [S.folders[b], S.folders[a]]; UI.flash = row.dataset.key; render(); focusRow(); }
+  }
+  else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const b = row.getBoundingClientRect(); rowMenu(row, b.left + 60, b.bottom); }
+});
+fx.addEventListener('focusout', e => { if (e.target.classList.contains('rn') && UI.rename) { const v = e.target.value; setTimeout(() => { if (UI.rename && !renameError) commitRename(UI.rename.id, v, false); }, 0); } });
+const focusRow = () => { const r = fx.querySelector('.fxr[tabindex="0"]'); if (r) r.focus({ preventScroll: false }); };
+
+/* ---------- drag and drop (pointer events: mouse, pen and touch) ---------- */
+let start = null, ghost = null, expandTimer = 0, scrollRaf = 0, lastPt = { x: 0, y: 0 };
+fx.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || q() || UI.rename) return;
+  if (e.target.closest('button,input,.ra,.cv')) return;
+  const row = e.target.closest('.fxr'); if (!row || row.dataset.k === 'u') return;
+  start = { x: e.clientX, y: e.clientY, k: row.dataset.k, id: row.dataset.k === 'f' ? +row.dataset.id : row.dataset.id, pid: e.pointerId };
+  addEventListener('pointermove', onMove); addEventListener('pointerup', onUp); addEventListener('pointercancel', onCancel);
+});
+function beginDrag() {
+  UI.drag = { k: start.k, id: start.id };
+  document.body.classList.add('dnd');
+  ghost = document.createElement('div'); ghost.className = 'fxg';
+  const label = start.k === 'f' ? F(start.id).name : S.servers.find(s => s.id === start.id).name;
+  const n = start.k === 'f' ? count(start.id) + subFolders(start.id) : 0;
+  ghost.innerHTML = `${ic(start.k === 'f' ? 'folder' : 'server', 15)}<span>${esc(label)}</span>${n ? `<b title="Вместе с содержимым">+${n}</b>` : ''}<span class="why"></span>`;
+  $('#layer').appendChild(ghost);
+  render(); scrollLoop();
+}
+function onMove(e) {
+  lastPt = { x: e.clientX, y: e.clientY };
+  if (!UI.drag) { if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return; beginDrag(); }
+  update();
+}
+function update() {
+  const { x, y } = lastPt;
+  ghost.style.left = x + 'px'; ghost.style.top = y + 'px';
+  const el = document.elementFromPoint(x, y), row = el && el.closest('#fx .fxr');
+  let d = row ? resolveDrop(UI.drag, row, y) : null;
+  if (d && d.pos === 'noop') d = null;
+  const sig = d ? [d.row, d.pos, d.target, d.ok].join('|') : '';
+  if (sig !== (UI.drop ? UI.drop.sig : '')) {
+    UI.drop = d ? { ...d, sig } : null;
+    clearTimeout(expandTimer);
+    if (d && d.ok && d.pos === 'into' && d.target != null) {
+      const f = F(d.target);
+      if (f && !UI.open[f.id] && (kids(f.id).length || srvIn(f.id).length)) expandTimer = setTimeout(() => { UI.open[f.id] = true; render(); paintDrop(); }, 650);
+    }
+    render(); paintDrop();
+  }
+  ghost.classList.toggle('bad', !!(d && !d.ok));
+  ghost.querySelector('.why').textContent = d && !d.ok ? d.why : '';
+}
+/* the insertion line */
+function paintDrop() {
+  fx.querySelectorAll('.fxl').forEach(l => l.remove());
+  const d = UI.drop; if (!d) return;
+  const row = fx.querySelector(`.fxr[data-key="${d.row}"]`), tree = fx.querySelector('.tree'); if (!row || !tree) return;
+  if (d.pos === 'into' || d.pos === 'bucket') return;
+  const rr = row.getBoundingClientRect(), tr = tree.getBoundingClientRect();
+  const depth = d.pos === 'first' ? rowDepth(row) + 1 : rowDepth(row);
+  const top = (d.pos === 'before' || d.pos === 'end' ? rr.top : rr.bottom) - tr.top - 1;
+  const left = 4 + 18 + depth * 22 + 4;
+  const l = document.createElement('div'); l.className = 'fxl' + (d.ok ? '' : ' bad');
+  l.style.cssText = `top:${top}px;left:${left}px;right:8px`;
+  tree.appendChild(l);
+}
+const rowDepth = row => row.querySelectorAll('.g').length;
+function scrollLoop() {
+  const body = $('#body');
+  const tick = () => {
+    if (!UI.drag) return;
+    const r = body.getBoundingClientRect(), y = lastPt.y; let dy = 0;
+    if (y < r.top + 54) dy = -Math.ceil((r.top + 54 - y) / 5); else if (y > r.bottom - 54) dy = Math.ceil((y - (r.bottom - 54)) / 5);
+    if (dy) { body.scrollTop += dy; update(); }
+    scrollRaf = requestAnimationFrame(tick);
+  };
+  scrollRaf = requestAnimationFrame(tick);
+}
+function endDrag() {
+  removeEventListener('pointermove', onMove); removeEventListener('pointerup', onUp); removeEventListener('pointercancel', onCancel);
+  clearTimeout(expandTimer); cancelAnimationFrame(scrollRaf);
+  document.body.classList.remove('dnd'); if (ghost) ghost.remove(); ghost = null;
+}
+function onUp() {
+  const drag = UI.drag, drop = UI.drop;
+  endDrag(); start = null;
+  if (!drag) return;
+  UI.drag = null; UI.drop = null; render();
+  if (drop && drop.ok) doDrop(drag, drop);
+  else if (drop && !drop.ok) toast(esc(drop.why));
+}
+function onCancel() { endDrag(); start = null; UI.drag = null; UI.drop = null; render(); }
+addEventListener('keydown', e => { if (e.key === 'Escape' && UI.drag) onCancel(); });
+
+/* ---------- mockup chrome ---------- */
+$('#theme').onclick = () => { const h = document.documentElement; h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark'; };
+$('#reset').onclick = () => { S = demo(); UI.open = { 1: true, 2: true, 5: true, u: true }; UI.filter = ''; UI.rename = null; undoSnap = null; render(); };
+render();
+</script>
+</body>
+</html>

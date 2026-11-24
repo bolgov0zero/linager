@@ -54,13 +54,14 @@ type userReq struct {
 	Role    string   `json:"role"`
 	Servers []string `json:"servers"`
 	Groups  []int64  `json:"groups"`
+	Tags    []int64  `json:"tags"`
 	Modules []string `json:"modules"`
 }
 
 // accessOf checks a role with its access and returns what is to be stored: an administrator has no list,
 // an auditor has no modules, and a module that cannot be given is refused.
-func accessOf(role string, servers []string, groups []int64, modules []string) (store.Access, string) {
-	acc := store.Access{Servers: []string{}, Groups: []int64{}, Modules: []string{}}
+func accessOf(role string, servers []string, groups, tags []int64, modules []string) (store.Access, string) {
+	acc := store.Access{Servers: []string{}, Groups: []int64{}, Tags: []int64{}, Modules: []string{}}
 	switch role {
 	case store.RoleAdmin:
 		return acc, ""
@@ -68,11 +69,12 @@ func accessOf(role string, servers []string, groups []int64, modules []string) (
 	default:
 		return acc, "role: admin, operator or auditor"
 	}
-	if len(servers) > 5000 || len(groups) > 1000 {
-		return acc, "too many servers or groups"
+	if len(servers) > 5000 || len(groups) > 1000 || len(tags) > store.MaxTagsTotal {
+		return acc, "too many servers, groups or tags"
 	}
 	acc.Servers = append(acc.Servers, servers...)
 	acc.Groups = append(acc.Groups, groups...)
+	acc.Tags = append(acc.Tags, tags...)
 	if role == store.RoleOperator {
 		seen := map[string]bool{}
 		for _, m := range modules {
@@ -107,7 +109,7 @@ func (a *Admin) userCreate(w http.ResponseWriter, r *http.Request, u *store.User
 	if role == "" {
 		role = store.RoleAdmin
 	}
-	acc, msg := accessOf(role, req.Servers, req.Groups, req.Modules)
+	acc, msg := accessOf(role, req.Servers, req.Groups, req.Tags, req.Modules)
 	if msg != "" {
 		jsonErr(w, http.StatusUnprocessableEntity, msg)
 		return
@@ -122,7 +124,7 @@ func (a *Admin) userCreate(w http.ResponseWriter, r *http.Request, u *store.User
 		if err := a.DB.SetUserAccess(r.Context(), nu.ID, role, acc); err != nil {
 			_ = a.DB.DeleteUser(r.Context(), nu.ID)
 			a.audit(r, u, "user.create", "user", "", login, "failed", nil)
-			jsonErr(w, http.StatusUnprocessableEntity, "unknown server or group")
+			jsonErr(w, http.StatusUnprocessableEntity, "unknown server, group or tag")
 			return
 		}
 	}
@@ -131,7 +133,7 @@ func (a *Admin) userCreate(w http.ResponseWriter, r *http.Request, u *store.User
 }
 
 func accessDetails(role string, acc store.Access) map[string]any {
-	return map[string]any{"role": role, "servers": len(acc.Servers), "groups": len(acc.Groups), "modules": acc.Modules}
+	return map[string]any{"role": role, "servers": len(acc.Servers), "groups": len(acc.Groups), "tags": len(acc.Tags), "modules": acc.Modules}
 }
 
 // userAccess changes the role and the access of another user. The rights are read from the database at every
@@ -150,7 +152,7 @@ func (a *Admin) userAccess(w http.ResponseWriter, r *http.Request, u *store.User
 		jsonErr(w, http.StatusConflict, "you cannot change your own role")
 		return
 	}
-	acc, msg := accessOf(req.Role, req.Servers, req.Groups, req.Modules)
+	acc, msg := accessOf(req.Role, req.Servers, req.Groups, req.Tags, req.Modules)
 	if msg != "" {
 		jsonErr(w, http.StatusUnprocessableEntity, msg)
 		return
@@ -168,7 +170,7 @@ func (a *Admin) userAccess(w http.ResponseWriter, r *http.Request, u *store.User
 	}
 	if err := a.DB.SetUserAccess(r.Context(), t.ID, req.Role, acc); err != nil {
 		a.audit(r, u, "user.access", "user", strconv.FormatInt(t.ID, 10), t.Login, "failed", nil)
-		jsonErr(w, http.StatusUnprocessableEntity, "unknown server or group")
+		jsonErr(w, http.StatusUnprocessableEntity, "unknown server, group or tag")
 		return
 	}
 	d := accessDetails(req.Role, acc)

@@ -212,17 +212,16 @@ func TestEndToEnd(t *testing.T) {
 	if code := api.do("GET", "/api/groups", nil, &ordered); code != 200 || len(ordered) != 2 || ordered[1].Name != "Test" {
 		t.Fatalf("a new group must go last: %d %+v", code, ordered)
 	}
-	if code := api.do("PUT", "/api/groups/order", map[string][]int64{"ids": {grp2.ID, grp.ID}}, nil); code != 200 {
-		t.Fatalf("group reorder: %d", code)
+	// an arranged order is kept: "Test" goes before "Production"; a wrong place is refused
+	gid := func(id int64) string { return strconv.FormatInt(id, 10) }
+	if code := api.do("PUT", "/api/groups/"+gid(grp2.ID)+"/move", map[string]any{"parent_id": nil, "before_id": grp.ID}, nil); code != 200 {
+		t.Fatalf("group move: %d", code)
 	}
 	if code := api.do("GET", "/api/groups", nil, &ordered); code != 200 || ordered[0].Name != "Test" || ordered[1].Name != "Production" {
 		t.Fatalf("group order was not kept: %d %+v", code, ordered)
 	}
-	if code := api.do("PUT", "/api/groups/order", map[string][]int64{"ids": {grp.ID}}, nil); code != http.StatusBadRequest {
-		t.Fatalf("an incomplete order must be refused, got %d", code)
-	}
-	if code := api.do("PUT", "/api/groups/order", map[string][]int64{"ids": {grp.ID, grp.ID}}, nil); code != http.StatusBadRequest {
-		t.Fatalf("a repeated id must be refused, got %d", code)
+	if code := api.do("PUT", "/api/groups/"+gid(grp2.ID)+"/move", map[string]any{"parent_id": nil, "before_id": 99999}, nil); code != http.StatusBadRequest {
+		t.Fatalf("a place before an unknown folder must be refused, got %d", code)
 	}
 	for _, id := range []int64{grp.ID, grp2.ID} {
 		if code := api.do("DELETE", "/api/groups/"+strconv.FormatInt(id, 10), nil, nil); code != 200 {

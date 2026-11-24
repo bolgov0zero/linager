@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api, ApiError, type Group, type JoinCommand, type JoinLink, type JoinLinkCreated } from '../api';
   import CustomSelect from '../CustomSelect.svelte';
+  import { folderOptions } from '../folders';
   import { confirmAsk } from '../dialogs.svelte';
   import { isUnauthorized } from '../errors';
   import { t } from '../i18n.svelte';
@@ -38,7 +39,7 @@
 
   const ttlOptions = $derived(TTLS.map((v) => ({ v: String(v), t: t(`asv.link.ttl.${v}`) })));
   const usesOptions = $derived(USES.map((v) => ({ v: String(v), t: v === 0 ? t('asv.link.uses.0') : String(v) })));
-  const groupOptions = $derived([{ v: '0', t: t('asv.group.none') }, ...groups.map((g) => ({ v: String(g.id), t: g.name }))]);
+  const groupOptions = $derived(folderOptions(groups, t('asv.group.none')));
   const commands = $derived(created?.commands.filter((c) => (c.kind === 'external' || c.kind === 'local') && (c.platform ?? 'linux') === platform) ?? []);
   const scriptText = $derived(created && platform === 'linux' && commands.length > 0 ? joinScriptText(created.token, commands[0].command, fingerprint) : '');
 

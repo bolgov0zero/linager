@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Group, ServerCard } from './api';
+  import { folderOptions } from './folders';
   import CustomSelect from './CustomSelect.svelte';
   import Icon from './Icon.svelte';
   import { t } from './i18n.svelte';
@@ -18,7 +19,7 @@
     ondelete: () => void;
   } = $props();
 
-  const options = $derived([{ v: '0', t: t('dash.group.none') }, ...groups.map((g) => ({ v: String(g.id), t: g.name }))]);
+  const options = $derived(folderOptions(groups, t('dash.group.none')));
 </script>
 
 <div class="edit-bar">

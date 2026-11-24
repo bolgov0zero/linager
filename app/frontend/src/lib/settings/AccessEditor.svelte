@@ -1,20 +1,34 @@
 <script lang="ts">
-  import { api, type Group, type Role, type ServerCard, type UserAccess } from '../api';
+  import { api, type Group, type Role, type ServerCard, type TagRow, type UserAccess } from '../api';
   import CustomSelect from '../CustomSelect.svelte';
+  import { subtreesOf } from '../folders';
   import { t } from '../i18n.svelte';
   import AccessModulesModal from './AccessModulesModal.svelte';
   import AccessServersModal from './AccessServersModal.svelte';
+  import AccessTagsModal from './AccessTagsModal.svelte';
 
   let { role = $bindable(), access = $bindable() }: { role: Role; access: UserAccess } = $props();
 
   let serversOpen = $state(false);
   let modulesOpen = $state(false);
+  let tagsOpen = $state(false);
+  let tags = $state<TagRow[]>([]);
   let servers = $state<ServerCard[]>([]);
   let groups = $state<Group[]>([]);
   let loadError = $state(false);
 
   const roles = $derived((['admin', 'operator', 'auditor'] as Role[]).map((r) => ({ v: r, t: t(`st.users.role.${r}`) })));
-  const serverCount = $derived(new Set([...access.servers, ...servers.filter((s) => s.group_id != null && access.groups.includes(s.group_id)).map((s) => s.id)]).size || access.servers.length);
+  async function openTags(): Promise<void> {
+    loadError = false;
+    try {
+      tags = (await api.tags()).tags;
+      tagsOpen = true;
+    } catch {
+      loadError = true;
+    }
+  }
+  const covered = $derived(subtreesOf(groups, access.groups));
+  const serverCount = $derived(new Set([...access.servers, ...servers.filter((s) => s.group_id != null && covered.has(s.group_id)).map((s) => s.id)]).size || access.servers.length);
 
   async function openServers(): Promise<void> {
     loadError = false;
@@ -35,6 +49,7 @@
   {#if role !== 'admin'}
     <div class="row">
       <button class="btn" type="button" onclick={() => void openServers()}>{t('st.acc.servers.button')} <span class="dim">{serverCount}</span></button>
+      <button class="btn" type="button" onclick={() => void openTags()}>{t('st.acc.tags.button')} <span class="dim">{access.tags.length}</span></button>
       {#if role === 'operator'}<button class="btn" type="button" onclick={() => (modulesOpen = true)}>{t('st.acc.modules.button')} <span class="dim">{access.modules.length}</span></button>{/if}
     </div>
     {#if loadError}<div class="err" role="alert">{t('common.genericError')}</div>{/if}
@@ -43,6 +58,9 @@
 
 {#if serversOpen}
   <AccessServersModal {servers} {groups} selectedServers={access.servers} selectedGroups={access.groups} onsave={(s, g) => { access = { ...access, servers: s, groups: g }; serversOpen = false; }} onclose={() => (serversOpen = false)} />
+{/if}
+{#if tagsOpen}
+  <AccessTagsModal {tags} selected={access.tags} onsave={(v) => { access = { ...access, tags: v }; tagsOpen = false; }} onclose={() => (tagsOpen = false)} />
 {/if}
 {#if modulesOpen}
   <AccessModulesModal selected={access.modules} onsave={(m) => { access = { ...access, modules: m }; modulesOpen = false; }} onclose={() => (modulesOpen = false)} />

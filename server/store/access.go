@@ -3,7 +3,15 @@ package store
 import (
 	"context"
 	"errors"
+
+	"github.com/jackc/pgx/v5"
 )
+
+// dbq is what a query needs: the pool or a transaction (the previews of a change read inside the transaction they roll back).
+type dbq interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 // Roles of a user.
 const (
@@ -12,10 +20,12 @@ const (
 	RoleAuditor  = "auditor"
 )
 
-// Access is what a non-administrator may reach: single servers, whole groups and modules.
+// Access is what a non-administrator may reach: single servers, whole groups, every server with a tag, and modules.
+// The servers, the groups and the tags add up: a server is visible when any of them covers it.
 type Access struct {
 	Servers []string `json:"servers"`
 	Groups  []int64  `json:"groups"`
+	Tags    []int64  `json:"tags"`
 	Modules []string `json:"modules"`
 }
 
@@ -32,9 +42,9 @@ func (s *Store) RoleOf(ctx context.Context, userID int64) (string, error) {
 	return role, nil
 }
 
-// UserAccess returns the servers, groups and modules given to a user.
+// UserAccess returns the servers, groups, tags and modules given to a user.
 func (s *Store) UserAccess(ctx context.Context, userID int64) (Access, error) {
-	a := Access{Servers: []string{}, Groups: []int64{}, Modules: []string{}}
+	a := Access{Servers: []string{}, Groups: []int64{}, Tags: []int64{}, Modules: []string{}}
 	rows, err := s.Pool.Query(ctx, `SELECT server_id::text FROM user_servers WHERE user_id=$1 ORDER BY 1`, userID)
 	if err != nil {
 		return a, err
@@ -61,6 +71,19 @@ func (s *Store) UserAccess(ctx context.Context, userID int64) (Access, error) {
 		a.Groups = append(a.Groups, id)
 	}
 	rows.Close()
+	rows, err = s.Pool.Query(ctx, `SELECT tag_id FROM user_tags WHERE user_id=$1 ORDER BY 1`, userID)
+	if err != nil {
+		return a, err
+	}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return a, err
+		}
+		a.Tags = append(a.Tags, id)
+	}
+	rows.Close()
 	rows, err = s.Pool.Query(ctx, `SELECT module FROM user_modules WHERE user_id=$1 ORDER BY 1`, userID)
 	if err != nil {
 		return a, err
@@ -76,7 +99,7 @@ func (s *Store) UserAccess(ctx context.Context, userID int64) (Access, error) {
 	return a, rows.Err()
 }
 
-// SetUserAccess replaces the role and the access of a user in one transaction. Servers and groups that do
+// SetUserAccess replaces the role and the access of a user in one transaction. Servers, groups and tags that do
 // not exist are an error, so a typo or a stale id never silently gives access to nothing.
 func (s *Store) SetUserAccess(ctx context.Context, userID int64, role string, a Access) error {
 	tx, err := s.Pool.Begin(ctx)
@@ -93,7 +116,7 @@ func (s *Store) SetUserAccess(ctx context.Context, userID int64, role string, a 
 			return err
 		}
 	}
-	for _, q := range []string{`DELETE FROM user_servers WHERE user_id=$1`, `DELETE FROM user_groups WHERE user_id=$1`, `DELETE FROM user_modules WHERE user_id=$1`} {
+	for _, q := range []string{`DELETE FROM user_servers WHERE user_id=$1`, `DELETE FROM user_groups WHERE user_id=$1`, `DELETE FROM user_tags WHERE user_id=$1`, `DELETE FROM user_modules WHERE user_id=$1`} {
 		if _, err := tx.Exec(ctx, q, userID); err != nil {
 			return err
 		}
@@ -116,6 +139,18 @@ func (s *Store) SetUserAccess(ctx context.Context, userID int64, role string, a 
 			return errors.New("unknown group")
 		}
 	}
+	for _, id := range a.Tags {
+		ct, err := tx.Exec(ctx, `INSERT INTO user_tags (user_id, tag_id) SELECT $1, id FROM tags WHERE id=$2 ON CONFLICT DO NOTHING`, userID, id)
+		if err != nil {
+			return err
+		}
+		if ct.RowsAffected() == 0 {
+			var has bool // a repeated id is not an error, an unknown one is
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM user_tags WHERE user_id=$1 AND tag_id=$2)`, userID, id).Scan(&has); err != nil || !has {
+				return errors.New("unknown tag")
+			}
+		}
+	}
 	for _, m := range a.Modules {
 		if _, err := tx.Exec(ctx, `INSERT INTO user_modules (user_id, module) VALUES ($1,$2) ON CONFLICT DO NOTHING`, userID, m); err != nil {
 			return err
@@ -124,10 +159,23 @@ func (s *Store) SetUserAccess(ctx context.Context, userID int64, role string, a 
 	return tx.Commit(ctx)
 }
 
-// AllowedServerIDs returns the ids of the servers a user may see: the single ones and those of the groups.
+// grantedFolders is the recursive part of the access queries: the folders given to a user and every folder under them.
+const grantedFolders = `WITH RECURSIVE gf(id) AS (
+		SELECT group_id FROM user_groups WHERE user_id=$1
+		UNION
+		SELECT c.id FROM server_groups c JOIN gf ON c.parent_id=gf.id)`
+
+// AllowedServerIDs returns the ids of the servers a user may see: the single ones, those in the folders given (with the folders
+// under them) and those with a tag given.
 func (s *Store) AllowedServerIDs(ctx context.Context, userID int64) (map[string]bool, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT server_id::text FROM user_servers WHERE user_id=$1
-		UNION SELECT s.id::text FROM servers s JOIN user_groups g ON g.group_id=s.group_id WHERE g.user_id=$1`, userID)
+	return allowedServerIDs(ctx, s.Pool, userID)
+}
+
+func allowedServerIDs(ctx context.Context, q dbq, userID int64) (map[string]bool, error) {
+	rows, err := q.Query(ctx, grantedFolders+`
+		SELECT server_id::text FROM user_servers WHERE user_id=$1
+		UNION SELECT s.id::text FROM servers s WHERE s.group_id IN (SELECT id FROM gf)
+		UNION SELECT st.server_id::text FROM server_tags st JOIN user_tags ut ON ut.tag_id=st.tag_id WHERE ut.user_id=$1`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +194,10 @@ func (s *Store) AllowedServerIDs(ctx context.Context, userID int64) (map[string]
 // ServerAllowed reports whether a user may see one server.
 func (s *Store) ServerAllowed(ctx context.Context, userID int64, serverID string) (bool, error) {
 	var ok bool
-	err := s.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM user_servers WHERE user_id=$1 AND server_id::text=$2)
-		OR EXISTS (SELECT 1 FROM servers s JOIN user_groups g ON g.group_id=s.group_id WHERE g.user_id=$1 AND s.id::text=$2)`, userID, serverID).Scan(&ok)
+	err := s.Pool.QueryRow(ctx, grantedFolders+`
+		SELECT EXISTS (SELECT 1 FROM user_servers WHERE user_id=$1 AND server_id::text=$2)
+		OR EXISTS (SELECT 1 FROM servers s WHERE s.id::text=$2 AND s.group_id IN (SELECT id FROM gf))
+		OR EXISTS (SELECT 1 FROM server_tags st JOIN user_tags ut ON ut.tag_id=st.tag_id WHERE ut.user_id=$1 AND st.server_id::text=$2)`, userID, serverID).Scan(&ok)
 	return ok, err
 }
 

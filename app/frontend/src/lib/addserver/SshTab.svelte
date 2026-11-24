@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import { api, ApiError, type Group, type SSHState } from '../api';
   import CustomSelect from '../CustomSelect.svelte';
+  import { folderOptions } from '../folders';
   import { isUnauthorized } from '../errors';
   import { t } from '../i18n.svelte';
   import Fold from '../settings/Fold.svelte';
@@ -57,7 +58,7 @@
   const portNum = $derived(Number(port));
   const portOk = $derived(Number.isInteger(portNum) && portNum >= 1 && portNum <= 65535);
   const canCheck = $derived(!blocked && !starting && host.trim() !== '' && login.trim() !== '' && portOk && (auth === 'password' ? password !== '' : key.trim() !== ''));
-  const groupOptions = $derived([{ v: '0', t: t('asv.group.none') }, ...groups.map((g) => ({ v: String(g.id), t: g.name }))]);
+  const groupOptions = $derived(folderOptions(groups, t('asv.group.none')));
 
   const phase = $derived(st?.phase);
   const installing = $derived(phase === 'installing' || phase === 'done' || phase === 'install_failed');

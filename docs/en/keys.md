@@ -26,7 +26,7 @@ The auto-lock (15 minutes of silence by default; 5, 30 or off; the choice is rem
 |---|---|
 | Name | Shown in the lists instead of the login and the password. |
 | Use for | **RDP**, **UAC** or **Any**. The RDP form offers the keys RDP and Any. The type UAC is for typing into the UAC prompt and the Windows sign-in screen in the Assistant (see below). |
-| Binding | To groups and servers of the panel (several of them): the servers are grouped by their groups, the switch of a group covers all its servers, the ones that appear later too. Nothing chosen: the key is for all servers. |
+| Binding | To folders and servers of the panel (several of them): the servers are laid out in folders, the switch of a folder covers all its servers and the folders under it, the ones that appear later too. Nothing chosen: the key is for all servers. |
 | Login, domain | The domain is optional. |
 | Password | Can be shown, and a random one (20 characters) can be generated. |
 | Note | Optional. |

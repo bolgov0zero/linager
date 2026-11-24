@@ -14,6 +14,9 @@
   import { confirmAsk } from './dialogs.svelte';
   import DeleteServerModal from './DeleteServerModal.svelte';
   import EditBar from './EditBar.svelte';
+  import FolderPickModal from './FolderPickModal.svelte';
+  import { impactLines } from './folder-impact';
+  import { folderOptions, subtreeIds } from './folders';
   import type { RowEdit } from './dash-edit';
   import { isUnauthorized } from './errors';
   import ContextMenu, { type CtxItem } from './ContextMenu.svelte';
@@ -31,6 +34,7 @@
   let groups = $state<Group[]>([]);
   let loaded = $state(false);
   let addOpen = $state(false);
+  let pickFolderFor = $state<ServerCard | null>(null);
   // the agents that are older than the Linager server (an administrator): a tag on the card
   let agentFlags = $state<Record<string, AgentFlag>>({});
   let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
@@ -100,8 +104,7 @@
     if (hasModule('assistant') && assistantOffered(card.os, card.sample)) items.push({ key: 'asst', label: t('dash.menu.asst'), icon: 'app-window', disabled: !card.online, onselect: () => openIn(card, 'asst') });
     items.push({ key: 'open', label: t('dash.menu.open'), icon: 'external-link', separated: items.length > 0, onselect: () => openServer(card.id) });
     if (isAdmin() && editing && groups.length > 0) {
-      groups.forEach((g, i) => items.push({ key: `g${g.id}`, label: t('dash.menu.group', { name: g.name }), icon: card.group_id === g.id ? 'check' : undefined, separated: i === 0, onselect: () => void setCardGroup(card, String(g.id)) }));
-      if (card.group_id !== null) items.push({ key: 'g0', label: t('dash.menu.groupNone'), onselect: () => void setCardGroup(card, '0') });
+      items.push({ key: 'folder', label: t('dash.menu.folder'), icon: 'folder-input', separated: true, onselect: () => (pickFolderFor = card) });
     }
     if (isAdmin()) items.push({ key: 'del', label: t('dash.deleteServer'), icon: 'trash-2', danger: true, separated: true, onselect: () => deleteCard(card) });
     menu = { x: e.clientX, y: e.clientY, items };
@@ -186,9 +189,12 @@
     cards = next;
     scheduleOrderSave();
   }
+  /** Puts the server into a folder. A folder carries access, so the server first says whose access it would change and asks. */
   async function setCardGroup(card: ServerCard, value: string): Promise<void> {
     const groupId = value === '0' ? null : Number(value);
     try {
+      const plan = await api.serverSetGroup(card.id, groupId, true);
+      if (plan.impact.length > 0 && !(await confirmAsk({ title: t('fld.impact.title'), text: `${t('fld.impact.server', { name: card.name })}\n${impactLines(plan.impact).join('\n')}`, ok: t('fld.move') }))) return;
       await api.serverSetGroup(card.id, groupId);
       cards = cards.map((c) => (c.id === card.id ? { ...c, group_id: groupId } : c));
     } catch (e) {
@@ -280,12 +286,14 @@
       const lv = levelOf(c);
       if (filter === 'bad' && !(c.online && lv !== 'ok')) return false;
       if (filter === 'off' && c.online) return false;
-      if (group !== 'all' && String(c.group_id ?? 'none') !== group) return false;
+      if (inGroup && !(c.group_id !== null && inGroup.has(c.group_id))) return false;
       const needle = q.trim().toLowerCase();
       return !needle || `${c.name} ${c.address}`.toLowerCase().includes(needle);
     }),
   );
-  const groupOptions = $derived([{ v: 'all', t: t('dash.group.all') }, ...groups.map((g) => ({ v: String(g.id), t: g.name }))]);
+  // the filter by a folder includes everything under it
+  const inGroup = $derived(group === 'all' ? null : subtreeIds(groups, Number(group)));
+  const groupOptions = $derived(folderOptions(groups, t('dash.group.all'), 'all'));
   const cpuSpark = $derived.by(() => {
     const online = cards.filter((c) => c.online && c.spark.length > 0);
     if (online.length === 0) return null;
@@ -363,6 +371,11 @@
   {/each}</div></div>
 {/if}
 </div>
+
+{#if pickFolderFor}
+  {@const c = pickFolderFor}
+  <FolderPickModal title={t('dash.menu.folderTitle', { name: c.name })} folders={groups} current={c.group_id} noneLabel={t('dash.group.none')} onpick={(id) => { pickFolderFor = null; void setCardGroup(c, id === null ? '0' : String(id)); }} onclose={() => (pickFolderFor = null)} />
+{/if}
 
 {#if addOpen}
   <AddServerModal {host} onclose={() => { addOpen = false; void loadWaiting(); }} onadded={() => { void load(); void loadWaiting(); }} onopen={openByName} onauthlost={() => (addOpen = false)} />

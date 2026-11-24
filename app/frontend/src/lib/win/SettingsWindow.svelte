@@ -3,7 +3,8 @@
   import { api, type Session } from '../api';
   import { t } from '../i18n.svelte';
   import AppSection from '../settings/AppSection.svelte';
-  import GroupsSection from '../settings/GroupsSection.svelte';
+  import FoldersSection from '../settings/FoldersSection.svelte';
+  import TagsSection from '../settings/TagsSection.svelte';
   import ProfileSection from '../settings/ProfileSection.svelte';
   import { isSection, SETTINGS_SECTIONS, type SettingsSection } from '../settings/sections';
   import SnippetsSection from '../settings/SnippetsSection.svelte';
@@ -56,7 +57,8 @@
       {:else if current === 'updates'}<UpdatesSection />
       {:else if current === 'audit'}<AuditSection />
       {:else if current === 'snippets'}<SnippetsSection onauthlost={() => (lost = true)} />
-      {:else if current === 'groups'}<GroupsSection onauthlost={() => (lost = true)} />{/if}
+      {:else if current === 'folders'}<FoldersSection onauthlost={() => (lost = true)} />
+      {:else if current === 'tags'}<TagsSection onauthlost={() => (lost = true)} />{/if}
     {/key}
   </div>
 </div>

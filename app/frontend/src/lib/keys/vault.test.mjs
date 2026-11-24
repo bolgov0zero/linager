@@ -132,3 +132,17 @@ test('the keys of a form: this server, its group, all, the rest', () => {
   // a server without a group does not match a group-bound key
   assert.deepEqual(names(sectionsFor(list, { serverId: 's9', groupId: null }, known, 'rdp').group), []);
 });
+
+test('a key bound to a folder is for the servers in the folders under it', () => {
+  const known = { servers: new Set(['s1']), groups: new Set(['1', '2', '3', '9']) };
+  const onProd = entry({ id: 'k1', name: 'Prod key', groups: [{ id: '1', name: 'Prod' }] });
+  const onTest = entry({ id: 'k2', name: 'Test key', groups: [{ id: '9', name: 'Test' }] });
+  const list = [onProd, onTest];
+  // the server is in Prod / Web (3): the chain is 3, 2 (Web), 1 (Prod)
+  const nested = sectionsFor(list, { serverId: 's1', groupId: 3, groupChain: [3, 2, 1] }, known, 'rdp');
+  assert.deepEqual(nested.group.map((e) => e.name), ['Prod key']);
+  assert.deepEqual(nested.other.map((e) => e.name), ['Test key']);
+  // without a chain only the folder itself counts (the way it was before the folders nested)
+  const flat = sectionsFor(list, { serverId: 's1', groupId: 3 }, known, 'rdp');
+  assert.deepEqual(flat.group, []);
+});

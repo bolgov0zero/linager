@@ -85,7 +85,7 @@ export interface Disk {
 }
 
 export type Role = 'admin' | 'operator' | 'auditor';
-export interface UserAccess { servers: string[]; groups: number[]; modules: string[] }
+export interface UserAccess { servers: string[]; groups: number[]; tags: number[]; modules: string[] }
 export interface UserRow {
   id: number; login: string; role: string; totp_enabled: boolean; recovery_left: number;
   created_at: string; current: boolean;
@@ -254,10 +254,21 @@ export interface ConnectInfo { port: string; fingerprint: string; hosts: string[
 
 export interface TotpSetup { secret: string; uri: string }
 
+/** A tag as a server shows it: the colour is a key of the palette (see tag-colors.ts). */
+export interface TagItem { id: number; name: string; color: string }
+/** A tag of the registry with how many servers carry it and how many users were given access by it. */
+export interface TagRow extends TagItem { servers: number; users: number }
+
+/** A folder of servers (the server calls it a group). parent_id is null for a folder of the top level. */
 export interface Group {
   id: number;
   name: string;
+  parent_id: number | null;
 }
+
+/** What a change of the folders does to the access of one user: the servers they stop and start to see (the first names, and how many in all). */
+export interface AccessChange { user_id: number; login: string; role: string; lose: string[]; gain: string[]; lose_n: number; gain_n: number }
+export interface FolderDeletePlan { ok: boolean; dry_run: boolean; name: string; subfolders: number; servers: number; grants: string[]; impact: AccessChange[] }
 
 export class ApiError extends Error {
   constructor(
@@ -318,14 +329,25 @@ export const api = {
   },
   dashboard: () => request<{ items: ServerCard[] }>('GET', 'api/dashboard'),
   groups: () => request<Group[]>('GET', 'api/groups'),
-  serverSetGroup: (serverId: string, groupId: number | null) => request<void>('PUT', `api/servers/${encodeURIComponent(serverId)}/group`, { group_id: groupId }),
+  /** Every server the user may see (the dashboard shows only what was left on it): id, name, address, os, folder. */
+  serversAll: () => request<{ id: string; name: string; address: string; os: string; group_id: number | null }[]>('GET', 'api/servers'),
+  /** With dryRun nothing is written: the answer only lists whose access the change would touch. */
+  serverSetGroup: (serverId: string, groupId: number | null, dryRun = false) => request<{ ok: boolean; impact: AccessChange[] }>('PUT', `api/servers/${encodeURIComponent(serverId)}/group`, { group_id: groupId, dry_run: dryRun }),
   dashboardRemove: (serverId: string) => request<void>('DELETE', `api/dashboard/items/${encodeURIComponent(serverId)}`),
   dashboardOrder: (serverIds: string[]) => request<void>('PUT', 'api/dashboard/order', { server_ids: serverIds }),
-  groupCreate: (name: string) => request<Group>('POST', 'api/groups', { name }),
+  groupCreate: (name: string, parentId: number | null = null) => request<Group>('POST', 'api/groups', { name, parent_id: parentId }),
   groupRename: (id: number, name: string) => request<void>('PUT', `api/groups/${id}`, { name }),
-  groupDelete: (id: number) => request<void>('DELETE', `api/groups/${id}`),
-  /** Stores the order of the groups: every group id exactly once, in the wanted order. */
-  groupsReorder: (ids: number[]) => request<void>('PUT', 'api/groups/order', { ids }),
+  /** Puts a folder under parentId (null = the top level), before beforeId (null = last). With dryRun it only says whose access it touches. */
+  groupMove: (id: number, parentId: number | null, beforeId: number | null, dryRun = false) =>
+    request<{ ok: boolean; dry_run: boolean; impact: AccessChange[] }>('PUT', `api/groups/${id}/move`, { parent_id: parentId, before_id: beforeId, dry_run: dryRun }),
+  /** What is in the folder moves up one level. With dryRun nothing is deleted. */
+  groupDelete: (id: number, dryRun = false) => request<FolderDeletePlan>('DELETE', `api/groups/${id}${dryRun ? '?dry_run=1' : ''}`),
+  /** The tag registry (administrators). */
+  tags: () => request<{ tags: TagRow[]; colors: string[]; max: number }>('GET', 'api/tags'),
+  tagCreate: (name: string, color: string) => request<TagRow>('POST', 'api/tags', { name, color }),
+  tagUpdate: (id: number, change: { name?: string; color?: string }) => request<{ ok: boolean }>('PUT', `api/tags/${id}`, change),
+  /** Takes the tag off every server and out of every grant; the answer says how many there were. */
+  tagDelete: (id: number) => request<{ ok: boolean; servers: number; users: number }>('DELETE', `api/tags/${id}`),
 
   // the person's own account
   totpSetup: () => request<TotpSetup>('POST', 'api/me/totp/setup'),
@@ -440,8 +462,9 @@ export interface ServerDetail {
   system: SystemInfo | null;
   sample: Sample | null;
   spark: number[];
-  /** The tags of the server (kept by the Linager server). */
+  /** The tags of the server (kept by the Linager server): the names, and the same tags with their ids and colours. */
   tags?: string[];
+  tag_items?: TagItem[];
   note?: string;
   note_updated_at?: number;
   note_updated_by?: string;
@@ -498,7 +521,7 @@ export interface DiskScan { scanned_at: number; mount: string; partial: boolean;
 
 const enc = encodeURIComponent;
 export const serverApi = {
-  setTags: (id: string, tags: string[]) => request<{ tags: string[] }>('PUT', `api/servers/${enc(id)}/tags`, { tags }),
+  setTags: (id: string, tags: string[]) => request<{ tags: string[]; tag_items: TagItem[] }>('PUT', `api/servers/${enc(id)}/tags`, { tags }),
   detail: (id: string) => request<ServerDetail>('GET', `api/servers/${enc(id)}`),
   history: (id: string, period: Period) => request<History>('GET', `api/servers/${enc(id)}/metrics?period=${period}`),
   services: (id: string) => request<{ services: ServiceUnit[] }>('GET', `api/servers/${enc(id)}/services`),

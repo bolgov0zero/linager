@@ -9,7 +9,7 @@
 
   let { onauthlost }: { onauthlost: () => void } = $props();
 
-  const empty = (): UserAccess => ({ servers: [], groups: [], modules: [] });
+  const empty = (): UserAccess => ({ servers: [], groups: [], tags: [], modules: [] });
 
   let users = $state<UserRow[]>([]);
   let loaded = $state(false);
@@ -74,7 +74,7 @@
 
   function startEdit(user: UserRow): void {
     pwFor = null;
-    editing = { user, role: (user.role as Role) ?? 'admin', access: user.access ? { servers: [...user.access.servers], groups: [...user.access.groups], modules: [...user.access.modules] } : empty() };
+    editing = { user, role: (user.role as Role) ?? 'admin', access: user.access ? { servers: [...user.access.servers], groups: [...user.access.groups], tags: [...(user.access.tags ?? [])], modules: [...user.access.modules] } : empty() };
     actionError = '';
   }
   async function saveEdit(): Promise<void> {
@@ -97,7 +97,7 @@
 
   function summary(u: UserRow): string {
     if (!u.access) return '';
-    const n = u.access.servers.length + u.access.groups.length;
+    const n = u.access.servers.length + u.access.groups.length + (u.access.tags?.length ?? 0);
     return u.role === 'operator' ? t('st.users.accessSummaryOp', { n, m: u.access.modules.length }) : t('st.users.accessSummaryAud', { n });
   }
 

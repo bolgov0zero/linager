@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { chainOf, pathOf } from '../folders';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
   import KeyOpenForm from './KeyOpenForm.svelte';
@@ -40,9 +41,9 @@
     try {
       const dir = await loadDirectory();
       const here = dir.servers.find((s) => s.id === serverId);
-      target = { serverId, groupId: here?.group_id ?? null };
+      target = { serverId, groupId: here?.group_id ?? null, groupChain: chainOf(dir.groups, here?.group_id ?? null) };
       serverName = here?.name ?? '';
-      groupName = dir.groups.find((g) => g.id === target.groupId)?.name ?? '';
+      groupName = pathOf(dir.groups, target.groupId);
       known = { servers: new Set(dir.servers.map((s) => s.id)), groups: new Set(dir.groups.map((g) => String(g.id))) };
     } catch {
       // the order is then by what is known

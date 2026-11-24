@@ -1,7 +1,7 @@
 // The open vault of the window. The decrypted entries live here, in memory, and nowhere else: not in the preferences, not
 // on the server. A closed window, a restart or the auto-lock forgets them; the file is the only copy.
 import { get, writable } from 'svelte/store';
-import { api } from '../api';
+import { api, type Group } from '../api';
 import { getPref, setPref } from '../prefs';
 import { saveVaultFile, type Picked } from './vaultFile';
 import { DEFAULT_FILE, VaultError, cleanEntry, newSession, openVault, sealVault, wipe, type Entry, type Session } from './vault';
@@ -134,7 +134,8 @@ export interface DirServer {
 }
 export interface Directory {
   servers: DirServer[];
-  groups: { id: number; name: string }[];
+  /** The folders (with parent_id): a key bound to a folder is bound to everything under it. */
+  groups: Group[];
 }
 
 let cached: { at: number; value: Directory } | null = null;

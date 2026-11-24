@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { subtreesOf } from '../folders';
   import { onMount, untrack } from 'svelte';
   import { t } from '../i18n.svelte';
   import Modal from '../Modal.svelte';
@@ -36,7 +37,7 @@
   function applyBinding(pickedServers: string[], pickedGroups: number[]): void {
     if (!dir) return;
     const d = dir;
-    const groupSet = new Set(pickedGroups);
+    const groupSet = subtreesOf(d.groups, pickedGroups); // a folder covers the folders under it
     const keepG = groups.filter((g) => !d.groups.some((x) => String(x.id) === g.id));
     const keepS = servers.filter((s) => !d.servers.some((x) => x.id === s.id));
     groups = [...pickedGroups.map((id) => ({ id: String(id), name: d.groups.find((g) => g.id === id)?.name ?? String(id) })), ...keepG];

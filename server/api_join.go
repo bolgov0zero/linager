@@ -54,7 +54,7 @@ func (a *Admin) joinViewOf(ctx context.Context, t *store.JoinToken) joinView {
 		v.Used = []store.JoinUse{}
 	}
 	if t.GroupID != nil {
-		v.GroupName, _ = a.DB.GroupName(ctx, *t.GroupID)
+		v.GroupName, _ = a.DB.GroupPath(ctx, *t.GroupID)
 	}
 	return v
 }
