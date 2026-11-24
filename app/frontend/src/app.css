@@ -668,6 +668,7 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 /* the Settings window */
 .set{display:grid;grid-template-columns:200px minmax(0,1fr);height:100vh;background:var(--bg)}
 .set-nav{display:flex;flex-direction:column;gap:2px;padding:14px 10px;border-right:1px solid var(--border);background:var(--bg2);overflow:auto}
+.set-foot{margin-top:auto;padding:12px 8px 2px;text-align:center;border-top:1px solid var(--border);font-size:11.5px;color:var(--text3);user-select:none}
 .set-nav h2{margin:2px 8px 10px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3)}
 .set-nav .sn{display:flex;align-items:center;width:100%;height:30px;padding:0 10px;border:0;border-radius:var(--radius-sm);background:none;color:var(--text2);font-size:13px;text-align:left}
 .set-nav .sn:hover{background:var(--hover);color:var(--text)}.set-nav .sn[aria-current=true]{background:var(--accent-soft);color:var(--text)}
@@ -788,11 +789,11 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .fpick button:disabled{opacity:.45;cursor:not-allowed}.fpick button em{margin-left:auto;font-style:normal;color:var(--text3);font-size:12px}
 
 /* Settings → Folders: the tree of folders and servers (the names carry the ft- prefix: .tg, .dl, .win and others exist already) */
-.ft-sec{max-width:900px}
+.ft-sec{max-width:900px;height:calc(100vh - 40px);min-height:380px} /* the window of the settings has 20px of padding above and below: the tree takes what is left and scrolls inside its block */
 .ft-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ft-bar .field{width:230px}
 .ft-tgl[aria-pressed=true]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 .ft-meta{margin-left:auto;color:var(--text3);font:12px var(--mono)}
-.ft{position:relative;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel-bg);padding:4px;user-select:none;-webkit-user-select:none}
+.ft{position:relative;flex:1;min-height:0;overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel-bg);padding:4px;user-select:none;-webkit-user-select:none}
 .ft-r{position:relative;display:flex;align-items:center;height:34px;border-radius:var(--radius-sm);padding-right:6px;border:1px solid transparent;color:var(--text)}
 .ft-r:hover{background:var(--hover)}.ft-r:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .ft-gr{width:18px;height:34px;flex:none;display:grid;place-items:center;color:var(--text3);opacity:0;cursor:grab}
@@ -822,3 +823,13 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 body.ft-dnd,body.ft-dnd *{cursor:grabbing!important}body.ft-dnd .ft-r.bad,body.ft-dnd .ft-r.bad *{cursor:not-allowed!important}
 .ft-help{display:flex;gap:18px;flex-wrap:wrap;color:var(--text3);font-size:12px}.ft-help>span{display:inline-flex;align-items:center;gap:6px}
 .ft-help kbd{font:500 11px var(--mono);padding:1px 5px;border:1px solid var(--border-h);border-radius:4px;background:var(--bg2);color:var(--text2)}
+
+/* A list sorted by dragging (sortable.ts): the grip shows on hover, the row that is taken is dimmed, a line marks the place */
+.set-list.sortable li{cursor:grab}.set-list.sortable li:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sort-grip{display:grid;place-items:center;width:16px;flex:none;color:var(--text3);opacity:0;margin-left:-4px}
+.sortable li:hover .sort-grip,.sortable li:focus-visible .sort-grip{opacity:1}
+.sort-src{opacity:.38}
+.sort-ghost{position:fixed;z-index:1000;pointer-events:none;margin:0;padding:0;opacity:.96}.sort-ghost li{border-color:var(--accent);background:var(--pop-bg);box-shadow:var(--shadow-pop)}
+.sort-ghost .sort-grip{opacity:1}
+.sort-line{position:fixed;z-index:999;height:2px;border-radius:2px;background:var(--accent);pointer-events:none}.sort-line.same{opacity:.35}
+body.sorting,body.sorting *{cursor:grabbing!important}

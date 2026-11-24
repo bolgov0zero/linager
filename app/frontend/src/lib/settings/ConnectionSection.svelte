@@ -101,7 +101,11 @@
   {#if !loaded}
     <p class="dim">{t('dash.loading')}</p>
   {:else if st}
-    <div class="fl"><span>{t('st.conn.fp')}</span><code class="mono fpbox">{st.fingerprint}</code><small class="dim">{t('st.conn.fp.hint')}</small></div>
+    <section class="panel blk">
+      <h4 class="ph" style="margin:0">{t('st.conn.fp')}</h4>
+      <code class="mono fpbox">{st.fingerprint}</code>
+      <small class="dim">{t('st.conn.fp.hint')}</small>
+    </section>
 
     {#if st.blockers.length > 0}
       <div class="warnbox warn" role="status">
@@ -110,8 +114,16 @@
       </div>
     {/if}
 
-    <label class="fl"><span>{t('st.conn.agent')}</span><span class="field port"><input inputmode="numeric" maxlength="5" disabled={blocked || busy} bind:value={agentPort} oninput={() => (confirming = false)} /></span><small class="dim">{t('st.conn.agent.hint')}</small></label>
-    <label class="fl"><span>{t('st.conn.app')} <span class="badge {st.app_up ? 'b-ok' : 'b-mute'}">{st.app_up ? t('st.conn.app.up') : t('st.conn.app.down')}</span></span><span class="field port"><input inputmode="numeric" maxlength="5" disabled={busy} bind:value={appPort} oninput={() => (confirming = false)} /></span><small class="dim">{t('st.conn.app.hint')}</small></label>
+    <section class="panel blk">
+      <h4 class="ph" style="margin:0">{t('st.conn.agent')}</h4>
+      <span class="field port"><input inputmode="numeric" maxlength="5" aria-label={t('st.conn.agent')} disabled={blocked || busy} bind:value={agentPort} oninput={() => (confirming = false)} /></span>
+      <small class="dim">{t('st.conn.agent.hint')}</small>
+    </section>
+    <section class="panel blk">
+      <h4 class="ph" style="margin:0">{t('st.conn.app')} <span class="badge {st.app_up ? 'b-ok' : 'b-mute'}" style="text-transform:none;letter-spacing:0">{st.app_up ? t('st.conn.app.up') : t('st.conn.app.down')}</span></h4>
+      <span class="field port"><input inputmode="numeric" maxlength="5" aria-label={t('st.conn.app')} disabled={busy} bind:value={appPort} oninput={() => (confirming = false)} /></span>
+      <small class="dim">{t('st.conn.app.hint')}</small>
+    </section>
 
     {#if error}<div class="err" role="alert">{error}</div>{/if}
     {#if dirty}

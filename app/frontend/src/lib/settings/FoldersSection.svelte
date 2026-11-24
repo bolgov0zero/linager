@@ -486,18 +486,21 @@
       const tr = treeEl.getBoundingClientRect();
       const r = rowOf(d.row);
       const depth = (r ? rowDepth(r) : 0) + (d.pos === 'first' ? 1 : 0);
-      line = { top: (d.pos === 'before' || d.pos === 'end' ? rr.top : rr.bottom) - tr.top - 1, left: 4 + 18 + depth * 22 + 4 };
+      // the line lives in the scrolled content of the tree, so the scroll position is added
+      line = { top: (d.pos === 'before' || d.pos === 'end' ? rr.top : rr.bottom) - tr.top + treeEl.scrollTop - 1, left: 4 + 18 + depth * 22 + 4 };
     });
   });
   function scrollLoop(): void {
-    const box = treeEl?.closest<HTMLElement>('.set-body');
+    // the tree scrolls inside its block; near its top or bottom edge a drag scrolls it
+    const box = treeEl;
     const tick_ = (): void => {
       if (!drag) return;
       if (box) {
         const r = box.getBoundingClientRect();
+        const edge = Math.min(54, r.height / 4);
         let dy = 0;
-        if (lastPt.y < r.top + 54) dy = -Math.ceil((r.top + 54 - lastPt.y) / 5);
-        else if (lastPt.y > r.bottom - 54) dy = Math.ceil((lastPt.y - (r.bottom - 54)) / 5);
+        if (lastPt.y < r.top + edge) dy = -Math.ceil((r.top + edge - lastPt.y) / 5);
+        else if (lastPt.y > r.bottom - edge) dy = Math.ceil((lastPt.y - (r.bottom - edge)) / 5);
         if (dy) {
           box.scrollTop += dy;
           update();

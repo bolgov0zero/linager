@@ -1905,15 +1905,13 @@
   "st.recovery.download": "Скачать .txt",
   "st.recovery.saved": "Я сохранил коды",
   "st.snippets.title": "Сниппеты",
-  "st.snippets.hint": "Команды для терминала, общие для всех пользователей. В терминале из списка «Сниппеты» команду можно вставить и выполнить сразу или только вставить.",
+  "st.snippets.hint": "Команды для терминала, общие для всех пользователей. В терминале из списка «Сниппеты» команду можно вставить и выполнить сразу или только вставить. Порядок меняется перетаскиванием.",
   "st.snippets.add": "Добавить сниппет",
   "st.snippets.name": "Название",
   "st.snippets.command": "Команда",
   "st.snippets.save": "Сохранить",
   "st.snippets.edit": "Изменить",
   "st.snippets.delete": "Удалить",
-  "st.snippets.up": "Выше",
-  "st.snippets.down": "Ниже",
   "st.snippets.empty": "Сниппетов пока нет.",
   "st.snippets.saved": "Сниппет сохранён",
   "st.snippets.deleted": "Сниппет удалён",
@@ -2935,5 +2933,6 @@
   "fld.impact.gain": "получает доступ: {names}",
   "fld.impact.more": " и ещё {n}",
   "dash.menu.folder": "В папку…",
-  "dash.menu.folderTitle": "Папка для «{name}»"
+  "dash.menu.folderTitle": "Папка для «{name}»",
+  "st.snippets.drag": "Перетащите строку, чтобы изменить порядок (или Alt+↑/↓)"
 }

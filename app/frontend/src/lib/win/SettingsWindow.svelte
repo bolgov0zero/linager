@@ -45,6 +45,7 @@
     {#each sections as s (s.id)}
       <button class="sn" type="button" aria-current={current === s.id} onclick={() => (section = s.id)}>{t(`st.settings.section.${s.id}`)}</button>
     {/each}
+    <div class="set-foot">w/ ❤️ by bolgov0zero</div>
   </nav>
   <div class="set-body">
     {#if lost}<div class="err" role="alert" style="margin-bottom:12px">{t('st.settings.lost')}</div>{/if}

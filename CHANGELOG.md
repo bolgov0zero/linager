@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- **Fix (application): the Assistant in a window of its own no longer reconnects every 20 seconds** (the picture blinked: the spinner "Connecting to the session: console", then the picture again). The window read the record of the server again every 20 seconds and replaced it as a whole; the connection of the Assistant was restarted by that, though the server was the same. The windows of the Assistant and of the remote desktop now give the connection the id they were opened with. A tab of the Console and the server page were not affected. Test: `win/windows.test.mjs`.
+- New (application): the signature **w/ ❤️ by bolgov0zero** at the bottom of the side list of the Settings and in the window "About" of the macOS application (`NSHumanReadableCopyright` of the bundle, so it shows in the packaged application, not in a plain run of the binary).
+- Change (application): **Settings → Connection is split into blocks**, like the other sections: the fingerprint of the certificate, the agent port and the application port are cards of their own.
+- Change (application): **Settings → Folders: the tree scrolls inside its block** (the toolbar and the hint stay in place, and the drag scrolls the tree near its edges), not the whole right part of the window.
+- Change (application): **Settings → Snippets are sorted by dragging**; the buttons with the arrows are gone (the keyboard: Alt+Up and Alt+Down on a row). The gesture is the same as in the folders (`sortable.ts`: a line shows the place, Escape cancels).
+
 ## 1.1.0
 
 The first stable release of the Linager application: **the web panel is gone, the interface is the desktop application.** This release gathers everything of 0.10.0-beta.1 to beta.19 (see the sections below for the details). Seven database migrations on top of 0.9.1 (`00019` to `00025`: the connection settings, sliding sessions, tags, passkeys dropped, the access journal, the tag registry, the folders), all forward only.

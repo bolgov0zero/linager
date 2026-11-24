@@ -29,6 +29,7 @@ cat > bin/Linager.app/Contents/Info.plist <<PLIST
   <key>CFBundleVersion</key><string>${VERSION}</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSHumanReadableCopyright</key><string>w/ ❤️ by bolgov0zero</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
 </dict></plist>
 PLIST

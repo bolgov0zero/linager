@@ -5,6 +5,7 @@
   import { isUnauthorized } from '../errors';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
+  import { sortable } from '../sortable';
   import { showToast } from '../toast';
 
   let { onauthlost }: { onauthlost: () => void } = $props();
@@ -67,11 +68,12 @@
       busy = false;
     }
   }
-  async function move(index: number, delta: number): Promise<void> {
+  /** The row `from` goes to the place `to` (dragged, or moved with Alt and the arrows). */
+  async function reorder(from: number, to: number): Promise<void> {
     const list = [...snippets];
-    const j = index + delta;
-    if (j < 0 || j >= list.length) return;
-    [list[index], list[j]] = [list[j], list[index]];
+    const [row] = list.splice(from, 1);
+    if (!row) return;
+    list.splice(to, 0, row);
     snippets = list.map((s, i) => ({ ...s, position: i }));
     try {
       await api.snippetsOrder(list.map((s) => s.id));
@@ -96,12 +98,12 @@
   {#if !loaded}<p class="dim">{t('dash.loading')}</p>
   {:else if snippets.length === 0 && editId === null}<p class="dim">{t('st.snippets.empty')}</p>
   {:else}
-    <ul class="set-list">
-      {#each snippets as sn, i (sn.id)}
-        <li>
+    <ul class="set-list sortable" use:sortable={{ onreorder: (from, to) => void reorder(from, to) }}>
+      {#each snippets as sn (sn.id)}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <li tabindex="0" title={t('st.snippets.drag')}>
+          <span class="sort-grip" aria-hidden="true"><Icon name="grip-vertical" size={14} /></span>
           <div class="grow snip"><b>{sn.name}</b><code class="mono dim">{sn.command}</code></div>
-          <button class="btn icon sm" type="button" aria-label={t('st.snippets.up')} title={t('st.snippets.up')} disabled={i === 0} onclick={() => void move(i, -1)}><Icon name="arrow-up" size={14} /></button>
-          <button class="btn icon sm" type="button" aria-label={t('st.snippets.down')} title={t('st.snippets.down')} disabled={i === snippets.length - 1} onclick={() => void move(i, 1)}><Icon name="arrow-down" size={14} /></button>
           <button class="btn sm" type="button" onclick={() => edit(sn)}>{t('st.snippets.edit')}</button>
           <button class="btn sm danger" type="button" disabled={busy} onclick={() => void remove(sn)}>{t('st.snippets.delete')}</button>
         </li>

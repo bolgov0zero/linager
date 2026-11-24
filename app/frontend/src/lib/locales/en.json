@@ -1904,15 +1904,13 @@
   "st.recovery.download": "Download .txt",
   "st.recovery.saved": "I have saved the codes",
   "st.snippets.title": "Snippets",
-  "st.snippets.hint": "Terminal commands shared by all users. In the terminal the Snippets list can paste and run a command at once or only paste it.",
+  "st.snippets.hint": "Terminal commands shared by all users. In the terminal the Snippets list can paste and run a command at once or only paste it. The order is changed by dragging.",
   "st.snippets.add": "Add a snippet",
   "st.snippets.name": "Name",
   "st.snippets.command": "Command",
   "st.snippets.save": "Save",
   "st.snippets.edit": "Edit",
   "st.snippets.delete": "Delete",
-  "st.snippets.up": "Up",
-  "st.snippets.down": "Down",
   "st.snippets.empty": "No snippets yet.",
   "st.snippets.saved": "Snippet saved",
   "st.snippets.deleted": "Snippet deleted",
@@ -2934,5 +2932,6 @@
   "fld.impact.gain": "gains access: {names}",
   "fld.impact.more": " and {n} more",
   "dash.menu.folder": "Into a folder…",
-  "dash.menu.folderTitle": "Folder for \"{name}\""
+  "dash.menu.folderTitle": "Folder for \"{name}\"",
+  "st.snippets.drag": "Drag the row to change the order (or Alt+Up/Down)"
 }

@@ -7,6 +7,8 @@
   // The Assistant in a window of its own.
   let { id, title, nativeWindows = false }: { id: string; title: string; nativeWindows?: boolean } = $props();
   let s = $state<ServerDetail | null>(null);
+  // The record is read again every 20 seconds and replaced as a whole. The pane gets the id of the window, not `s.id`: a value
+  // read from `s` would restart the connection (an effect that reads it runs again when `s` is replaced, equal value or not).
 
   async function load(): Promise<void> {
     s = await serverApi.detail(id).catch(() => s);
@@ -20,5 +22,5 @@
 </script>
 
 <div class="win-full win-pane">
-  {#if s}<AssistantPane serverId={s.id} name={s.name} online={s.online} {nativeWindows} />{:else}<p class="dim pad">{t('dash.loading')}</p>{/if}
+  {#if s}<AssistantPane serverId={id} name={s.name} online={s.online} {nativeWindows} />{:else}<p class="dim pad">{t('dash.loading')}</p>{/if}
 </div>
