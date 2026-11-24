@@ -35,6 +35,15 @@ var trayBlack []byte
 //go:embed build/tray/item-terminal.png
 var itemTerminal []byte
 
+//go:embed build/tray/item16-terminal.png
+var item16Terminal []byte
+
+//go:embed build/tray/item16-rdp.png
+var item16RDP []byte
+
+//go:embed build/tray/item16-asst.png
+var item16Asst []byte
+
 //go:embed build/tray/item-rdp.png
 var itemRDP []byte
 
@@ -179,14 +188,22 @@ func (c *trayCtl) update() {
 	c.render(&st, c.store.List(profile))
 }
 
+// modeIcon is the picture of a connection in the menu: on macOS 32 pixels at 144 dpi (16 points, sharp), elsewhere 16 pixels.
 func modeIcon(mode string) []byte {
+	big := runtime.GOOS == "darwin"
+	pick := func(b, s []byte) []byte {
+		if big {
+			return b
+		}
+		return s
+	}
 	switch mode {
 	case "terminal":
-		return itemTerminal
+		return pick(itemTerminal, item16Terminal)
 	case "rdp":
-		return itemRDP
+		return pick(itemRDP, item16RDP)
 	case "asst":
-		return itemAsst
+		return pick(itemAsst, item16Asst)
 	}
 	return nil
 }

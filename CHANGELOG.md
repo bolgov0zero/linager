@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0-beta.10
+
+- Fix (application): the icons of the connections in the tray menu were too big (36 pixels shown as 36 points); now they are 16 points (32 pixels at 144 dpi on macOS, 16 pixels on Windows and Linux). The server and the agent are unchanged.
+
 ## 0.10.0-beta.9
 
 The result of the check of the application against the web panel (docs/design/app-parity.md): the missing functions are done. The application gets a tray. The Linager server gets the tags of a server (a migration, `GET`/`PUT /api/servers/{id}/tags`); the agent is unchanged.
