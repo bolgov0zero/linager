@@ -241,7 +241,11 @@ func (p *Probe) Latest(ctx context.Context) string {
 	if err != nil {
 		return ""
 	}
-	latest, ok := update.Latest(rels, cfg.Update.Channel)
+	channel := cfg.Update.Channel
+	if pool, err := p.db(ctx, cfg.Database.DSN); err == nil {
+		channel = updater.StoredChannel(ctx, pool, channel)
+	}
+	latest, ok := update.Latest(rels, channel)
 	if ok && release.Newer(latest.Tag, p.Version) {
 		return latest.Tag
 	}

@@ -102,7 +102,7 @@ func clipErr(err error) string {
 func resolveHost(ctx context.Context, host string) ([]netip.Addr, error) {
 	found, err := lookupFamily(ctx, "ip", host)
 	if len(found) == 0 {
-		var first error = err
+		first := err
 		for _, network := range []string{"ip4", "ip6"} {
 			more, e := lookupFamily(ctx, network, host)
 			found = append(found, more...)

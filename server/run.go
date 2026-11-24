@@ -106,6 +106,9 @@ func Run(ctx context.Context, cfg *config.Server, log *slog.Logger) error {
 	if err := conn.Start(errc, admin.Handler()); err != nil {
 		return err
 	}
+	if cfg.Admin.Listen != "" {
+		serveLegacyHealth(ctx, cfg.Admin.Listen, log)
+	}
 	go func() {
 		t := time.NewTicker(10 * time.Minute)
 		defer t.Stop()

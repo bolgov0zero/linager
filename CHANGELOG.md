@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0-beta.18
+
+- **Fix: the update from 0.10.0-beta.16 (and older) to beta.17 rolled back.** The updater of the installed version is the OLD binary: after it starts the new one it asks the old admin port (`http://127.0.0.1:<admin.listen>/`) whether the server is healthy, and the web panel that answered is gone, so the update was always taken back (the database and the binary were restored, nothing was lost). Now a server whose `server.yaml` still has `admin.listen` answers that one question on the loopback for five minutes after the start. Update straight to beta.18; beta.17 cannot be installed over an older version.
+- Console and `linager update` follow the update channel chosen in the application (Settings → Server → Updates), not only `update.channel` of `server.yaml`: a server on the beta channel is offered beta versions there too. `--channel` still wins.
+- Development: the linter findings of beta.17 are fixed.
+
 ## 0.10.0-beta.17
 
 - **Removed: the web panel.** The interface of Linager is the desktop application. The server no longer listens on the HTTP admin port, no longer serves the embedded frontend (the binary is about 9 MB smaller) and no longer knows the reverse proxy, the trusted proxies, the base path and the admin access restriction; the `web/` directory is gone (only the logo files stay, the README refers to them). Plan: [Server access](docs/en/access.md) in the application is the restriction of the only port that is left.

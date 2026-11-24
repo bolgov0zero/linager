@@ -67,6 +67,9 @@ func TestAnOldFileWithTheAdminPanelKeysStillLoads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an old file must load: %v", err)
 	}
+	if c.Admin.Listen != "0.0.0.0:8080" {
+		t.Fatalf("the old listen is kept for the stub: %q", c.Admin.Listen)
+	}
 	if c.Admin.CookieSecure != "always" || c.App.Listen != "0.0.0.0:9444" || c.Agents.Listen != "0.0.0.0:9443" {
 		t.Fatalf("what is still used is kept: %+v", c)
 	}

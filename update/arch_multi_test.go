@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -200,7 +201,8 @@ func TestDownloadFollowsTheNamesOfTheManifest(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if b, err := os.ReadFile(c.Dir + "/" + name); err != nil || string(b) != "WINDOWS-exe" {
+		b, err := os.ReadFile(filepath.Join(c.Dir, name)) //nolint:gosec // a test reads a file of its own cache
+		if err != nil || string(b) != "WINDOWS-exe" {
 			t.Fatalf("%s is not in the cache: %q %v", name, b, err)
 		}
 		if _, err := LoadCached(r.key, dir, "v0.2.0"); err != nil {

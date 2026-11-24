@@ -52,7 +52,7 @@ func TestCompileAccessDedupesAndValidates(t *testing.T) {
 	}
 	var many []AccessRule
 	for i := 0; i <= maxAccessRules; i++ {
-		many = append(many, AccessRule{CIDR: netip.AddrFrom4([4]byte{10, byte(i >> 8), byte(i), 1}).String()})
+		many = append(many, AccessRule{CIDR: netip.AddrFrom4([4]byte{10, byte((i >> 8) & 0xff), byte(i & 0xff), 1}).String()})
 	}
 	if _, _, err := compileAppAccess(AppAccessConfig{Mode: AccessWhite, White: many}, nil); err == nil {
 		t.Error("too many entries must be refused")

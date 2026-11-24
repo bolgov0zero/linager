@@ -20,8 +20,11 @@ type Server struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"database"`
 	// Admin keeps the settings of sign-in. The admin panel (and its listen, base_path and trusted_proxies keys) is gone: an old
-	// file that still has them is read as it is, they are ignored.
+	// file that still has them is read as it is, base_path and trusted_proxies are ignored and listen only feeds the stub of
+	// server/legacyhealth.go.
 	Admin struct {
+		// Listen is the old address of the admin panel: it is only used to answer the health check of an old updater once.
+		Listen       string `yaml:"listen"`
 		CookieSecure string `yaml:"cookie_secure"` // auto|always|never
 		RequireTOTP  bool   `yaml:"require_totp"`  // force the administrator to enable 2FA before using the interface
 		LoginRate    int    `yaml:"login_rate"`    // sign-in attempts per minute per address (default 10)

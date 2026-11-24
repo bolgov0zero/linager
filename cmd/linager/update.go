@@ -39,7 +39,7 @@ func newUpdateCmd() *cobra.Command {
 				return fmt.Errorf("%w (use `linager agent update` on a client host)", err)
 			}
 			if channel == "" {
-				channel = cfg.Update.Channel
+				channel = updater.ActiveChannel(ctx, cfg)
 			}
 			out := c.OutOrStdout()
 			if applyRequest {
@@ -102,7 +102,7 @@ func newUpdateCmd() *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVar(&cfgPath, "config", defaultServerConfig, "path to server.yaml")
-	f.StringVar(&channel, "channel", "", "stable or beta (default from server.yaml)")
+	f.StringVar(&channel, "channel", "", "stable or beta (default: the channel chosen in the application, else server.yaml)")
 	f.StringVar(&ver, "version", "", "install this exact version")
 	f.BoolVar(&check, "check", false, "only check, do not install")
 	f.BoolVar(&yes, "yes", false, "do not ask for confirmation")

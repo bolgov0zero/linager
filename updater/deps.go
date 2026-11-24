@@ -2,9 +2,13 @@ package updater
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/bolgov0zero/linager/backup"
 	"github.com/bolgov0zero/linager/internal/config"
@@ -63,4 +67,33 @@ func DefaultDeps(cfgPath string) (Deps, *config.Server, error) {
 	}
 	_ = os.MkdirAll(cfg.DataDir, 0o750)
 	return d, cfg, nil
+}
+
+// StoredChannel returns the update channel chosen in the application (the setting updates.channel); it is what the server
+// itself follows. An unset or unreadable setting gives fallback (the channel of server.yaml).
+func StoredChannel(ctx context.Context, pool *pgxpool.Pool, fallback string) string {
+	if pool == nil {
+		return fallback
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	var raw []byte
+	if err := pool.QueryRow(ctx, `SELECT value FROM settings WHERE key='updates.channel'`).Scan(&raw); err != nil {
+		return fallback
+	}
+	var v string
+	if json.Unmarshal(raw, &v) == nil && (v == update.Beta || v == update.Stable) {
+		return v
+	}
+	return fallback
+}
+
+// ActiveChannel is the channel the console and `linager update` use: the one chosen in the application, else server.yaml.
+func ActiveChannel(ctx context.Context, cfg *config.Server) string {
+	db, err := store.Open(ctx, cfg.Database.DSN)
+	if err != nil {
+		return cfg.Update.Channel
+	}
+	defer db.Close()
+	return StoredChannel(ctx, db.Pool, cfg.Update.Channel)
 }
