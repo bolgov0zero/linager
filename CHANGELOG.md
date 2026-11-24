@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0
+
+The first stable release of the Linager application: **the web panel is gone, the interface is the desktop application.** This release gathers everything of 0.10.0-beta.1 to beta.19 (see the sections below for the details). Seven database migrations on top of 0.9.1 (`00019` to `00025`: the connection settings, sliding sessions, tags, passkeys dropped, the access journal, the tag registry, the folders), all forward only.
+
+**Read before updating from 0.9.1 or older.**
+- **The web panel does not exist any more.** The server no longer listens on the HTTP admin port. Install the application from the files of this release (`linager-desktop_macos_arm64.zip`, `linager-desktop_linux_x64.tar.gz`, `linager-desktop_windows_x64.msi`) and connect it to the **application port** of the server (the address, the port and the fingerprint of the certificate: `sudo linager server app-port`). Sign-in with a passkey is gone with the web panel; the password (and 2FA when it is on) is the way in.
+- The update itself is safe: a server of 0.9.1 can be updated by `linager update`, the console or the web panel; the old updater is answered on the loopback for five minutes after the start, so it does not take the update back (the fix of 0.10.0-beta.18).
+- The restriction of the admin panel by addresses is carried **once** to the application port ("Settings → Server access"); a port that was closed stays closed. The trusted proxies and "only through a proxy" are dropped: nothing stands in front of the port any more.
+- **Update the agents too.** An agent older than 0.10.0-beta.1 keeps working but does not follow a change of the agent port made in Settings → Connection (the new message `server.move`); the agents update from Settings → Updates.
+
+What is new since 0.9.1, in short:
+- **The Linager application** (Wails v3; macOS on Apple Silicon, Linux x64 and Windows x64, it updates itself by its own button): the dashboard in three views, the server page with all the tabs, the Console, the Assistant and RDP, Keys, **Add server** (confirmations, install by a link, install over SSH), the edit mode of the dashboard, **Settings in a window of their own** (profile, snippets, users and roles, server access, connection, updates, audit log), a **tray icon** with the connections of your choice.
+- **Roles** in the application: an operator and an auditor see only what they can use.
+- **Access by tags and nested folders.** Tags are a registry (rename, 16 colours, delete) and give access next to a single server and a folder. The server groups became **folders that nest to 8 levels**; a folder given to a user covers its whole subtree, and a move or a delete that changes who sees what is previewed by the server, listed in a dialog and written to the audit log. The folder tree is dragged in Settings → Folders and shown in the Console, in the dashboard filter, in the access dialog and in the key binding.
+- Server: the application port (TLS 1.3, the pinned certificate), `linager server app-port`, the white and black lists of addresses with DNS names (DDNS), the journal of connections, a GitHub token for the checks of updates, clear names of the release files.
+- Removed: the web panel and everything that served it (the HTTP port, the reverse proxy support, passkeys, the `.deb` packages).
+
 ## 0.10.0-beta.19
 
 - **New: access by tags.** An operator or an auditor can be given a **tag** (Settings → Users → Access → Tags) next to single servers and groups: they see every server that has the tag, also one that gets it later. What is given adds up (a server is visible when any of it covers it). Taking the tag off a server takes the access to it away, and only an administrator changes tags; the audit entry `server.tags` now says how many users the change reached (`access_users`).
