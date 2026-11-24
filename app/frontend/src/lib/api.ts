@@ -184,6 +184,74 @@ export interface UpdatesInfo {
   min_agent: string; agents_target: string; latest_known: string | null;
 }
 
+export interface Enrollment {
+  id: string;
+  hostname: string;
+  address: string;
+  remote_addr: string;
+  os: string;
+  agent_version: string;
+  key_fingerprint: string;
+  verify_code: string;
+  expires_at: string;
+  /** The label of the install link the agent came by; absent for an agent installed by hand. */
+  via?: string;
+  /** True when the administrator must type the key shown on the client; false for a request that came by a link. */
+  needs_key: boolean;
+}
+
+/** An install link ("install by a link" of the Add server dialog). The token itself is never listed. */
+export interface JoinLink {
+  id: number;
+  label: string;
+  created_by: string;
+  /** Unix seconds. */
+  created_at: number;
+  expires_at: number;
+  /** 0 means unlimited. */
+  max_uses: number;
+  uses: number;
+  auto_approve: boolean;
+  networks: string[];
+  group_id: number | null;
+  group_name?: string;
+  used: { host: string; at: number }[];
+}
+export interface JoinLinkInput { ttl_seconds: number; max_uses: number; auto_approve: boolean; networks: string[]; group_id: number | null }
+export interface JoinCommand { kind: 'external' | 'local'; platform?: 'linux' | 'windows'; host: string; command: string }
+/** The answer of the creation: the token and the commands exist only in this answer. */
+export interface JoinLinkCreated extends JoinLink { token: string; commands: JoinCommand[] }
+
+// ---- install over SSH ----
+export type SSHPhase = 'checking' | 'ready' | 'check_failed' | 'installing' | 'done' | 'install_failed' | 'closed';
+export interface SSHStep {
+  id: string; state: 'pending' | 'running' | 'done' | 'warn' | 'failed';
+  /** Unix milliseconds on the server clock. */
+  started_ms?: number; finished_ms?: number;
+  detail?: string; code?: string; bytes?: number; size?: number;
+}
+export interface SSHGate { kind: 'hostkey' | 'sudo' | 'address' | 'reinstall'; data?: Record<string, unknown> }
+export interface SSHState {
+  id: string; phase: SSHPhase; host: string; port: number; login: string;
+  steps: SSHStep[]; gate?: SSHGate; error?: string;
+  /** host:port the new host will use to reach this server. */
+  server?: string;
+  mode?: 'root' | 'nopass' | 'password';
+  log: string[]; log_total: number;
+  new_id?: string; new_name?: string;
+  /** The server clock when the answer was made. */
+  now_ms: number;
+}
+export interface SSHStart {
+  host: string; port: number; login: string; auth: 'password' | 'key';
+  password: string; key: string; passphrase: string; group_id: number | null;
+}
+export interface SSHAnswer { gate: string; accept: boolean; password?: string; address?: string }
+
+export interface AvailableServer { id: string; name: string; address: string; os: string }
+/** What a client needs to connect: agent port, agent-port certificate fingerprint, names/IPs of that certificate. */
+export interface ConnectInfo { port: string; fingerprint: string; hosts: string[] }
+
 export interface TotpSetup { secret: string; uri: string }
 export interface PasskeyRow { id: string; name: string; created_at: string; last_used_at: string | null }
 
@@ -251,6 +319,9 @@ export const api = {
   },
   dashboard: () => request<{ items: ServerCard[] }>('GET', 'api/dashboard'),
   groups: () => request<Group[]>('GET', 'api/groups'),
+  serverSetGroup: (serverId: string, groupId: number | null) => request<void>('PUT', `api/servers/${encodeURIComponent(serverId)}/group`, { group_id: groupId }),
+  dashboardRemove: (serverId: string) => request<void>('DELETE', `api/dashboard/items/${encodeURIComponent(serverId)}`),
+  dashboardOrder: (serverIds: string[]) => request<void>('PUT', 'api/dashboard/order', { server_ids: serverIds }),
   groupCreate: (name: string) => request<Group>('POST', 'api/groups', { name }),
   groupRename: (id: number, name: string) => request<void>('PUT', `api/groups/${id}`, { name }),
   groupDelete: (id: number) => request<void>('DELETE', `api/groups/${id}`),
@@ -301,6 +372,21 @@ export const api = {
   updatesServer: (version: string) => request<{ ok: boolean }>('POST', 'api/updates/server', { version, confirm: true }),
   updatesAgents: (serverIds: string[] | 'all', mode: RolloutMode, stopOnError: boolean) =>
     request<UpdatesInfo>('POST', 'api/updates/agents', serverIds === 'all' ? { all: true, mode, stop_on_error: stopOnError } : { server_ids: serverIds, mode, stop_on_error: stopOnError }),
+
+  enrollments: () => request<Enrollment[]>('GET', 'api/enrollments'),
+  approveEnrollment: (id: string, key: string) => request<void>('POST', `api/enrollments/${encodeURIComponent(id)}/approve`, { key }),
+  rejectEnrollment: (id: string) => request<void>('POST', `api/enrollments/${encodeURIComponent(id)}/reject`),
+  joinLinks: () => request<JoinLink[]>('GET', 'api/join-tokens'),
+  joinLinkCreate: (input: JoinLinkInput) => request<JoinLinkCreated>('POST', 'api/join-tokens', input),
+  joinLinkRevoke: (id: number) => request<void>('DELETE', `api/join-tokens/${id}`),
+  sshStart: (input: SSHStart) => request<{ id: string }>('POST', 'api/ssh-install', input),
+  sshState: (id: string) => request<SSHState>('GET', `api/ssh-install/${encodeURIComponent(id)}`),
+  sshAnswer: (id: string, answer: SSHAnswer) => request<SSHState>('POST', `api/ssh-install/${encodeURIComponent(id)}/answer`, answer),
+  sshInstall: (id: string) => request<SSHState>('POST', `api/ssh-install/${encodeURIComponent(id)}/install`, {}),
+  sshClose: (id: string) => request<void>('DELETE', `api/ssh-install/${encodeURIComponent(id)}`),
+  connectInfo: () => request<ConnectInfo>('GET', 'api/connect'),
+  availableServers: () => request<AvailableServer[]>('GET', 'api/dashboard/available'),
+  dashboardAdd: (serverId: string) => request<void>('POST', 'api/dashboard/items', { server_id: serverId }),
 
   snippetsList: () => request<{ snippets: Snippet[] }>('GET', 'api/snippets'),
   snippetCreate: (name: string, command: string) => request<Snippet>('POST', 'api/snippets', { name, command }),

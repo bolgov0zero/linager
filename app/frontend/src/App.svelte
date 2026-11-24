@@ -107,7 +107,7 @@
   <EditorWindow id={win.id} path={win.arg} />
 {:else if stage === 'main' && st && session}
   <Shell server={st.profile?.name ?? ''} onlogout={logout} flush={page.page === 'server'} nativeWindows={st.native}>
-    {#if page.page === 'server'}<ServerPage id={page.id} tab={page.tab} nativeWindows={st.native} />{:else if nav.section !== 'console'}<Dashboard nativeWindows={st.native} />{/if}
+    {#if page.page === 'server'}<ServerPage id={page.id} tab={page.tab} nativeWindows={st.native} />{:else if nav.section !== 'console'}<Dashboard nativeWindows={st.native} host={st.profile?.address.replace(/:\d+$/, '').replace(/^\[(.*)\]$/, '$1') ?? ''} />{/if}
     {#if nav.section === 'console' || con.seen}<div class="con-host" hidden={nav.section !== 'console' || page.page === 'server'}><Console nativeWindows={st.native} /></div>{/if}
   </Shell>
 {/if}

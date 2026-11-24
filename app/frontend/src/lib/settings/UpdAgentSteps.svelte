@@ -41,7 +41,7 @@
   {#each steps as step (step.id)}
     {@const text = note(step)}
     {@const time = elapsed(step)}
-    <li class="{step.state}">
+    <li class="s-{step.state}">
       <span class="ico" aria-hidden="true">{#if step.state === 'done'}<Icon name="check" size={12} />{:else if step.state === 'running'}<span class="spin"><i></i><i></i></span>{:else if step.state === 'failed'}<Icon name="x" size={12} />{:else}<Icon name="minus" size={12} />{/if}</span>
       <span>{t(`st.upd.agstep.${step.id}`)}</span>
       {#if time}<span class="dim mono">{time}</span>{/if}

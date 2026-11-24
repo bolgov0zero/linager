@@ -115,12 +115,14 @@ func main() {
 	})
 	wins.app, wins.base = app, srv.URL()
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:      "main",
-		Title:     "Linager",
-		Width:     1320,
-		Height:    840,
-		MinWidth:  900,
-		MinHeight: 560,
+		Name:  "main",
+		Title: "Linager",
+		// the size the person works in is also the smallest: the interface (the top bar, the dashboard, the server page)
+		// is laid out for it
+		Width:     1340,
+		Height:    851,
+		MinWidth:  1340,
+		MinHeight: 851,
 		URL:       srv.URL(),
 	})
 	if err := app.Run(); err != nil {

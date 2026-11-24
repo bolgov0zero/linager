@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-beta.7
+
+- New (application): **Add server**: the button "Add server" of the dashboard (with the number of agents that wait) opens a dialog with three tabs. **Confirmations**: the agents that ask to join (the code and the key to type, or a request that came by a link), the connected servers that are not on the dashboard yet, and the data to connect a client by hand (the address, the port and the fingerprint). **Install by a link**: a one-time link with a lifetime, the number of servers, a group, allowed networks and automatic approval, the commands for Linux and Windows (the local and the external one) and the text of the script, the list of links with their use and revoking. **Install over SSH**: the form (address, port, login, a password or a key), the check by stages, the questions to the person (the host key, the sudo password, the address the host reaches this server by, a reinstall), the install with its output and the open page of the new server. Passwords and keys stay in the memory of the dialog and of the server and are wiped at the end.
+- New (application): **the edit mode of the dashboard**: the button "Edit" of the dashboard (becomes "Done") in all three layouts. In the mode every card has a bar: move before or after the neighbour (among the cards shown), the group of the server, take off the dashboard (five seconds to undo; the server comes back through "Add server → Confirmations") and delete the server (asks first); cards and the rows of the list can also be dragged. The order is saved by the server and is the same in the web panel. Clicking a card does not open the page while editing.
+- Change (application): the window opens in, and cannot be made smaller than, the size of 1340 by 851 points: the interface is laid out for it.
+- Not checked: a full install over SSH (there is no SSH host to try it on); only the form, the block of loopback addresses, the stages and the explanation of a failed check were tried.
+
 ## 0.10.0-beta.6
 
 - New (application): the server page: the items RDP and Assistant of the left navigation have the button "In a separate window", like the terminal (when the tab is on the screen, the page goes to Overview, since a session can be open in one place only).

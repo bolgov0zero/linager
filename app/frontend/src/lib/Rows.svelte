@@ -2,11 +2,13 @@
   import Icon from './Icon.svelte';
   import { t } from './i18n.svelte';
   import { getPref, setPref } from './prefs';
+  import EditBar from './EditBar.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
+  import type { RowEdit } from './dash-edit';
   import { assistantOffered, fmtAgo, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, tagsOf } from './status';
 
-  let { cards, now, onopen }: { cards: ServerCard[]; now: number; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
+  let { cards, now, edit = null, onopen }: { cards: ServerCard[]; now: number; edit?: RowEdit | null; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
   // the badges that have a short form for the narrow cell of the list
   const SHORT = new Set(['reboot', 'updates', 'images', 'failed']);
   const units = $derived({ d: t('unit.d'), h: t('unit.h'), min: t('unit.min') });
@@ -47,7 +49,7 @@
   }
   const sorted = $derived.by(() => {
     const k = sort.key;
-    if (!k) return cards;
+    if (!k || edit) return cards;
     return cards.slice().sort((a, b) => {
       const x = val(a, k), y = val(b, k);
       const r = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true });
@@ -68,14 +70,16 @@
         <button type="button" onclick={() => setSort(c.k)}>{c.label()}{#if sort.key === c.k}<Icon name={sort.dir === 1 ? 'arrow-up' : 'arrow-down'} size={12} />{/if}</button>
       </th>
     {/each}
-    <th></th>
+    <th></th>{#if edit}<th></th>{/if}
   </tr></thead>
   <tbody>
-    {#each sorted as c (c.id)}
+    {#each sorted as c, i (c.id)}
       {@const lv = levelOf(c)}
       {@const s = c.sample}
       <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-      <tr class="st-{lv}" onclick={(e) => !(e.target as Element).closest('button') && openServer(c.id)}>
+      <tr class="st-{lv}" class:over={edit && edit.overId() === c.id && edit.dragId() !== c.id} class:dragging={edit && edit.dragId() === c.id} draggable={!!edit}
+        ondragstart={(e) => edit?.dragStart(e, c.id)} ondragover={(e) => edit?.dragOver(e, c.id)} ondrop={(e) => edit?.drop(e, c.id)} ondragend={() => edit?.dragEnd()}
+        onclick={(e) => !edit && !(e.target as Element).closest('button') && openServer(c.id)}>
         <td><span class="dot {lv}"></span><b>{c.name}</b> <span class="os" class:os-windows={isWindows(c.os)}>{isWindows(c.os) ? 'WIN' : 'LIN'}</span></td>
         <td class="mono">{c.address}</td>
         <td class="nw" title={c.os}>{shortOs(c.os)}</td>
@@ -93,6 +97,7 @@
           {#if rdpOffered(c)}<button class="btn icon sm" type="button" title={t('card.rdp')} disabled={!c.online} onclick={() => onopen(c, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
           {#if assistantOffered(c.os, c.sample)}<button class="btn icon sm" type="button" title={t('card.asst')} disabled={!c.online} onclick={() => onopen(c, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
         </span></td>
+        {#if edit}<td class="editcell"><EditBar card={c} index={i} count={sorted.length} groups={edit.groups} onmove={(d) => edit.move(c.id, d)} ongroup={(v) => edit.group(c.id, v)} onremove={() => edit.remove(c.id)} ondelete={() => edit.del(c.id)} /></td>{/if}
       </tr>
     {/each}
   </tbody>

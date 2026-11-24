@@ -132,7 +132,7 @@
         {#each SERVER_STEPS as id (id)}
           {@const st = shownState(id)}
           {@const dur = took(id)}
-          <li class={st}>
+          <li class="s-{st}">
             <span class="ico" aria-hidden="true">{#if st === 'done'}<Icon name="check" size={12} />{:else if st === 'running'}<span class="spin"><i></i><i></i></span>{:else if st === 'unknown'}<Icon name="ellipsis" size={12} />{:else if st === 'failed'}<Icon name="x" size={12} />{:else}<Icon name="minus" size={12} />{/if}</span>
             <span>{t(`st.upd.srvstep.${id}`)}</span>
             {#if dur}<span class="dim mono">{dur}</span>{/if}

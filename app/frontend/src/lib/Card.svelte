@@ -5,7 +5,7 @@
   import type { ServerCard } from './api';
   import { assistantOffered, fmtAgo, fmtRate, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, sparkPath, tagsOf } from './status';
 
-  let { card, now, onopen }: { card: ServerCard; now: number; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
+  let { card, now, editing = false, onopen }: { card: ServerCard; now: number; editing?: boolean; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
 
   const level = $derived(levelOf(card));
   const s = $derived(card.sample);
@@ -23,7 +23,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-<article class="card st-{level}" onclick={(e) => !(e.target as Element).closest('button') && openServer(card.id)}>
+<article class="card st-{level}" onclick={(e) => !editing && !(e.target as Element).closest('button') && openServer(card.id)}>
   <header class="c-head">
     <span class="dot {level}"></span>
     <h3>{card.name}</h3>
