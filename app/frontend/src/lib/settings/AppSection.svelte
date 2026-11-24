@@ -4,6 +4,7 @@
   import CustomSelect from '../CustomSelect.svelte';
   import { autoCheck, checkUpdate, installUpdate, setAutoCheck, setChannel, startAutoCheck, upd, updateBusy } from '../update.svelte';
   import { onMount } from 'svelte';
+  import { native } from '../native';
 
   let auto = $state(autoCheck());
   const info = $derived(upd.info);
@@ -18,7 +19,20 @@
   );
   const reason = $derived(info?.reason === 'headless' ? t('set.upd.headless') : info?.reason === 'dev' ? t('set.upd.dev') : '');
   // this window has its own page: it reads what is known and asks again
+  let login = $state<{ supported: boolean; enabled: boolean } | null>(null);
+  let loginBusy = $state(false);
+  async function setLogin(on: boolean): Promise<void> {
+    loginBusy = true;
+    try {
+      login = await native.autostartSet(on);
+    } catch {
+      login = login ? { ...login } : login; // the box goes back to what it was
+    } finally {
+      loginBusy = false;
+    }
+  }
   onMount(() => {
+    void native.autostartGet().then((r) => (login = r)).catch(() => undefined);
     const stop = startAutoCheck();
     return stop;
   });
@@ -56,3 +70,11 @@
     <p class="dim">{t('set.upd.hint')}</p>
   {/if}
 </div>
+
+{#if login?.supported}
+  <div class="set-sec">
+    <h3>{t('set.tray.title')}</h3>
+    <label class="ck"><input type="checkbox" disabled={loginBusy} checked={login.enabled} onchange={(e) => void setLogin(e.currentTarget.checked)} />{t('set.tray.login')}</label>
+    <p class="dim">{t('set.tray.hint')}</p>
+  </div>
+{/if}

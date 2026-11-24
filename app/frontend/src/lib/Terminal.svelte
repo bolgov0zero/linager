@@ -94,17 +94,20 @@
     }
     const sn = snippets.find((x) => String(x.id) === v);
     if (!sn || !current) return;
-    current.send(sn.command + '\r');
+    current.send(sn.command + (pasteOnly ? '' : '\r'));
     current.focus();
     void serverApi2.snippetRan(sn.id, id).catch(() => undefined);
   }
   const MANAGE = '__manage';
+  /** A snippet is only typed into the terminal, without the Enter that runs it. */
+  let pasteOnly = $state(false);
   const userOptions = $derived([{ v: '', t: t('term.user.default') }, ...users.map((u) => ({ v: u, t: u }))]);
 </script>
 
 <div class="term-win" class:embedded>
   <div class="term-tools">
     <CustomSelect small value={user} options={userOptions} icon="user" onchange={(v) => (user = v)} />
+    <button class="chip" type="button" aria-pressed={pasteOnly} title={t(pasteOnly ? 'term.snippetPaste' : 'term.snippetRun')} onclick={() => (pasteOnly = !pasteOnly)}>{t(pasteOnly ? 'term.snippetPaste' : 'term.snippetRun')}</button>
     <Menu icon="file-code" label={t('term.snippets')} items={[...snippets.map((s) => ({ v: String(s.id), t: s.name })), { v: MANAGE, t: t('term.snippets.manage') }]} empty={t('term.snippets.none')} onpick={runSnippet} />
     <span class="spacer"></span>
     {#if phase !== 'open'}<span class="muted" style="font-size:12px">{phase === 'connecting' ? t('term.connecting') : t('term.closed')}</span>{/if}

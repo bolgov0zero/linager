@@ -1,11 +1,12 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import { hasModule } from './me.svelte';
   import { t } from './i18n.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
-  import { assistantOffered, isWindows, levelOf, meter, rdpOffered, tagsOf } from './status';
+  import { assistantOffered, isWindows, levelOf, meter, rdpOffered, tagsOf, type AgentFlag } from './status';
 
-  let { card, editing = false, onopen }: { card: ServerCard; editing?: boolean; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
+  let { card, editing = false, agent = null, onopen }: { card: ServerCard; editing?: boolean; agent?: AgentFlag; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
 
   const level = $derived(levelOf(card));
   const s = $derived(card.sample);
@@ -23,7 +24,7 @@
         ],
   );
   // the one thing worth a line: the first problem, otherwise the address
-  const note = $derived(tagsOf(card).find((x) => x.tone === 'warn' || x.tone === 'crit' || x.id === 'offline'));
+  const note = $derived(tagsOf(card, agent).find((x) => x.tone === 'warn' || x.tone === 'crit' || x.id === 'offline'));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
@@ -41,9 +42,9 @@
   <footer class="mini-f">
     <span class="mono" class:warnt={!!note} class:dim={!note}>{note ? t(`tag.${note.id}`, { n: note.n ?? 0 }) : card.address}</span>
     <div class="acts">
-      <button class="btn icon xs" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onopen(card, 'terminal')}><Icon name="square-terminal" size={14} /></button>
-      {#if rdpOffered(card)}<button class="btn icon xs" type="button" title={t('card.rdp')} disabled={!card.online} onclick={() => onopen(card, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
-      {#if assistantOffered(card.os, card.sample)}<button class="btn icon xs" type="button" title={t('card.asst')} disabled={!card.online} onclick={() => onopen(card, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
+      {#if hasModule('terminal')}      <button class="btn icon xs" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onopen(card, 'terminal')}><Icon name="square-terminal" size={14} /></button>{/if}
+      {#if hasModule('desktop') && rdpOffered(card)}<button class="btn icon xs" type="button" title={t('card.rdp')} disabled={!card.online} onclick={() => onopen(card, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
+      {#if hasModule('assistant') && assistantOffered(card.os, card.sample)}<button class="btn icon xs" type="button" title={t('card.asst')} disabled={!card.online} onclick={() => onopen(card, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
     </div>
   </footer>
 </article>

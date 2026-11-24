@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -25,8 +26,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bolgov0zero/linager/app/internal/autostart"
 	"github.com/bolgov0zero/linager/app/internal/profiles"
 	"github.com/bolgov0zero/linager/app/internal/remote"
+	"github.com/bolgov0zero/linager/app/internal/tray"
 	"github.com/bolgov0zero/linager/app/internal/update"
 )
 
@@ -49,6 +52,11 @@ type Options struct {
 	OpenWindow func(kind, id, title, arg string) error
 	// Update checks for and installs a new version of the application; nil in the headless run (nothing to replace).
 	Update *update.Updater
+	// Tray keeps the connections of the tray; OnTray is called when what the tray shows may have changed (a connection, a
+	// server, the entries); AutostartExe is the program the start at login launches (empty: the setting is not offered).
+	Tray         *tray.Store
+	OnTray       func()
+	AutostartExe string
 	// VaultMemo is the file that remembers the chosen vault file for seven days; empty keeps nothing.
 	VaultMemo string
 	Version   string
@@ -125,6 +133,10 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("POST /app/download", s.download)
 	inner.HandleFunc("POST /app/vault/open", s.vaultOpen)
 	inner.HandleFunc("POST /app/vault/save", s.vaultSave)
+	inner.HandleFunc("GET /app/tray", s.trayGet)
+	inner.HandleFunc("PUT /app/tray", s.trayPut)
+	inner.HandleFunc("GET /app/autostart", s.autostartGet)
+	inner.HandleFunc("PUT /app/autostart", s.autostartPut)
 	inner.HandleFunc("GET /app/vault/last", s.vaultLast)
 	inner.HandleFunc("DELETE /app/vault/last", s.vaultForget)
 	inner.HandleFunc("GET /app/prefs", s.prefsGet)
@@ -206,6 +218,42 @@ func (s *Server) stateBody() map[string]any {
 		st["profile"] = s.view(cur)
 	}
 	return st
+}
+
+// changed tells the tray that its menu may have to change.
+func (s *Server) changed() {
+	if s.o.OnTray != nil {
+		go s.o.OnTray()
+	}
+}
+
+// Profile is the profile of the connection ("" when there is none).
+func (s *Server) Profile() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sess == nil {
+		return ""
+	}
+	return s.prof.ID
+}
+
+// Get reads a path of the Linager server with the session of the person (the tray reads the dashboard this way).
+func (s *Server) Get(ctx context.Context, path string) ([]byte, error) {
+	s.mu.Lock()
+	sess := s.sess
+	s.mu.Unlock()
+	if sess == nil {
+		return nil, errors.New("not connected")
+	}
+	resp, err := sess.Fetch(ctx, "/"+path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s", resp.Status)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 }
 
 func (s *Server) state(w http.ResponseWriter, _ *http.Request) {
@@ -314,6 +362,7 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.prof = saved
 	s.mu.Unlock()
+	s.changed()
 	writeJSON(w, http.StatusOK, s.stateBody())
 }
 
@@ -333,6 +382,7 @@ func (s *Server) use(w http.ResponseWriter, r *http.Request) {
 		s.openError(w, err)
 		return
 	}
+	s.changed()
 	writeJSON(w, http.StatusOK, s.stateBody())
 }
 
@@ -343,6 +393,7 @@ func (s *Server) disconnect(w http.ResponseWriter, _ *http.Request) {
 	}
 	s.sess = nil
 	s.mu.Unlock()
+	s.changed()
 	writeJSON(w, http.StatusOK, s.stateBody())
 }
 
@@ -581,6 +632,56 @@ func (s *Server) prefsPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// trayGet lists the connections of the tray for the profile that is open.
+func (s *Server) trayGet(w http.ResponseWriter, _ *http.Request) {
+	list := []tray.Entry{}
+	if p := s.Profile(); p != "" && s.o.Tray != nil {
+		list = s.o.Tray.List(p)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"entries": list, "native": s.o.OnTray != nil})
+}
+
+// trayPut puts the connections of a server in the tray (an empty list takes it out).
+func (s *Server) trayPut(w http.ResponseWriter, r *http.Request) {
+	var e tray.Entry
+	if !decode(w, r, &e) {
+		return
+	}
+	p := s.Profile()
+	if p == "" || s.o.Tray == nil {
+		fail(w, http.StatusConflict, "not_connected")
+		return
+	}
+	if err := s.o.Tray.Set(p, e); err != nil {
+		fail(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	s.changed()
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) autostartGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"supported": s.o.AutostartExe != "", "enabled": s.o.AutostartExe != "" && autostart.Enabled()})
+}
+
+func (s *Server) autostartPut(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if s.o.AutostartExe == "" {
+		fail(w, http.StatusNotImplemented, "not_supported")
+		return
+	}
+	if err := autostart.Set(req.Enabled, s.o.AutostartExe); err != nil {
+		fail(w, http.StatusInternalServerError, "autostart")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"supported": true, "enabled": autostart.Enabled()})
 }
 
 // updateInfo answers what the last check found; without an updater the build cannot update itself.

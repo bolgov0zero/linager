@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { ApiError, serverApi, subscribeLive, type ServerDetail } from '../api';
-  import { confirmAsk } from '../dialogs.svelte';
   import DeleteServerModal from '../DeleteServerModal.svelte';
+  import RebootServerModal from '../RebootServerModal.svelte';
+  import ServerSettingsModal from './ServerSettingsModal.svelte';
   import AgentUpdateBanner from './AgentUpdateBanner.svelte';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
+  import { hasModule, isAdmin, tabVisible } from '../me.svelte';
   import { native } from '../native';
   import { openDashboard, openServer } from '../route.svelte';
   import { assistantOffered, isWindows, levelOf } from '../status';
@@ -14,6 +16,7 @@
   import FirewallTab from './FirewallTab.svelte';
   import NetworkTab from './NetworkTab.svelte';
   import UsersTab from './UsersTab.svelte';
+  import ManageTab from './win/ManageTab.svelte';
   import WinNetworkTab from './win/WinNetworkTab.svelte';
   import WinProgramsTab from './win/WinProgramsTab.svelte';
   import WinUpdatesTab from './win/WinUpdatesTab.svelte';
@@ -45,7 +48,7 @@
     window?: 'terminal' | 'rdp' | 'asst';
   }
   const win = $derived(s ? isWindows(s.os) : false);
-  const groups = $derived<{ key: string; items: Item[] }[]>([
+  const allGroups = $derived<{ key: string; items: Item[] }[]>([
     { key: 'general', items: [
       { key: 'overview', icon: 'layout-grid', label: t('sp.overview'), ready: true },
       { key: 'metrics', icon: 'activity', label: t('sp.metrics'), ready: true },
@@ -65,11 +68,13 @@
       ...(win ? [{ key: 'programs', icon: 'layout-grid', label: t('sp.programs'), ready: true }] : []),
     ] },
     { key: 'net', items: win
-      ? [{ key: 'network', icon: 'network', label: t('sp.network'), ready: true }, { key: 'users', icon: 'users', label: t('sp.users'), ready: true }]
+      ? [{ key: 'network', icon: 'network', label: t('sp.network'), ready: true }, { key: 'manage', icon: 'sliders-horizontal', label: t('srv.tab.manage'), ready: true }, { key: 'users', icon: 'users', label: t('sp.users'), ready: true }]
       : [{ key: 'network', icon: 'network', label: t('sp.network'), ready: true }, { key: 'firewall', icon: 'shield-check', label: t('sp.firewall'), ready: true },
          { key: 'security', icon: 'lock', label: t('sp.security'), ready: true }, { key: 'users', icon: 'users', label: t('sp.users'), ready: true }] },
     ...(win ? [] : [{ key: 'apps', items: [{ key: 'docker', icon: 'container', label: 'Docker', ready: true }] }]),
   ]);
+  // what the agent has (its modules) and what the person may use (an operator: the modules given, an auditor: none)
+  const groups = $derived(allGroups.map((g) => ({ ...g, items: g.items.filter((it) => tabVisible(it.key, s?.modules ?? [])) })).filter((g) => g.items.length > 0));
   /** A session of the remote desktop or the Assistant can be open in one place only: when its tab is on the screen it makes way for the window. */
   function inWindow(it: Item): void {
     if (!it.window || !s) return;
@@ -112,15 +117,10 @@
     };
   });
 
-  async function doReboot(): Promise<void> {
-    if (!s || !(await confirmAsk({ title: t('sp.reboot'), text: t('sp.reboot.text', { name: s.name }), ok: t('sp.reboot'), danger: true }))) return;
-    try {
-      await serverApi.reboot(id);
-    } catch {
-      // the next refresh shows what happened
-    }
-  }
-
+  let rebooting = $state(false);
+  let settingsOpen = $state(false);
+  // what the server can open from the tray: the windows of its navigation
+  const offered = $derived(groups.flatMap((g) => g.items.map((it) => it.window).filter((w): w is 'terminal' | 'rdp' | 'asst' => !!w)));
   let deleting = $state(false);
   function pick(it: Item): void {
     if (!it.ready) return;
@@ -150,6 +150,8 @@
                   <button class="si" type="button" aria-current={current.key === it.key} disabled={!it.ready} title={it.ready ? it.label : `${it.label} · ${t('nav.soon')}`} onclick={() => pick(it)}>
                     <Icon name={it.icon} size={15} /><span>{it.label}</span>
                     {#if it.key === 'updates' && s.sample && s.sample.updates > 0}<em class="cnt">{s.sample.updates}</em>{/if}
+                    {#if it.key === 'services' && s.sample && s.sample.failed_services > 0}<em class="cnt crit" title={t('srv.nav.badgeFailed', { n: s.sample.failed_services })}>{s.sample.failed_services}</em>{/if}
+                    {#if it.key === 'docker' && s.sample && (s.sample.image_updates ?? 0) > 0}<em class="cnt" title={t('srv.nav.badgeImages', { n: s.sample.image_updates ?? 0 })}>{s.sample.image_updates}</em>{/if}
                   </button>
                   {#if it.window}
                     <button class="si-w" type="button" title={t('sp.inWindow')} disabled={!s.online} onclick={() => inWindow(it)}><Icon name="app-window" size={13} /></button>
@@ -170,8 +172,11 @@
         <div><small>{t(`sp.group.${group.key}`)}</small><h1>{current.label}</h1></div>
         <span class="grow"></span>
         <button class="btn sm" type="button" onclick={() => native.openWindow('note', id, s!.name, nativeWindows)}><Icon name="sticky-note" size={14} />{t('sp.note')}{#if s.note}<i class="nd"></i>{/if}</button>
-        <button class="btn sm" type="button" disabled={!s.online} onclick={doReboot}><Icon name="power" size={14} />{t('sp.reboot')}</button>
-        <button class="btn sm danger" type="button" onclick={() => (deleting = true)} title={t('sp.delete')}><Icon name="trash-2" size={14} /></button>
+        <button class="btn sm icon" type="button" title={t('ssm.open')} aria-label={t('ssm.open')} onclick={() => (settingsOpen = true)}><Icon name="settings" size={14} /></button>
+        {#if isAdmin()}
+          <button class="btn sm" type="button" disabled={!s.online} onclick={() => (rebooting = true)}><Icon name="power" size={14} />{t('sp.reboot')}</button>
+          <button class="btn sm danger" type="button" onclick={() => (deleting = true)} title={t('sp.delete')}><Icon name="trash-2" size={14} /></button>
+        {/if}
       </div>
       <AgentUpdateBanner server={s} onchanged={() => void load()} />
       {#if reboot}<div class="banner"><Icon name="triangle-alert" size={14} />{t('sp.reboot.needed')}</div>{/if}
@@ -193,6 +198,7 @@
           {:else if current.key === 'users'}{#if win}<WinUsersTab {s} />{:else}<UsersTab {s} {nativeWindows} />{/if}
           {:else if current.key === 'network'}{#if win}<WinNetworkTab {s} />{:else}<NetworkTab {s} />{/if}
           {:else if current.key === 'firewall'}<FirewallTab {s} />
+          {:else if current.key === 'manage'}<ManageTab {s} canDesktop={hasModule('desktop') && (s.modules ?? []).includes('desktop')} {nativeWindows} onchanged={() => void load()} />
           {:else if current.key === 'docker'}<DockerTab {s} />
           {/if}
         {/key}
@@ -203,4 +209,11 @@
 
 {#if deleting && s}
   <DeleteServerModal server={s} onclose={() => (deleting = false)} ondeleted={() => { deleting = false; openDashboard(); }} />
+{/if}
+
+{#if settingsOpen && s}
+  <ServerSettingsModal server={{ id: s.id, name: s.name, tags: s.tags ?? [] }} {offered} nativeApp={nativeWindows} onclose={() => (settingsOpen = false)} onsaved={(tags) => { if (s) s.tags = tags; }} />
+{/if}
+{#if rebooting && s}
+  <RebootServerModal server={s} onclose={() => (rebooting = false)} />
 {/if}

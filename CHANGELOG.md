@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0-beta.9
+
+The result of the check of the application against the web panel (docs/design/app-parity.md): the missing functions are done. The application gets a tray. The Linager server gets the tags of a server (a migration, `GET`/`PUT /api/servers/{id}/tags`); the agent is unchanged.
+
+- New (application): **roles**. An operator and an auditor no longer see what they cannot use: the buttons "Add server", "Edit", the deletion and the reboot of a server are for an administrator; the tabs of the server page follow the modules the agent reports and the modules given to an operator (an auditor has only the overview and the metrics); the terminal, RDP and Assistant buttons of the cards and the Console follow the modules too.
+- New (application): **the tab "Management" of a Windows computer**: the service of the remote desktop (state, port, listening, sessions; turn it on and off, with a confirmation), the list of the sessions of the computer (open in the Assistant), the policy that lets the agent send Ctrl+Alt+Del, and the picture settings of the Assistant.
+- New (application): **services**: ignore a failed service (the badge "ignore": it does not count in the status of the server), turn the autostart on and off, the filters All, Running, Stopped, Failed and the number of services.
+- New (application): **package updates**: ignore and un-ignore a package.
+- New (application): **processes**: the choice of how many to show (10, 20, 50, 100, all), the dialog of a termination with "forcibly (SIGKILL)" (on Windows "end the process tree"), and the note when the process is the Linager agent itself.
+- Change (application): **rebooting a server asks to type its name**, like the deletion.
+- New (application): **metrics**: the periods of 90, 180 and 360 days, the statistics min, average, p95 and peak under every chart, the marks of the events on the charts (yellow: service failure, red: reboot), the list "Events of the period", the table of the storage of the metrics and the sent traffic on the network chart. The overview shows swap, the boot time, the last contact and a note for an offline server.
+- New (application): **dashboard**: the context menu of a server (terminal, remote desktop, Assistant, open the page, the group in the edit mode, delete), the tags "agent: update available" and "agent is outdated" for an administrator, and a mark on the gear when an update of the Linager server is available. Fix: the button "open the page" of a card was disabled.
+- New (application): **snippets of the terminal** can be only typed, without the Enter that runs them (the chip next to the menu "Snippets"). The server page navigation shows the number of failed services and of containers with a new image.
+- New (application): **the tray**. An icon in the menu bar / the tray (the logo without a background, in the colour of the panel) with the menu "Open", the state of the servers (online, with a problem, waiting agents), the connections you chose and "Quit". Closing the window hides the application in the tray (Cmd+Q and "Quit" end it); a second start shows the window of the first; the number of problems is next to the icon (a red dot on Windows and Linux).
+- New (application): **settings of a server** (the gear next to "Note"): the tags of the server and the connections (terminal, RDP, Assistant) shown in the tray menu with the icon of the connection and the server name; a click opens the window with that connection. New (server): the tags are kept by the Linager server (`GET`/`PUT /api/servers/{id}/tags`, the migration `00021_server_tags`, the audit action `server.tags`; the server detail has `tags`).
+- New (application): **Settings → Application → Start at login** (a launch agent on macOS, the `Run` key on Windows, an autostart file on Linux): the application starts hidden in the tray. After a self-update the new copy waits for the old one to quit (`-after <pid>`).
+- Fix (application): **the Docker tab**: the tables of containers and images keep every row on one line with fixed columns; the published ports are listed once (the IPv4 and IPv6 pair was repeated), the first one is shown with "+N" and all of them in the tooltip; the status and the image are cut with an ellipsis. The buttons of the Console modes (terminal, RDP, Assistant) are lower.
+
 ## 0.10.0-beta.8
 
 - Change (application): in the Console the buttons "Files" and "Manager" of a terminal are icons only. The RDP and Assistant tabs of the Console, the server page and their windows have the same two buttons (icons: Files, Manager) next to "In a separate window".

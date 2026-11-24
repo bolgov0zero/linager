@@ -16,9 +16,11 @@
   import EditBar from './EditBar.svelte';
   import type { RowEdit } from './dash-edit';
   import { isUnauthorized } from './errors';
+  import ContextMenu, { type CtxItem } from './ContextMenu.svelte';
+  import { hasModule, isAdmin } from './me.svelte';
   import { showToast } from './toast';
   import { openServer } from './route.svelte';
-  import { levelOf, sparkPath, summarize } from './status';
+  import { assistantOffered, levelOf, rdpOffered, sparkPath, summarize, type AgentFlag } from './status';
 
   let { nativeWindows, host = '' }: { nativeWindows: boolean; /** The address of the Linager server (without the port): the agents connect to it. */ host?: string } = $props();
 
@@ -29,6 +31,9 @@
   let groups = $state<Group[]>([]);
   let loaded = $state(false);
   let addOpen = $state(false);
+  // the agents that are older than the Linager server (an administrator): a tag on the card
+  let agentFlags = $state<Record<string, AgentFlag>>({});
+  let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
   // the edit mode: order, group, take off the dashboard (with a few seconds to undo), delete
   let editing = $state(false);
   let pending = $state<{ card: ServerCard; index: number } | null>(null);
@@ -74,6 +79,34 @@
     }
   }
 
+  async function loadAgentFlags(): Promise<void> {
+    if (!isAdmin()) return;
+    try {
+      const info = await api.updates();
+      const next: Record<string, AgentFlag> = {};
+      for (const a of info.agents) if (a.status === 'available' || a.status === 'unsupported') next[a.id] = a.status;
+      agentFlags = next;
+    } catch {
+      // the tags are optional: keep what was there
+    }
+  }
+
+  /** The right click on a server: the sessions, the page, the group (in the edit mode) and the deletion. */
+  function showMenu(e: MouseEvent, card: ServerCard): void {
+    e.preventDefault();
+    const items: CtxItem[] = [];
+    if (hasModule('terminal')) items.push({ key: 'term', label: t('dash.menu.terminal'), icon: 'square-terminal', disabled: !card.online, onselect: () => openIn(card, 'terminal') });
+    if (hasModule('desktop') && rdpOffered(card)) items.push({ key: 'rdp', label: t('dash.menu.rdp'), icon: 'monitor', disabled: !card.online, onselect: () => openIn(card, 'rdp') });
+    if (hasModule('assistant') && assistantOffered(card.os, card.sample)) items.push({ key: 'asst', label: t('dash.menu.asst'), icon: 'app-window', disabled: !card.online, onselect: () => openIn(card, 'asst') });
+    items.push({ key: 'open', label: t('dash.menu.open'), icon: 'external-link', separated: items.length > 0, onselect: () => openServer(card.id) });
+    if (isAdmin() && editing && groups.length > 0) {
+      groups.forEach((g, i) => items.push({ key: `g${g.id}`, label: t('dash.menu.group', { name: g.name }), icon: card.group_id === g.id ? 'check' : undefined, separated: i === 0, onselect: () => void setCardGroup(card, String(g.id)) }));
+      if (card.group_id !== null) items.push({ key: 'g0', label: t('dash.menu.groupNone'), onselect: () => void setCardGroup(card, '0') });
+    }
+    if (isAdmin()) items.push({ key: 'del', label: t('dash.deleteServer'), icon: 'trash-2', danger: true, separated: true, onselect: () => deleteCard(card) });
+    menu = { x: e.clientX, y: e.clientY, items };
+  }
+
   async function loadWaiting(): Promise<void> {
     try {
       waiting = (await api.enrollments()).length;
@@ -89,7 +122,8 @@
 
   onMount(() => {
     void load();
-    void loadWaiting();
+    if (isAdmin()) void loadWaiting();
+    void loadAgentFlags();
     let timer: ReturnType<typeof setTimeout> | undefined;
     // the live stream says that something changed: the list is read again (at most once a second)
     const stop = subscribeLive(() => {
@@ -99,8 +133,11 @@
       }, 1000);
     });
     const tick = setInterval(() => (now = Date.now()), 30_000);
-    const poll = setInterval(() => void load(), 30_000);
-    const waitTimer = setInterval(() => void loadWaiting(), 10_000);
+    const poll = setInterval(() => {
+      void load();
+      void loadAgentFlags();
+    }, 30_000);
+    const waitTimer = setInterval(() => isAdmin() && void loadWaiting(), 10_000);
     return () => {
       stop();
       clearInterval(tick);
@@ -291,8 +328,8 @@
   <span class="grow"></span>
   <CustomSelect value={group} options={groupOptions} icon="folders" onchange={(v) => (group = v)} />
   <SearchField id="q" placeholder={t('dash.search')} bind:value={q} />
-  <button class="btn sm" class:primary={editing} type="button" aria-pressed={editing} onclick={toggleEdit}><Icon name={editing ? 'check' : 'pencil'} size={14} />{editing ? t('dash.done') : t('dash.edit')}</button>
-  <button class="btn sm" type="button" onclick={() => (addOpen = true)}><Icon name="plus" size={14} />{t('asv.openDash')}{#if waiting > 0} <span class="badge b-warn">{waiting}</span>{/if}</button>
+  {#if isAdmin()}<button class="btn sm" class:primary={editing} type="button" aria-pressed={editing} onclick={toggleEdit}><Icon name={editing ? 'check' : 'pencil'} size={14} />{editing ? t('dash.done') : t('dash.edit')}</button>
+  <button class="btn sm" type="button" onclick={() => (addOpen = true)}><Icon name="plus" size={14} />{t('asv.openDash')}{#if waiting > 0} <span class="badge b-warn">{waiting}</span>{/if}</button>{/if}
   <div class="seg">
     <button type="button" aria-pressed={layout === 'cards'} title={t('dash.layout.cards')} onclick={() => setLayout('cards')}><Icon name="layout-grid" size={14} /></button>
     <button type="button" aria-pressed={layout === 'mini'} title={t('dash.layout.mini')} onclick={() => setLayout('mini')}><Icon name="layers" size={14} /></button>
@@ -305,22 +342,22 @@
 {:else if failed && cards.length === 0}
   <div class="empty"><Icon name="wifi-off" size={26} /><p>{t('dash.err')}</p></div>
 {:else if cards.length === 0}
-  <div class="empty"><Icon name="server" size={26} /><p>{t('dash.empty')}</p><button class="btn primary" type="button" onclick={() => (addOpen = true)}><Icon name="plus" size={14} />{t('asv.openDash')}</button></div>
+  <div class="empty"><Icon name="server" size={26} /><p>{t('dash.empty')}</p>{#if isAdmin()}<button class="btn primary" type="button" onclick={() => (addOpen = true)}><Icon name="plus" size={14} />{t('asv.openDash')}</button>{/if}</div>
 {:else if shown.length === 0}
   <div class="empty"><Icon name="search" size={26} /><p>{t('dash.nothing')}</p></div>
 {:else if layout === 'rows'}
-  <div class="tbl-wrap fill"><Rows cards={shown} {now} edit={rowEdit} onopen={openIn} /></div>
+  <div class="tbl-wrap fill"><Rows cards={shown} {now} edit={rowEdit} agents={agentFlags} onmenu={showMenu} onopen={openIn} /></div>
 {:else if layout === 'mini'}
   <div class="dash-scroll"><div class="grid mini-grid">{#each shown as c (c.id)}
-    <div class="slot" class:editing class:over={editing && overId === c.id && dragId !== c.id} class:dragging={dragId === c.id} draggable={editing} role="presentation" ondragstart={(e) => dragStart(e, c.id)} ondragover={(e) => dragOver(e, c.id)} ondrop={(e) => drop(e, c.id)} ondragend={dragEnd}>
-      <Mini card={c} {editing} onopen={openIn} />
+    <div class="slot" class:editing class:over={editing && overId === c.id && dragId !== c.id} class:dragging={dragId === c.id} draggable={editing} role="presentation" oncontextmenu={(e) => showMenu(e, c)} ondragstart={(e) => dragStart(e, c.id)} ondragover={(e) => dragOver(e, c.id)} ondrop={(e) => drop(e, c.id)} ondragend={dragEnd}>
+      <Mini card={c} {editing} agent={agentFlags[c.id] ?? null} onopen={openIn} />
       {#if editing}<EditBar card={c} index={visibleIndex(c.id)} count={shown.length} {groups} onmove={(d) => move(c.id, d)} ongroup={(v) => void setCardGroup(c, v)} onremove={() => void removeCard(c)} ondelete={() => deleteCard(c)} />{/if}
     </div>
   {/each}</div></div>
 {:else}
   <div class="dash-scroll"><div class="grid">{#each shown as c (c.id)}
-    <div class="slot" class:editing class:over={editing && overId === c.id && dragId !== c.id} class:dragging={dragId === c.id} draggable={editing} role="presentation" ondragstart={(e) => dragStart(e, c.id)} ondragover={(e) => dragOver(e, c.id)} ondrop={(e) => drop(e, c.id)} ondragend={dragEnd}>
-      <Card card={c} {now} {editing} onopen={openIn} />
+    <div class="slot" class:editing class:over={editing && overId === c.id && dragId !== c.id} class:dragging={dragId === c.id} draggable={editing} role="presentation" oncontextmenu={(e) => showMenu(e, c)} ondragstart={(e) => dragStart(e, c.id)} ondragover={(e) => dragOver(e, c.id)} ondrop={(e) => drop(e, c.id)} ondragend={dragEnd}>
+      <Card card={c} {now} {editing} agent={agentFlags[c.id] ?? null} onopen={openIn} />
       {#if editing}<EditBar card={c} index={visibleIndex(c.id)} count={shown.length} {groups} onmove={(d) => move(c.id, d)} ongroup={(v) => void setCardGroup(c, v)} onremove={() => void removeCard(c)} ondelete={() => deleteCard(c)} />{/if}
     </div>
   {/each}</div></div>
@@ -341,3 +378,5 @@
 {#if deleting}
   <DeleteServerModal server={deleting} onclose={() => (deleting = null)} ondeleted={() => { const gone = deleting; deleting = null; if (gone) cards = cards.filter((c) => c.id !== gone.id); void load(); }} />
 {/if}
+
+{#if menu}<ContextMenu x={menu.x} y={menu.y} items={menu.items} onclose={() => (menu = null)} />{/if}

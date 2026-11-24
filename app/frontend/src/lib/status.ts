@@ -4,7 +4,7 @@ import type { ServerCard } from './api';
 export type Level = 'ok' | 'warn' | 'crit' | 'off';
 
 export interface Tag {
-  id: 'reboot' | 'updates' | 'images' | 'failed' | 'offline' | 'clean';
+  id: 'reboot' | 'updates' | 'images' | 'failed' | 'offline' | 'clean' | 'agentUpdate' | 'agentOld';
   n?: number;
   tone: 'ok' | 'warn' | 'crit' | 'mute';
 }
@@ -24,7 +24,10 @@ export function meter(v: number): 'ok' | 'warn' | 'crit' {
   return v >= 90 ? 'crit' : v >= 75 ? 'warn' : 'ok';
 }
 
-export function tagsOf(c: ServerCard): Tag[] {
+/** The flag of the agent of a server: a newer version is out (available) or it is no longer supported (unsupported). */
+export type AgentFlag = 'available' | 'unsupported' | null;
+
+export function tagsOf(c: ServerCard, agent: AgentFlag = null): Tag[] {
   const s = c.sample;
   if (!c.online) {
     const tags: Tag[] = [{ id: 'offline', tone: 'mute' }];
@@ -38,6 +41,7 @@ export function tagsOf(c: ServerCard): Tag[] {
     if ((s.image_updates ?? 0) > 0) tags.push({ id: 'images', n: s.image_updates, tone: (s.image_updates ?? 0) >= 5 ? 'warn' : 'mute' });
     if (s.failed_services > 0) tags.push({ id: 'failed', n: s.failed_services, tone: 'crit' });
   }
+  if (agent) tags.push({ id: agent === 'unsupported' ? 'agentOld' : 'agentUpdate', tone: agent === 'unsupported' ? 'crit' : 'warn' });
   if (tags.length === 0) tags.push({ id: 'clean', tone: 'ok' });
   return tags;
 }

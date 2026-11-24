@@ -10,6 +10,7 @@
   import Icon from './lib/Icon.svelte';
   import Console from './lib/console/Console.svelte';
   import { con } from './lib/console/store.svelte';
+  import { setMe } from './lib/me.svelte';
   import { nav, route as page } from './lib/route.svelte';
   import ServerPage from './lib/server/ServerPage.svelte';
   import Shell from './lib/Shell.svelte';
@@ -44,6 +45,7 @@
     }
     try {
       session = await api.me(); // the cookie of an earlier sign-in may still be alive
+      setMe(session);
       stage = win ? 'window' : 'main';
     } catch (e) {
       if (win && e instanceof ApiError && e.status === 401) {
@@ -88,7 +90,7 @@
 {:else if stage === 'connect' && st}
   <Connect app={st} onconnected={(s) => void enter(s)} />
 {:else if stage === 'login' && st?.profile}
-  <Login profile={st.profile} onsignedin={(s) => { session = s; stage = 'main'; }} onchange={(s) => void enter(s)} />
+  <Login profile={st.profile} onsignedin={(s) => { session = s; setMe(s); stage = 'main'; }} onchange={(s) => void enter(s)} />
 {:else if stage === 'window' && win && win.kind === 'terminal'}
   <Terminal id={win.id} title={win.title} nativeWindows={st?.native ?? false} initialUser={win.arg} />
 {:else if stage === 'window' && win && win.kind === 'note'}

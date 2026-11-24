@@ -5,6 +5,7 @@
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
   import { native } from '../native';
+  import { hasModule } from '../me.svelte';
   import { openServer } from '../route.svelte';
   import SearchField from '../SearchField.svelte';
   import AssistantPane from '../assistant/AssistantPane.svelte';
@@ -35,9 +36,9 @@
 
   /** The server has the mode: a terminal everywhere, the remote desktop on Windows, the Assistant on Windows. */
   function has(c: ServerCard, mode: ConMode): boolean {
-    if (mode === 'term') return true;
-    if (mode === 'asst') return assistantOffered(c.os, c.sample);
-    return isWindows(c.os) && c.sample?.desktop_off !== true;
+    if (mode === 'term') return hasModule('terminal');
+    if (mode === 'asst') return hasModule('assistant') && assistantOffered(c.os, c.sample);
+    return hasModule('desktop') && isWindows(c.os) && c.sample?.desktop_off !== true;
   }
   const shownCards = $derived(cards.filter((c) => passes(con.filter, isWindows(c.os), c.online) && (!q.trim() || `${c.name} ${c.address}`.toLowerCase().includes(q.trim().toLowerCase()))));
   const counts = $derived(Object.fromEntries(MODES.map((m) => [m.id, shownCards.filter((c) => has(c, m.id)).length])) as Record<ConMode, number>);

@@ -17,6 +17,7 @@ import (
 
 	"github.com/bolgov0zero/linager/app/internal/profiles"
 	"github.com/bolgov0zero/linager/app/internal/remote"
+	"github.com/bolgov0zero/linager/app/internal/tray"
 	"github.com/bolgov0zero/linager/app/internal/update"
 )
 
@@ -492,5 +493,47 @@ func TestVaultFileIsRememberedForSevenDays(t *testing.T) {
 	_ = os.Remove(vault)
 	if call(t, "GET", s.URL()+"app/vault/last", nil, &got); got.Name != "" {
 		t.Fatal("a missing file must not be offered")
+	}
+}
+
+func TestTrayEndpoints(t *testing.T) {
+	s, _, up := start(t)
+	dir := t.TempDir()
+	s.o.Tray = tray.Open(filepath.Join(dir, "tray.json"))
+	changed := make(chan struct{}, 4)
+	s.o.OnTray = func() { changed <- struct{}{} }
+	var out struct {
+		Entries []tray.Entry `json:"entries"`
+	}
+	// not connected: nothing to list, nothing to change
+	if c := call(t, "GET", s.URL()+"app/tray", nil, &out); c != 200 || len(out.Entries) != 0 {
+		t.Fatalf("list: %d %+v", c, out)
+	}
+	if c := call(t, "PUT", s.URL()+"app/tray", map[string]any{"server_id": "a", "name": "web", "modes": []string{"terminal"}}, nil); c != http.StatusConflict {
+		t.Fatalf("put without a connection: %d", c)
+	}
+	addr := strings.TrimPrefix(up.URL, "https://")
+	fp := remote.Fingerprint(up.Certificate().Raw)
+	if c := call(t, "POST", s.URL()+"app/connect", map[string]string{"address": addr, "fingerprint": fp}, nil); c != 200 {
+		t.Fatalf("connect: %d", c)
+	}
+	<-changed // the connection tells the tray
+	if c := call(t, "PUT", s.URL()+"app/tray", map[string]any{"server_id": "a", "name": "web", "modes": []string{"terminal", "asst"}}, nil); c != 200 {
+		t.Fatalf("put: %d", c)
+	}
+	<-changed
+	if c := call(t, "GET", s.URL()+"app/tray", nil, &out); c != 200 || len(out.Entries) != 1 || len(out.Entries[0].Modes) != 2 {
+		t.Fatalf("list: %d %+v", c, out)
+	}
+	if c := call(t, "PUT", s.URL()+"app/tray", map[string]any{"server_id": "a", "modes": []string{"ssh"}}, nil); c != http.StatusBadRequest {
+		t.Fatalf("an unknown connection: %d", c)
+	}
+	// the setting of the start at login is not offered without a program to start
+	var as struct{ Supported bool }
+	if c := call(t, "GET", s.URL()+"app/autostart", nil, &as); c != 200 || as.Supported {
+		t.Fatalf("autostart: %d %+v", c, as)
+	}
+	if c := call(t, "PUT", s.URL()+"app/autostart", map[string]bool{"enabled": true}, nil); c != http.StatusNotImplemented {
+		t.Fatalf("autostart put: %d", c)
 	}
 }

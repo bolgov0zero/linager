@@ -14,6 +14,7 @@
   const ifaces = $derived(sm?.net ?? []);
 </script>
 
+{#if !s.online}<p class="warnbox warn" style="margin-bottom:12px">{t('srv.offlineNotice')}</p>{/if}
 <div class="mcs">
   <div class="mc lv-{off ? 'ok' : meter(sm!.cpu)}">
     <div class="mc-h">CPU</div><div class="mc-v">{off ? '—' : Math.round(sm!.cpu)}{#if !off}<small>%</small>{/if}</div>
@@ -22,7 +23,7 @@
   </div>
   <div class="mc lv-{off ? 'ok' : meter(sm!.mem_pct)}">
     <div class="mc-h">RAM</div><div class="mc-v">{off ? '—' : Math.round(sm!.mem_pct)}{#if !off}<small>%</small>{/if}</div>
-    <div class="mc-s">{#if sm?.mem_total}{t('sp.ram.total', { v: fmtBytes(sm.mem_total) })}{/if}</div>
+    <div class="mc-s">{#if sm?.mem_total}{t('srv.ov.memTotal', { total: fmtBytes(sm.mem_total), swap: sm.swap_total ? `${fmtBytes(sm.swap_used ?? 0)} / ${fmtBytes(sm.swap_total)}` : '—' })}{/if}</div>
     {#if mem.line}<svg class="spark" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><path class="sa" d={mem.area} /><path class="sl" d={mem.line} vector-effect="non-scaling-stroke" /></svg>{/if}
   </div>
   <div class="mc">
@@ -61,7 +62,9 @@
     <div class="dl"><span>{t('sp.sys.arch')}</span><b>{s.system?.arch ?? '—'}</b></div>
     <div class="dl"><span>{t('sp.sys.cpu')}</span><b>{s.system ? `${s.system.cpu_model} · ${s.system.cpu_cores}` : '—'}</b></div>
     <div class="dl"><span>{t('sp.sys.mem')}</span><b>{fmtBytes(s.system?.mem_total)}</b></div>
-    <div class="dl"><span>Uptime</span><b>{sm ? fmtUptime(sm.uptime, units) : '—'}</b></div>
+    <div class="dl"><span>{t('srv.sys.uptime')}</span><b>{sm ? fmtUptime(sm.uptime, units) : '—'}</b></div>
+    <div class="dl"><span>{t('srv.sys.boot')}</span><b>{sm?.boot_time ? new Date(sm.boot_time * 1000).toLocaleString() : '—'}</b></div>
+    <div class="dl"><span>{t('srv.sys.lastSeen')}</span><b>{s.last_seen_at ? new Date(s.last_seen_at).toLocaleString() : '—'}</b></div>
     <div class="dl"><span>{t('sp.sys.host')}</span><b>{s.hostname}</b></div>
     <div class="dl"><span>{t('sp.sys.agent')}</span><b>{s.agent_version}</b></div>
     <div class="dl"><span>{t('sp.sys.enrolled')}</span><b>{new Date(s.enrolled_at).toLocaleDateString()}</b></div>

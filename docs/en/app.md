@@ -2,7 +2,7 @@
 
 The desktop application (macOS, Windows, Linux) shows the interface of a server in native windows. It will replace the web panel: `web/` is frozen and will be removed after the transition. The server is installed with the terminal installer (`linager install server`); the application connects to a ready server.
 
-**State (stage 2).** There is the server page: Overview, Metrics, Terminal, Services, Processes, Logs, Updates, Disk, Files (tree and table), Network, Firewall, Security, Users, Docker; dangerous actions ask first. Every tab can be changed: users, SSH sessions, fail2ban and keys, the network and the firewall (with a 30 second rollback), Docker (containers, images, editing a container). Windows of their own: the terminal (user list, snippets, Files, Manager), the note, files, the manager, the file editor. The Console: the list of servers, tabs of sessions, terminals, the Assistant, RDP and Keys (the key button of the top bar, the file is opened and saved through the dialogs of the system). The Windows tabs (users, Windows Update, programs, network adapters). Earlier: the connection with a certificate check, sign-in (login, password, 2FA), the dashboard in three layouts (cards, compact cards, rows), light and dark themes, Russian and English, a terminal in a window of its own. Self-update from a button in Settings → Updates. Not yet: other settings, the tray and notifications, signed and notarized builds, sign-in with a passkey.
+**State (stage 2).** There is the server page: Overview, Metrics, Terminal, Services, Processes, Logs, Updates, Disk, Files (tree and table), Network, Firewall, Security, Users, Docker; dangerous actions ask first. Every tab can be changed: users, SSH sessions, fail2ban and keys, the network and the firewall (with a 30 second rollback), Docker (containers, images, editing a container). Windows of their own: the terminal (user list, snippets, Files, Manager), the note, files, the manager, the file editor. The Console: the list of servers, tabs of sessions, terminals, the Assistant, RDP and Keys (the key button of the top bar, the file is opened and saved through the dialogs of the system). The Windows tabs (users, Windows Update, programs, network adapters). Earlier: the connection with a certificate check, sign-in (login, password, 2FA), the dashboard in three layouts (cards, compact cards, rows), light and dark themes, Russian and English, a terminal in a window of its own. Self-update from a button in Settings → Updates. The tray: an icon in the notification area (below). Not yet: notifications, signed and notarized builds, sign-in with a passkey.
 
 ## Connecting
 
@@ -51,6 +51,18 @@ Install the first beta with the application (`0.10.0-beta.4`) by hand; later upd
 make -C app bundle   # app/bin/Linager.app
 make -C app zip      # app/bin/Linager-macos-arm64.zip (x86_64 on Intel), to hand it to another Mac
 ```
+
+## The tray
+
+The application lives in the notification area (the menu bar of macOS, the tray of Windows and Linux). The icon is the logo without a background: macOS colours it itself, on Windows and Linux it is dark or white to suit the panel. Closing the window **hides** the application in the tray instead of quitting; the Dock icon stays. Quit with "Quit" of the icon menu or with Cmd+Q. A click on the icon shows the window. A second start does not open a second copy, it shows the window of the first.
+
+The menu of the icon: "Open" (the first item), a state line ("Online 12 of 15, attention: 2, waiting: 1": the thresholds of the dashboard; "waiting" is the agents that ask to be approved), the connections you chose, and "Quit" (the last item). When some servers have a problem or agents wait, a number stands next to the icon on macOS and a red dot sits on the icon on Windows and Linux.
+
+**Connections in the tray.** On the server page, next to the "Note" button, there is a gear button: the settings of the server. Two blocks: "Tags" (labels of the server, kept on the Linager server: up to 20 tags of 32 characters; an administrator changes them; the change is in the audit log as `server.tags`) and "In the tray" (the connections terminal, RDP and Assistant, as many as you like, only those the server has). The chosen ones appear in the icon menu: the icon of the connection and the name of the server; a click opens the window with that connection. The list is kept in `tray.json` next to the profiles, apart for every Linager server.
+
+**Start at login.** "Settings → Application → Start at login": the application starts when you sign in to the system, with its window hidden in the tray (macOS: a launch agent in `~/Library/LaunchAgents`, Windows: a `Run` key of the user in the registry, Linux: an autostart file in `~/.config/autostart`). After a self-update the new version waits for the old one to quit and only then starts.
+
+On Linux the tray needs a desktop with StatusNotifier icons (KDE, GNOME with the AppIndicator extension). Without one the closed window cannot be brought back by the icon: start the application from the menu again and the window of the running copy is shown.
 
 ## Building and running
 

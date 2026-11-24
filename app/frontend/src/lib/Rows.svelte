@@ -1,16 +1,17 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import { hasModule } from './me.svelte';
   import { t } from './i18n.svelte';
   import { getPref, setPref } from './prefs';
   import EditBar from './EditBar.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
   import type { RowEdit } from './dash-edit';
-  import { assistantOffered, fmtAgo, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, tagsOf } from './status';
+  import { assistantOffered, fmtAgo, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, tagsOf, type AgentFlag } from './status';
 
-  let { cards, now, edit = null, onopen }: { cards: ServerCard[]; now: number; edit?: RowEdit | null; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
+  let { cards, now, edit = null, agents = {}, onmenu, onopen }: { cards: ServerCard[]; now: number; edit?: RowEdit | null; agents?: Record<string, AgentFlag>; onmenu?: (e: MouseEvent, c: ServerCard) => void; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
   // the badges that have a short form for the narrow cell of the list
-  const SHORT = new Set(['reboot', 'updates', 'images', 'failed']);
+  const SHORT = new Set(['reboot', 'updates', 'images', 'failed', 'agentUpdate', 'agentOld']);
   const units = $derived({ d: t('unit.d'), h: t('unit.h'), min: t('unit.min') });
 
   // a click on a header sorts by the column, a second one reverses, a third one returns to the order of the server
@@ -79,6 +80,7 @@
       <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
       <tr class="st-{lv}" class:over={edit && edit.overId() === c.id && edit.dragId() !== c.id} class:dragging={edit && edit.dragId() === c.id} draggable={!!edit}
         ondragstart={(e) => edit?.dragStart(e, c.id)} ondragover={(e) => edit?.dragOver(e, c.id)} ondrop={(e) => edit?.drop(e, c.id)} ondragend={() => edit?.dragEnd()}
+        oncontextmenu={(e) => onmenu?.(e, c)}
         onclick={(e) => !edit && !(e.target as Element).closest('button') && openServer(c.id)}>
         <td><span class="dot {lv}"></span><b>{c.name}</b> <span class="os" class:os-windows={isWindows(c.os)}>{isWindows(c.os) ? 'WIN' : 'LIN'}</span></td>
         <td class="mono">{c.address}</td>
@@ -90,12 +92,12 @@
             {:else}<span class="dim">—</span>{/if}
           </td>
         {/each}
-        <td class="nw">{#each tagsOf(c) as tag (tag.id)}<span class="badge b-{tag.tone}" title={t(`tag.${tag.id}`, { n: tag.n ?? 0 })}>{t(SHORT.has(tag.id) ? `tag.s.${tag.id}` : `tag.${tag.id}`, { n: tag.n ?? 0 })}</span> {/each}</td>
+        <td class="nw">{#each tagsOf(c, agents[c.id] ?? null) as tag (tag.id)}<span class="badge b-{tag.tone}" title={t(`tag.${tag.id}`, { n: tag.n ?? 0 })}>{t(SHORT.has(tag.id) ? `tag.s.${tag.id}` : `tag.${tag.id}`, { n: tag.n ?? 0 })}</span> {/each}</td>
         <td class="mono dim nw">{c.online ? (s ? fmtUptime(s.uptime, units) : '—') : fmtAgo(c.last_seen_at, now, units)}</td>
         <td class="r"><span class="r-btns">
-          <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!c.online} onclick={() => onopen(c, 'terminal')}><Icon name="square-terminal" size={14} /></button>
-          {#if rdpOffered(c)}<button class="btn icon sm" type="button" title={t('card.rdp')} disabled={!c.online} onclick={() => onopen(c, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
-          {#if assistantOffered(c.os, c.sample)}<button class="btn icon sm" type="button" title={t('card.asst')} disabled={!c.online} onclick={() => onopen(c, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
+          {#if hasModule('terminal')}      <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!c.online} onclick={() => onopen(c, 'terminal')}><Icon name="square-terminal" size={14} /></button>{/if}
+          {#if hasModule('desktop') && rdpOffered(c)}<button class="btn icon sm" type="button" title={t('card.rdp')} disabled={!c.online} onclick={() => onopen(c, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
+          {#if hasModule('assistant') && assistantOffered(c.os, c.sample)}<button class="btn icon sm" type="button" title={t('card.asst')} disabled={!c.online} onclick={() => onopen(c, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
         </span></td>
         {#if edit}<td class="editcell"><EditBar card={c} index={i} count={sorted.length} groups={edit.groups} onmove={(d) => edit.move(c.id, d)} ongroup={(v) => edit.group(c.id, v)} onremove={() => edit.remove(c.id)} ondelete={() => edit.del(c.id)} /></td>{/if}
       </tr>

@@ -21,8 +21,10 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/bolgov0zero/linager/app/internal/autostart"
 	"github.com/bolgov0zero/linager/app/internal/local"
 	"github.com/bolgov0zero/linager/app/internal/profiles"
+	"github.com/bolgov0zero/linager/app/internal/tray"
 	"github.com/bolgov0zero/linager/app/internal/update"
 )
 
@@ -38,7 +40,12 @@ var version = "dev"
 func main() {
 	headless := flag.Bool("headless", false, "serve the interface on a local address and open no window (development, tests)")
 	profilesPath := flag.String("profiles", "", "profiles file (default: <user config dir>/Linager/profiles.json)")
+	hidden := flag.Bool("hidden", false, "start with the window hidden in the tray (the start at login)")
+	after := flag.Int("after", 0, "wait until this process exits before starting (an update starts the new copy this way)")
 	flag.Parse()
+	if *after > 0 {
+		waitExit(*after)
+	}
 
 	assets, err := fs.Sub(dist, "frontend/dist")
 	if err != nil {
@@ -61,6 +68,8 @@ func main() {
 
 	opts := local.Options{Assets: assets, Profiles: store, Prefs: profiles.OpenPrefs(profiles.PrefsPath(path)), Secrets: secrets, VaultMemo: filepath.Join(filepath.Dir(path), "vault-last.json"), Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
 	var wins *windows
+	var ctl *trayCtl
+	prefs := opts.Prefs
 	if !*headless {
 		update.CleanupOld() // the program that was replaced by the last update could not delete itself
 		wins = &windows{open: map[string]*application.WebviewWindow{}}
@@ -68,7 +77,18 @@ func main() {
 		if cerr != nil {
 			cache = os.TempDir()
 		}
-		up, uerr := update.New(version, filepath.Join(cache, "Linager", "update"), func() { wins.app.Quit() })
+		ctl = newTrayCtl(tray.Open(filepath.Join(filepath.Dir(path), "tray.json")), func() string {
+			if prefs.All()["linager.locale"] == "en" {
+				return "en"
+			}
+			return "ru"
+		})
+		ctl.wins = wins
+		opts.Tray, opts.OnTray = ctl.store, ctl.refresh
+		if exe, eerr := os.Executable(); eerr == nil {
+			opts.AutostartExe = exe
+		}
+		up, uerr := update.New(version, filepath.Join(cache, "Linager", "update"), ctl.quit)
 		if uerr != nil {
 			log.Fatalf("update: %v", uerr)
 		}
@@ -105,18 +125,33 @@ func main() {
 	if os.Getenv("LINAGER_DEBUG") != "" {
 		log.Printf("local server: %s", srv.URL())
 	}
-	app := application.New(application.Options{
+	var app *application.App
+	app = application.New(application.Options{
 		Name:        "Linager",
 		Description: "Linager server management",
 		Icon:        appIcon,
-		Mac:         application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
+		// the program lives in the tray: closing the windows does not end it, "Quit" of the tray and Cmd+Q do
+		Mac:     application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
+		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
+		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true},
+		ShouldQuit: func() bool {
+			ctl.quitting.Store(true)
+			return true
+		},
+		// a second start (a click on the icon, the start at login) shows the window of the first
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID:               autostart.ID,
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) { ctl.showMain() },
+		},
 		// every window loads the local server; the asset server of the framework has nothing to serve
 		Assets: application.AssetOptions{Handler: http.NotFoundHandler()},
 	})
 	wins.app, wins.base = app, srv.URL()
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:  "main",
-		Title: "Linager",
+	ctl.app, ctl.srv = app, srv
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Hidden: *hidden,
+		Name:   "main",
+		Title:  "Linager",
 		// the size the person works in is also the smallest: the interface (the top bar, the dashboard, the server page)
 		// is laid out for it
 		Width:     1340,
@@ -125,6 +160,8 @@ func main() {
 		MinHeight: 851,
 		URL:       srv.URL(),
 	})
+	ctl.hideOnClose(win)
+	ctl.start()
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}

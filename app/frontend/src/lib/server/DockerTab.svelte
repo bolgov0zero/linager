@@ -4,6 +4,7 @@
   import CustomSelect from '../CustomSelect.svelte';
   import ContextMenu, { type CtxItem } from '../ContextMenu.svelte';
   import { confirmAsk } from '../dialogs.svelte';
+  import { portList, portsShort } from '../docker-ports';
   import { cpuText, errorText as dockerError, groupContainers, imageTitle, isRunning, ramText, shortId, stateTone, unavailable, type ContainerGroup } from '../docker-util';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
@@ -215,11 +216,11 @@
   {@const running = isRunning(c)}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <tr class:hl={c.upd === 'new' && !c.ignored} oncontextmenu={(e) => openMenu(containerItems(c), e)}>
-    <td><b class="mono">{c.name}</b>{#if c.project && !hasProjects} <span class="dim">· {c.project}</span>{/if}<div class="dim mono sub" title={c.image}>{c.image}</div></td>
+    <td class="cut"><b class="mono">{c.name}</b>{#if c.project && !hasProjects} <span class="dim">· {c.project}</span>{/if}<div class="dim mono sub cut" title={c.image}>{c.image}</div></td>
     <td><span class="badge {tone(c.state)}">{c.state}</span></td>
-    <td class="mono dim" title={c.ports.join(', ')}>{c.ports.join(', ') || '—'}</td>
+    <td class="mono dim cut" title={portList(c.ports).join(', ')}>{portsShort(c.ports)}</td>
     <td class="mono r">{cpuText(c)}</td><td class="mono r">{ramText(c)}</td>
-    <td class="dim">{c.status}</td>
+    <td class="dim cut" title={c.status}>{c.status}</td>
     <td>{#if c.upd === 'new'}<span class="badge {c.ignored ? 'b-mute' : 'b-warn'}">{c.ignored ? t('docker.badge.ignored') : t('docker.upd.new')}</span>{#if c.upd_local && c.upd_remote} <span class="dim mono">{c.upd_local} → {c.upd_remote}</span>{/if}
       {:else if c.upd === 'current'}<span class="badge b-ok">{t('docker.upd.current')}</span>
       {:else if c.upd === 'unknown'}<span class="badge b-mute" title={c.upd_error || t('docker.upd.unknownHint')}>{t('docker.upd.unknown')}</span>
@@ -254,7 +255,8 @@
 
     {#if section === 'containers'}
       {#if containers.length === 0}<p class="dim">{t('docker.noContainers')}</p>{:else}
-        <div class="tw" style="max-height:none"><table class="tbl compact">
+        <div class="tw" style="max-height:none"><table class="tbl compact dk fixed">
+          <colgroup><col><col style="width:96px"><col style="width:150px"><col style="width:64px"><col style="width:84px"><col style="width:160px"><col style="width:150px"><col style="width:116px"></colgroup>
           <thead><tr><th>{t('docker.col.container')}</th><th>{t('docker.col.state')}</th><th>{t('docker.col.ports')}</th><th class="r">{t('docker.col.cpu')}</th><th class="r">{t('docker.col.ram')}</th><th>{t('docker.col.status')}</th><th>{t('docker.col.registry')}</th><th></th></tr></thead>
           <tbody>
             {#each groups as g (g.key)}
@@ -280,10 +282,11 @@
       {/if}
     {:else}
       {#if images.length === 0}<p class="dim">{t('docker.noImages')}</p>{:else}
-        <div class="tw" style="max-height:none"><table class="tbl compact">
+        <div class="tw" style="max-height:none"><table class="tbl compact dk fixed">
+          <colgroup><col><col style="width:120px"><col style="width:90px"><col style="width:170px"><col style="width:56px"></colgroup>
           <thead><tr><th>{t('docker.col.image')}</th><th>ID</th><th class="r">{t('docker.col.size')}</th><th>{t('docker.col.created')}</th><th></th></tr></thead>
           <tbody>{#each images as img (img.id)}
-            <tr><td class="mono"><b>{imageTitle(img)}</b>{#if img.used} <span class="badge b-info">{t('docker.used')}</span>{/if}{#if (img.repo_tags ?? []).length > 1}<div class="dim sub">{img.repo_tags.slice(1).join(', ')}</div>{/if}</td>
+            <tr><td class="mono" title={(img.repo_tags ?? []).join('\n')}><b>{imageTitle(img)}</b>{#if img.used} <span class="badge b-info">{t('docker.used')}</span>{/if}{#if (img.repo_tags ?? []).length > 1}<div class="dim sub cut">{img.repo_tags.slice(1).join(', ')}</div>{/if}</td>
               <td class="mono dim">{shortId(img.id)}</td><td class="mono r">{fmtBytes(img.size)}</td><td class="dim">{img.created ? new Date(img.created * 1000).toLocaleString() : '—'}</td>
               <td class="r"><button class="btn icon sm danger" type="button" title={img.used ? t('docker.used') : t('docker.act.remove')} disabled={readOnly || img.used} onclick={() => removeImage(img)}><Icon name="trash-2" size={14} /></button></td></tr>
           {/each}</tbody>

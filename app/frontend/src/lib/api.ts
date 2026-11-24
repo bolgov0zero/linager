@@ -5,6 +5,8 @@ export interface Session {
   csrf: string;
   login: string;
   role?: 'admin' | 'operator' | 'auditor';
+  /** For an operator: the modules that were given (an administrator has all, an auditor none). */
+  modules?: string[];
   totp_enabled?: boolean;
   recovery_left?: number;
 }
@@ -445,6 +447,8 @@ export interface ServerDetail {
   system: SystemInfo | null;
   sample: Sample | null;
   spark: number[];
+  /** The tags of the server (kept by the Linager server). */
+  tags?: string[];
   note?: string;
   note_updated_at?: number;
   note_updated_by?: string;
@@ -501,6 +505,7 @@ export interface DiskScan { scanned_at: number; mount: string; partial: boolean;
 
 const enc = encodeURIComponent;
 export const serverApi = {
+  setTags: (id: string, tags: string[]) => request<{ tags: string[] }>('PUT', `api/servers/${enc(id)}/tags`, { tags }),
   detail: (id: string) => request<ServerDetail>('GET', `api/servers/${enc(id)}`),
   history: (id: string, period: Period) => request<History>('GET', `api/servers/${enc(id)}/metrics?period=${period}`),
   services: (id: string) => request<{ services: ServiceUnit[] }>('GET', `api/servers/${enc(id)}/services`),
@@ -516,6 +521,9 @@ export const serverApi = {
   diskClean: (id: string, kind: DiskCleanItem['kind']) => request<{ ok: boolean; freed: number; output: string }>('POST', `api/servers/${enc(id)}/disk/clean`, { kind, confirm: true }),
   reboot: (id: string) => request<{ ok: boolean }>('POST', `api/servers/${enc(id)}/reboot`, { confirm: true }),
   deleteServer: (id: string, name: string, uninstall: boolean) => request<void>('DELETE', `api/servers/${enc(id)}`, { name, uninstall }),
+  servicesIgnored: (id: string) => request<{ ignored: string[] }>('GET', `api/servers/${encodeURIComponent(id)}/services-ignored`),
+  serviceIgnore: (id: string, unit: string, ignore: boolean) => request<{ ok: boolean }>('PUT', `api/servers/${encodeURIComponent(id)}/services-ignored`, { unit, ignore }),
+  aptIgnore: (id: string, name: string, ignore: boolean) => request<{ ok: boolean }>('PUT', `api/servers/${encodeURIComponent(id)}/apt-ignore`, { name, ignore }),
   noteSet: (id: string, note: string) => request<{ note: string }>('PUT', `api/servers/${enc(id)}/note`, { note }),
 };
 

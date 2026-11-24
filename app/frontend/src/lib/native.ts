@@ -22,6 +22,9 @@ export interface AppState {
   native: boolean;
 }
 
+export type TrayMode = 'terminal' | 'rdp' | 'asst';
+export interface TrayEntry { server_id: string; name: string; modes: TrayMode[] }
+
 export type WindowKind = 'terminal' | 'note' | 'files' | 'manager' | 'editor' | 'rdp' | 'asst' | 'settings';
 
 export class NativeError extends Error {
@@ -65,6 +68,13 @@ export const native = {
   vaultForget: () => call<{ ok: boolean }>('DELETE', 'vault/last'),
   /** The application asks where to save the file (a native dialog) and writes the bytes (base64, already encrypted). */
   vaultSave: (name: string, data: string) => call<{ saved?: string; name?: string; cancelled?: boolean }>('POST', 'vault/save', { name, data }),
+  /** The connections of the tray (kept by the application, per Linager server): the entries and whether the tray exists. */
+  trayGet: () => call<{ entries: TrayEntry[]; native: boolean }>('GET', 'tray'),
+  /** Sets the modes (terminal, rdp, asst) of a server in the tray; no modes removes it. */
+  traySet: (serverId: string, name: string, modes: TrayMode[]) => call<{ ok: boolean }>('PUT', 'tray', { server_id: serverId, name, modes }),
+  /** The start at login (the application starts hidden in the tray). */
+  autostartGet: () => call<{ supported: boolean; enabled: boolean }>('GET', 'autostart'),
+  autostartSet: (enabled: boolean) => call<{ supported: boolean; enabled: boolean }>('PUT', 'autostart', { enabled }),
   /** Opens a native window; in a browser (development) the same page opens in a new tab. */
   openWindow: async (kind: WindowKind, id: string, title: string, native: boolean, arg = ''): Promise<void> => {
     if (native) {

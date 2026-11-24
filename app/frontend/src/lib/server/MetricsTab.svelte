@@ -2,17 +2,20 @@
   import { onMount } from 'svelte';
   import { serverApi, type History, type MetricKey, type Period, type ServerDetail } from '../api';
   import Icon from '../Icon.svelte';
-  import { t } from '../i18n.svelte';
+  import { i18n, t } from '../i18n.svelte';
   import { startDownload } from '../files-clip.svelte';
+  import Fold from '../settings/Fold.svelte';
   import { fmtRate } from '../status';
   import { showToast } from '../toast';
 
   let { s }: { s: ServerDetail } = $props();
 
-  const PERIODS: Period[] = ['1h', '24h', '7d', '30d'];
+  const PERIODS: Period[] = ['1h', '24h', '7d', '30d', '90d', '180d', '360d'];
   let period = $state<Period>('24h');
   let h = $state<History | null>(null);
   let failed = $state(false);
+  let evOpen = $state(false);
+  let polOpen = $state(false);
 
   async function load(): Promise<void> {
     try {
@@ -39,6 +42,15 @@
     }
   }
 
+  const fmtStatKey = (key: MetricKey, v: number): string => (key === 'rx' || key === 'tx' ? fmtRate(v) : `${Math.round(v)}%`);
+  /** The marks of the events on a chart: where in the period (0..1) and of what kind. */
+  const marks = $derived(h ? h.events.map((e) => ({ x: (e.ts - h!.from) / Math.max(1, h!.to - h!.from), kind: e.kind })).filter((m) => m.x >= 0 && m.x <= 1) : []);
+  const evTime = (ts: number): string => new Date(ts * 1000).toLocaleString(i18n.locale);
+  const stepText = (sec: number): string => (sec < 60 ? t('st.upd.dur.s', { n: sec }) : sec < 3600 ? `${sec / 60} ${t('unit.min')}` : `${sec / 3600} ${t('unit.h')}`);
+  const POLICY: { periods: Period[]; step: number }[] = [
+    { periods: ['1h'], step: 5 }, { periods: ['24h', '7d'], step: 60 }, { periods: ['30d', '90d'], step: 300 }, { periods: ['180d'], step: 900 }, { periods: ['360d'], step: 3600 },
+  ];
+
   const CHARTS: { key: MetricKey; title: string; pct: boolean }[] = [
     { key: 'cpu', title: 'CPU', pct: true },
     { key: 'mem', title: 'RAM', pct: true },
@@ -46,11 +58,12 @@
     { key: 'rx', title: t('sp.net.rx'), pct: false },
   ];
 
-  function pts(key: MetricKey, pct: boolean): { line: string; area: string } {
+  /** The points of a chart; the net chart draws the sent line on the scale of the received one (`withRx`). */
+  function pts(key: MetricKey, pct: boolean, withRx = false): { line: string; area: string } {
     const a = h?.points ?? [];
     if (a.length === 0) return { line: '', area: '' };
     const get = (p: (typeof a)[number]): number => p[`${key}_avg` as 'cpu_avg'];
-    const max = pct ? 100 : Math.max(1, ...a.map(get));
+    const max = pct ? 100 : Math.max(1, ...a.map(get), ...(key === 'rx' || withRx ? a.map((p) => p.tx_avg) : []), ...(withRx ? a.map((p) => p.rx_avg) : []));
     const w = 640, ht = 150;
     const step = a.length > 1 ? w / (a.length - 1) : w;
     const line = 'M' + a.map((p, i) => `${(i * step).toFixed(1)},${(ht - (get(p) / max) * (ht - 14) - 7).toFixed(1)}`).join(' L');
@@ -87,10 +100,11 @@
 </script>
 
 <div class="sp-tools">
-  <div class="seg sm">{#each PERIODS as p (p)}<button type="button" class:on={period === p} aria-pressed={period === p} onclick={() => (period = p)}>{p}</button>{/each}</div>
+  <div class="seg sm">{#each PERIODS as p (p)}<button type="button" class:on={period === p} aria-pressed={period === p} onclick={() => (period = p)}>{t(`srv.period.${p}`)}</button>{/each}</div>
   <label class="ck"><input type="checkbox" bind:checked={sync} />{t('sp.metrics.sync')}</label>
   <span class="dim">{t('sp.metrics.hint')}</span>
   <span class="grow"></span>
+  {#if h}<span class="dim">{t('srv.metrics.precision', { step: stepText(h.step_seconds) })}</span>{/if}
   <button class="btn sm" type="button" onclick={() => void exportCsv()}><Icon name="download" size={14} />{t('srv.metrics.csv')}</button>
 </div>
 
@@ -102,12 +116,14 @@
       {@const p = pts(c.key, c.pct)}
       {@const tp = tip(c.key)}
       <section class="panel">
-        <div class="ch-h"><h4>{c.title}</h4><b class="mono">{fmt(c.key, h?.stats[c.key]?.avg)} <span class="dim">avg</span> · {fmt(c.key, h?.stats[c.key]?.max)} <span class="dim">max</span></b></div>
+        <div class="ch-h"><h4>{c.title}{#if c.key === 'rx'} <span class="dim">↓ {t('srv.chart.rx')} · <i class="tx-key">↑ {t('srv.chart.tx')}</i></span>{/if}</h4><b class="mono">{fmt(c.key, h?.stats[c.key]?.avg)} <span class="dim">avg</span> · {fmt(c.key, h?.stats[c.key]?.max)} <span class="dim">max</span></b></div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="ch-wrap" onpointermove={(e) => move(e, c.key)} onpointerleave={() => (hov = null)}>
         <svg class="chart" viewBox="0 0 640 150" preserveAspectRatio="none" aria-hidden="true">
           {#each [0.25, 0.5, 0.75] as k (k)}<line class="gl" x1="0" x2="640" y1={150 * k} y2={150 * k} vector-effect="non-scaling-stroke" />{/each}
           {#if p.line}<path class="sa" d={p.area} /><path class="sl" d={p.line} vector-effect="non-scaling-stroke" />{/if}
+          {#if c.key === 'rx'}{@const q = pts('tx', false, true)}{#if q.line}<path class="sl tx" d={q.line} vector-effect="non-scaling-stroke" />{/if}{/if}
+          {#each marks as mk, i (i)}<line class="evm" class:rb={mk.kind === 'reboot'} x1={mk.x * 640} x2={mk.x * 640} y1="0" y2="150" vector-effect="non-scaling-stroke" />{/each}
         </svg>
         {#if tp}
           <i class="ch-cur" style="left:{tp.frac * 100}%"></i>
@@ -115,7 +131,29 @@
         {/if}
         </div>
         <div class="ch-x mono dim">{#each ticks as tk, i (i)}<span>{tk}</span>{/each}</div>
+        {#if h}
+          {@const st = h.stats[c.key]}
+          {#if st}<p class="stats"><span>{t('srv.stat.min')} <b>{fmtStatKey(c.key, st.min)}</b></span><span>{t('srv.stat.avg')} <b>{fmtStatKey(c.key, st.avg)}</b></span><span>{t('srv.stat.p95')} <b>{fmtStatKey(c.key, st.p95)}</b></span><span>{t('srv.stat.peak')} <b>{fmtStatKey(c.key, st.max)}</b></span></p>{/if}
+          {#if c.key === 'rx' && h.stats.tx}<p class="stats"><span class="dim">↑ {t('srv.chart.tx')}</span><span>{t('srv.stat.min')} <b>{fmtStatKey('tx', h.stats.tx.min)}</b></span><span>{t('srv.stat.avg')} <b>{fmtStatKey('tx', h.stats.tx.avg)}</b></span><span>{t('srv.stat.p95')} <b>{fmtStatKey('tx', h.stats.tx.p95)}</b></span><span>{t('srv.stat.peak')} <b>{fmtStatKey('tx', h.stats.tx.max)}</b></span></p>{/if}
+        {/if}
       </section>
     {/each}
+  </div>
+{/if}
+
+{#if h}
+  <div class="extras">
+    <Fold title={t('srv.events.title')} meta={h.events.length > 0 ? String(h.events.length) : ''} bind:open={evOpen}>
+      {#if h.events.length === 0}<p class="dim">{t('srv.events.none')}</p>
+      {:else}
+        <ul class="evlist">{#each h.events as ev, i (i)}<li><time class="mono">{evTime(ev.ts)}</time><span class="badge {ev.kind === 'reboot' ? 'b-crit' : ev.kind === 'service_failed' ? 'b-warn' : 'b-mute'}">{t(`srv.event.${ev.kind}`)}</span><span class="dim">{ev.message}</span></li>{/each}</ul>
+      {/if}
+      <p class="dim">{t('srv.events.legend')}</p>
+    </Fold>
+    <Fold title={t('srv.policy.title')} bind:open={polOpen}>
+      <table class="tbl compact"><thead><tr><th>{t('srv.policy.period')}</th><th>{t('srv.policy.precision')}</th></tr></thead>
+        <tbody>{#each POLICY as row (row.step)}<tr><td>{row.periods.map((p) => t(`srv.period.${p}`)).join(', ')}</td><td>{stepText(row.step)}</td></tr>{/each}</tbody></table>
+      <p class="dim">{t('srv.policy.note')}</p>
+    </Fold>
   </div>
 {/if}

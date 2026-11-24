@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -27,12 +28,14 @@ const (
 	linuxExe = "linager-app"
 )
 
-// launch starts the installed program: on macOS the bundle is opened (a second copy next to the old one), elsewhere the file.
+// launch starts the installed program: on macOS the bundle is opened (a second copy next to the old one), elsewhere the
+// file. The new copy is told to wait for this one to exit ("-after"): the program keeps a lock of the single instance.
 func launch(path string) error {
+	pid := strconv.Itoa(os.Getpid())
 	if runtime.GOOS == "darwin" {
-		return exec.Command("open", "-n", path).Run()
+		return exec.Command("open", "-n", path, "--args", "-after", pid).Run()
 	}
-	cmd := exec.Command(path)
+	cmd := exec.Command(path, "-after", pid)
 	cmd.Dir = filepath.Dir(path)
 	if err := cmd.Start(); err != nil {
 		return err

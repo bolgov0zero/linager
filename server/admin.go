@@ -137,6 +137,8 @@ func (a *Admin) Handler() http.Handler {
 	a.route(mux, "DELETE /api/groups/{id}", "admin", a.groupDelete)
 	a.route(mux, "PUT /api/servers/{id}/group", "srv:admin", a.serverSetGroup)
 	a.route(mux, "PUT /api/servers/{id}/note", "srv:admin", a.serverNoteSet)
+	a.route(mux, "GET /api/servers/{id}/tags", "srv", a.serverTagsGet)
+	a.route(mux, "PUT /api/servers/{id}/tags", "srv:admin", a.serverTagsSet)
 	a.route(mux, "GET /api/dashboard", "any", a.dashboard)
 	a.route(mux, "GET /api/dashboard/available", "admin", a.dashboardAvailable)
 	a.route(mux, "POST /api/dashboard/items", "admin", a.dashboardAdd)

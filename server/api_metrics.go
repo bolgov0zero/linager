@@ -207,8 +207,9 @@ func (a *Admin) serverDetail(w http.ResponseWriter, r *http.Request, _ *store.Us
 		recent = []store.RecentPoint{}
 	}
 	note, _ := a.DB.ServerNote(r.Context(), s.ID)
+	tags, _ := a.DB.ServerTags(r.Context(), s.ID)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"modules": mods, "recent": recent, "note": noteViewOf(note).Note, "note_updated_at": noteViewOf(note).UpdatedAt, "note_updated_by": note.UpdatedBy,
+		"modules": mods, "tags": tags, "recent": recent, "note": noteViewOf(note).Note, "note_updated_at": noteViewOf(note).UpdatedAt, "note_updated_by": note.UpdatedBy,
 		"id": s.ID, "name": s.Name, "hostname": s.Hostname, "address": s.Address, "os": s.OS, "agent_version": s.AgentVersion,
 		"online": a.Hub.Online(s.ID), "last_seen_at": s.LastSeenAt, "enrolled_at": s.EnrolledAt,
 		"system": v.System, "sample": v.Sample, "spark": v.Spark,

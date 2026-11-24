@@ -4,6 +4,8 @@
   import { confirmAsk } from '../dialogs.svelte';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
+  import { hasModule } from '../me.svelte';
+  import { showToast } from '../toast';
 
   let { s }: { s: ServerDetail } = $props();
   let apt = $state<AptList | null>(null);
@@ -17,6 +19,17 @@
   let failed = $state(false);
   let runErr = $state('');
   let ws: WebSocket | null = null;
+
+  async function toggleIgnore(p: { name: string; ignored?: boolean }): Promise<void> {
+    const next = !p.ignored;
+    try {
+      await serverApi.aptIgnore(s.id, p.name, next);
+      if (apt) apt = { ...apt, packages: apt.packages.map((x) => (x.name === p.name ? { ...x, ignored: next } : x)) };
+      showToast(t(next ? 'apt.ignoredDone' : 'apt.unignoredDone', { name: p.name }));
+    } catch {
+      runErr = t('sp.err.action');
+    }
+  }
 
   async function load(): Promise<void> {
     try {
@@ -153,7 +166,7 @@
           <tr class:dimrow={p.ignored}>
             <td class="ck-c"><input type="checkbox" aria-label={p.name} bind:checked={sel[p.name]} disabled={!!running} /></td>
             <td class="mono"><b>{p.name}</b></td><td class="mono dim" title="{p.current} → {p.candidate}">{p.current} → {p.candidate}</td>
-            <td class="r">{#if states[p.name]}<span class="badge {stateTone(states[p.name])}">{t(`sp.upd.st.${states[p.name]}`)}</span> {/if}{#if p.security}<span class="badge b-warn">security</span>{/if}{#if p.reboot} <span class="badge b-mute">reboot</span>{/if}{#if p.ignored} <span class="badge b-mute">{t('sp.upd.ignored')}</span>{/if}</td></tr>
+            <td class="r">{#if states[p.name]}<span class="badge {stateTone(states[p.name])}">{t(`sp.upd.st.${states[p.name]}`)}</span> {/if}{#if p.security}<span class="badge b-warn">security</span>{/if}{#if p.reboot} <span class="badge b-mute">reboot</span>{/if}{#if p.ignored} <span class="badge b-mute">{t('sp.upd.ignored')}</span>{/if}{#if hasModule('apt')} <button class="btn icon xs" type="button" title={t(p.ignored ? 'apt.act.unignore' : 'apt.act.ignore')} aria-label={t(p.ignored ? 'apt.act.unignore' : 'apt.act.ignore')} onclick={() => void toggleIgnore(p)}><Icon name={p.ignored ? 'eye' : 'eye-off'} size={13} /></button>{/if}</td></tr>
         {:else}
           <tr><td colspan="4" class="dim">{t('sp.upd.none')}</td></tr>
         {/each}
