@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+- **Fix (application): the button "Snippets" of the terminal had no icon** (the room for it was there). The icon `file-code` was named in the code but missing from the icon set of the application. It is added, and a test (`icons.test.mjs`) now checks that every icon named in the sources exists in the set.
+
 ## 1.1.1
 
 - **Fix (application): the Assistant in a window of its own no longer reconnects every 20 seconds** (the picture blinked: the spinner "Connecting to the session: console", then the picture again). The window read the record of the server again every 20 seconds and replaced it as a whole; the connection of the Assistant was restarted by that, though the server was the same. The windows of the Assistant and of the remote desktop now give the connection the id they were opened with. A tab of the Console and the server page were not affected. Test: `win/windows.test.mjs`.
