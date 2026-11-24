@@ -7,7 +7,7 @@ import (
 
 func mustApp(t *testing.T, cfg AppAccessConfig) *accessRules {
 	t.Helper()
-	_, ar, err := compileAppAccess(cfg)
+	_, ar, err := compileAppAccess(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -15,7 +15,7 @@ func mustApp(t *testing.T, cfg AppAccessConfig) *accessRules {
 }
 
 func TestCompileAppAccess(t *testing.T) {
-	norm, _, err := compileAppAccess(AppAccessConfig{Mode: AccessWhite, White: []AccessRule{{CIDR: "10.0.0.5"}, {CIDR: "10.0.0.5/32"}, {CIDR: "192.168.1.9/24", Note: " office "}}})
+	norm, _, err := compileAppAccess(AppAccessConfig{Mode: AccessWhite, White: []AccessRule{{CIDR: "10.0.0.5"}, {CIDR: "10.0.0.5/32"}, {CIDR: "192.168.1.9/24", Note: " office "}}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,11 +23,10 @@ func TestCompileAppAccess(t *testing.T) {
 		t.Fatalf("normalised: %+v", norm.White)
 	}
 	for name, cfg := range map[string]AppAccessConfig{
-		"mode":      {Mode: "maybe"},
-		"address":   {Mode: AccessWhite, White: []AccessRule{{CIDR: "nope"}}},
-		"host name": {Mode: AccessBlack, Black: []AccessRule{{CIDR: "home.example.com"}}},
+		"mode":    {Mode: "maybe"},
+		"address": {Mode: AccessWhite, White: []AccessRule{{CIDR: "nope"}}},
 	} {
-		if _, _, err := compileAppAccess(cfg); err == nil {
+		if _, _, err := compileAppAccess(cfg, nil); err == nil {
 			t.Errorf("%s must be refused", name)
 		}
 	}
@@ -87,9 +86,33 @@ func TestAppAccessFollowsAdminUntilSaved(t *testing.T) {
 	if cfg, saved := g.AppCurrent(); saved || cfg.Mode != AccessWhite || len(cfg.White) != 1 {
 		t.Fatalf("inherited view: %+v %v", cfg, saved)
 	}
-	cfg, rules, _ := compileAppAccess(AppAccessConfig{Mode: AccessOff})
+	cfg, rules, _ := compileAppAccess(AppAccessConfig{Mode: AccessOff}, nil)
 	g.app.Store(&appAccessSnapshot{cfg: cfg, rules: rules})
 	if !g.decideApp(out).Allowed {
 		t.Fatal("saved as off: the admin list no longer applies to the port")
+	}
+}
+
+// A host name in the list stands for the addresses it points to; a name without an address cannot be applied.
+func TestAppAccessHostNames(t *testing.T) {
+	cfg := AppAccessConfig{Mode: AccessWhite, White: []AccessRule{{CIDR: " Home.Example.ORG. ", Note: "home"}, {CIDR: "10.0.0.0/8"}}}
+	norm, ar, err := compileAppAccess(cfg, hostAddrs{"home.example.org": {netip.MustParseAddr("203.0.113.50")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if norm.White[0].CIDR != "home.example.org" || len(ar.hosts) != 1 || len(ar.unresolved) != 0 {
+		t.Fatalf("normalised: %+v hosts %v unresolved %v", norm.White, ar.hosts, ar.unresolved)
+	}
+	if !ar.decide(netip.MustParseAddr("203.0.113.50"), "").Allowed || ar.decide(netip.MustParseAddr("203.0.113.51"), "").Allowed {
+		t.Error("the address of the name is allowed, a neighbour is not")
+	}
+	if got := appHostNames(cfg); len(got) != 1 || got[0] != "home.example.org" {
+		t.Errorf("appHostNames: %v", got)
+	}
+	// no address known: the name is reported and the config cannot be applied
+	_, unres, _ := compileAppAccess(cfg, nil)
+	p := appProblems(unres, netip.MustParseAddr("10.0.0.7"), true)
+	if len(p) != 1 || p[0].Code != problemHostNoAddr || p[0].Host != "home.example.org" {
+		t.Errorf("an unresolved name: %+v", p)
 	}
 }

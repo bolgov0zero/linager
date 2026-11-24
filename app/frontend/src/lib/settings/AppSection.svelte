@@ -39,6 +39,7 @@
 </script>
 
 <div class="set-sec">
+<section class="panel blk">
   <h3>{t('set.upd.title')}</h3>
   <dl class="facts">
     <div><dt>{t('set.upd.current')}</dt><dd class="mono">{info?.current ?? '—'}</dd></div>
@@ -69,12 +70,13 @@
     <p class="dim">{t('set.upd.channelHint')}</p>
     <p class="dim">{t('set.upd.hint')}</p>
   {/if}
-</div>
+</section>
 
 {#if login?.supported}
-  <div class="set-sec">
+  <section class="panel blk">
     <h3>{t('set.tray.title')}</h3>
     <label class="ck"><input type="checkbox" disabled={loginBusy} checked={login.enabled} onchange={(e) => void setLogin(e.currentTarget.checked)} />{t('set.tray.login')}</label>
     <p class="dim">{t('set.tray.hint')}</p>
-  </div>
+  </section>
 {/if}
+</div>

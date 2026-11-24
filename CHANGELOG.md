@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0-beta.14
+
+- Fix (application, server): **Server access: "Apply" was not active** when the inherited list had a host name (a DDNS name): the list of the application port took addresses only. Now it takes **host names** like the admin panel does: the addresses come from DNS (refreshed once a minute together with the names of the admin panel), the table shows what a name points to now and has the button "Refresh", a name that DNS does not know is refused. The server: `GET /api/app-access` and the check return `hosts`; `POST /api/access/resolve` serves both lists.
+- Change (application): **Settings → Application**: the update and the start at login are cards of their own.
+- Change (application): **the tray icon**: a click with either button opens its menu ("Open" brings the window back).
+
 ## 0.10.0-beta.13
 
 - Change (release): **the files of a release have clear names**. The application: `linager-desktop_macos_arm64.zip`, `linager-desktop_linux_x64.tar.gz`, `linager-desktop_windows_x64.msi` (the installer) and `linager-desktop-autoupdate_windows_x64.zip` (the archive of the self-update; it also works as a portable copy). The Windows agent: `linager-agent_windows_amd64.exe` and `.msi`. The Linux server and agent binaries (`linager_linux_amd64`, `linager_linux_arm64`) and the signed files keep their names. The `.deb` packages are no longer published (nothing used them: the installer and the updates work with the binaries). The names are taken from the signed manifest, so the application, the server and the agents of earlier versions update from this release as before.

@@ -124,7 +124,9 @@ func (c *trayCtl) start() {
 		c.icon.SetDarkModeIcon(trayWhite)
 	}
 	c.icon.SetTooltip("Linager")
-	c.icon.OnClick(c.showMain)
+	// a click of either button opens the menu ("Open" in it brings the window back)
+	c.icon.OnClick(c.icon.OpenMenu)
+	c.icon.OnRightClick(c.icon.OpenMenu)
 	c.render(nil, nil)
 	go c.loop()
 }

@@ -764,3 +764,6 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .pop .keyunlock .btn.danger{color:var(--crit-t);border-color:color-mix(in srgb,var(--crit) 40%,transparent)}
 .pop .keyunlock .btn.danger:hover{background:var(--crit-s);border-color:var(--crit)}
 .pop .keyunlock .krow .btn.primary{margin-left:auto}
+
+/* the blocks of Settings -> Application: each is a card of its own */
+.set-sec .panel.blk{display:flex;flex-direction:column;gap:12px;padding:16px 18px}

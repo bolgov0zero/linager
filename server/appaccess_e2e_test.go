@@ -41,8 +41,26 @@ func TestAppAccessAPI(t *testing.T) {
 	if code := admin.do("GET", "/api/access", nil, &adm); code != 200 || adm.Config.Mode != "off" {
 		t.Fatalf("the admin panel restriction is not touched: %d %+v", code, adm)
 	}
-	if code := admin.do("PUT", "/api/app-access", map[string]any{"mode": "black", "black": []map[string]string{{"cidr": "home.example.com"}}}, nil); code != http.StatusBadRequest {
-		t.Fatalf("a host name is refused: %d", code)
+	// a host name is accepted when DNS knows it, and refused (cannot be applied) when it does not
+	server.SetHostResolver(&dnsTable{m: map[string][]string{"home.example.com": {"203.0.113.50"}}})
+	t.Cleanup(func() { server.SetHostResolver(nil) })
+	if code := admin.do("PUT", "/api/app-access", map[string]any{"mode": "black", "black": []map[string]string{{"cidr": "home.example.com"}}}, nil); code != 200 {
+		t.Fatalf("a host name that DNS knows: %d", code)
+	}
+	var withHost struct {
+		Hosts map[string]struct {
+			IPs []string `json:"ips"`
+		} `json:"hosts"`
+	}
+	if code := admin.do("GET", "/api/app-access", nil, &withHost); code != 200 || len(withHost.Hosts["home.example.com"].IPs) != 1 {
+		t.Fatalf("the address of the name is shown: %d %+v", code, withHost)
+	}
+	if code := admin.do("PUT", "/api/app-access", map[string]any{"mode": "black", "black": []map[string]string{{"cidr": "nowhere.example.com"}}}, nil); code != http.StatusUnprocessableEntity {
+		t.Fatalf("a name without an address cannot be applied: %d", code)
+	}
+	// back to the list of the rest of the test
+	if code := admin.do("PUT", "/api/app-access", in, nil); code != 200 {
+		t.Fatalf("restore: %d", code)
 	}
 	if code := admin.do("PUT", "/api/app-access", map[string]any{"mode": "sometimes"}, nil); code != http.StatusBadRequest {
 		t.Fatalf("an unknown mode: %d", code)
@@ -60,8 +78,8 @@ func TestAppAccessAPI(t *testing.T) {
 		t.Fatalf("check, other address: %d %+v", code, chk)
 	}
 	var n int
-	if err := db.Pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_log WHERE action = 'appaccess.update'`).Scan(&n); err != nil || n != 1 {
-		t.Fatalf("one audit row: %d %v", n, err)
+	if err := db.Pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_log WHERE action = 'appaccess.update'`).Scan(&n); err != nil || n != 3 {
+		t.Fatalf("an audit row for every saved change: %d %v", n, err)
 	}
 	// `linager access reset` turns the restriction of the port off as well (the way back after a lock-out)
 	changed, err := server.ResetAccess(context.Background(), db)

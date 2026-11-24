@@ -16,6 +16,8 @@ type appAccessState struct {
 	Configured bool            `json:"configured"` // false: the port still follows the restriction of the admin panel
 	You        *verdict        `json:"you,omitempty"`
 	Denied24h  int             `json:"denied_24h"`
+	// Hosts describes the host names of the lists (what each points to now).
+	Hosts map[string]HostStatus `json:"hosts"`
 }
 
 // appCaller is the address the application port would judge for this request: the address of the connection when it came
@@ -30,7 +32,7 @@ func appCaller(r *http.Request) (netip.Addr, bool) {
 func (a *Admin) appAccessState(r *http.Request) appAccessState {
 	cfg, configured := a.Access.AppCurrent()
 	n, _ := a.DB.AccessDeniedSince(r.Context(), time.Now().Add(-24*time.Hour), true)
-	st := appAccessState{Config: cfg, Configured: configured, Denied24h: n}
+	st := appAccessState{Config: cfg, Configured: configured, Denied24h: n, Hosts: a.Access.hostStatuses(appHostNames(cfg))}
 	if ip, direct := appCaller(r); direct {
 		v := a.Access.decideApp(ip)
 		st.You = &v
@@ -43,9 +45,10 @@ func (a *Admin) appAccessGet(w http.ResponseWriter, r *http.Request, _ *store.Us
 }
 
 type appAccessCheckResp struct {
-	Problems []accessProblem `json:"problems"`
-	You      *verdict        `json:"you,omitempty"`
-	Test     *verdict        `json:"test,omitempty"`
+	Problems []accessProblem       `json:"problems"`
+	You      *verdict              `json:"you,omitempty"`
+	Test     *verdict              `json:"test,omitempty"`
+	Hosts    map[string]HostStatus `json:"hosts"`
 }
 
 type appAccessCheckReq struct {
@@ -54,12 +57,18 @@ type appAccessCheckReq struct {
 }
 
 func (a *Admin) appCheck(r *http.Request, cfg AppAccessConfig, testIP string) (AppAccessConfig, appAccessCheckResp, error) {
-	norm, ar, err := compileAppAccess(cfg)
+	_, first, err := compileAppAccess(cfg, nil)
+	if err != nil {
+		return cfg, appAccessCheckResp{}, err
+	}
+	// the host names of the draft are looked up (a name that was asked about a moment ago is not asked again)
+	a.Access.lookupHosts(r.Context(), first.hosts, hostCheckMaxAge)
+	norm, ar, err := compileAppAccess(cfg, a.Access.addrs())
 	if err != nil {
 		return cfg, appAccessCheckResp{}, err
 	}
 	caller, direct := appCaller(r)
-	resp := appAccessCheckResp{Problems: appProblems(ar, caller, direct)}
+	resp := appAccessCheckResp{Problems: appProblems(ar, caller, direct), Hosts: a.Access.hostStatuses(ar.hosts)}
 	if direct {
 		v := ar.decide(caller, "")
 		resp.You = &v
@@ -102,6 +111,7 @@ func (a *Admin) appAccessPut(w http.ResponseWriter, r *http.Request, u *store.Us
 		jsonErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	a.Access.persistHosts(r.Context(), a.Access.trackedHosts())
 	a.audit(r, u, "appaccess.update", "access", "", norm.Mode, "ok", map[string]any{"mode": norm.Mode, "white": len(norm.White), "black": len(norm.Black)})
 	writeJSON(w, http.StatusOK, a.appAccessState(r))
 }

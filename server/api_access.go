@@ -194,10 +194,11 @@ func (a *Admin) accessResolve(w http.ResponseWriter, r *http.Request, _ *store.U
 	}
 	g := a.Access
 	g.lookupHosts(r.Context(), []string{h}, 0)
-	tracked := slices.Contains(g.snap.Load().rules.hosts, h)
+	tracked := slices.Contains(g.trackedHosts(), h)
 	if tracked {
 		g.reapply()
-		g.persistHosts(r.Context(), g.snap.Load().rules.hosts)
+		g.reapplyApp()
+		g.persistHosts(r.Context(), g.trackedHosts())
 	}
 	st := g.hostStatuses([]string{h})[h]
 	if len(st.IPs) == 0 {

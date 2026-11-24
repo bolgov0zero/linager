@@ -242,13 +242,14 @@ func (g *AccessGuard) pruneHosts(keep []string) {
 
 // refreshHosts is the periodic job: ask DNS about the names of the lists and put the new addresses in force.
 func (g *AccessGuard) refreshHosts(ctx context.Context) {
-	names := g.snap.Load().rules.hosts
+	names := g.trackedHosts() // the lists of the admin panel and of the application port
 	g.pruneHosts(names)
 	if len(names) == 0 {
 		return
 	}
 	g.lookupHosts(ctx, names, 0)
 	g.reapply()
+	g.reapplyApp()
 	g.persistHosts(ctx, names)
 }
 

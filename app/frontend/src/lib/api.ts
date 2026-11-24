@@ -99,8 +99,10 @@ export type AccessMode = 'off' | 'white' | 'black';
 export interface AccessProblem { code: string; ip?: string; reason?: string; host?: string }
 /** The restriction of the application port: its own lists, apart from the admin panel. */
 export interface AppAccessConfig { mode: AccessMode; white: AccessRule[]; black: AccessRule[] }
-export interface AppAccessState { config: AppAccessConfig; configured: boolean; you?: { ip: string; allowed: boolean; reason: string }; denied_24h: number }
-export interface AppAccessCheck { problems: AccessProblem[]; you?: { ip: string; allowed: boolean; reason: string }; test?: { ip: string; allowed: boolean; reason: string } }
+/** What a host name of a list points to now (checked_at: unix time of the last good lookup, 0 when there was none). */
+export interface AccessHost { ips: string[]; checked_at: number; failing: boolean; expired: boolean }
+export interface AppAccessState { config: AppAccessConfig; configured: boolean; you?: { ip: string; allowed: boolean; reason: string }; denied_24h: number; hosts: Record<string, AccessHost> }
+export interface AppAccessCheck { problems: AccessProblem[]; you?: { ip: string; allowed: boolean; reason: string }; test?: { ip: string; allowed: boolean; reason: string }; hosts: Record<string, AccessHost> }
 
 export interface AccessLogRow {
   id: number; ts: number; client_ip: string; remote_addr: string; via_proxy: boolean; proxy_trusted: boolean;
@@ -347,6 +349,7 @@ export const api = {
   appAccess: () => request<AppAccessState>('GET', 'api/app-access'),
   appAccessSave: (config: AppAccessConfig) => request<AppAccessState>('PUT', 'api/app-access', config),
   appAccessCheck: (config: AppAccessConfig, testIp?: string) => request<AppAccessCheck>('POST', 'api/app-access/check', { config, test_ip: testIp ?? '' }),
+  accessResolve: (host: string) => request<{ host: string; status: AccessHost }>('POST', 'api/access/resolve', { host }),
   appAccessLog: (filter: 'all' | 'denied' | 'login' | 'fail', before = 0) => request<{ rows: AccessLogRow[] }>('GET', `api/access/log?port=app&filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
 
   connection: () => request<ConnectionState>('GET', 'api/connection'),

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { api, type AccessLogRow, type AccessMode, type AccessRule, type AppAccessCheck, type AppAccessConfig, type AppAccessState } from '../api';
+  import { api, ApiError, type AccessHost, type AccessLogRow, type AccessMode, type AccessRule, type AppAccessCheck, type AppAccessConfig, type AppAccessState } from '../api';
   import { isUnauthorized } from '../errors';
   import { i18n, t } from '../i18n.svelte';
   import { showToast } from '../toast';
@@ -31,6 +31,9 @@
   let newNote = $state('');
   let addErr = $state('');
   let testIp = $state('');
+  let hostBusy = $state(false);
+  let refreshTick = $state(0); // a name was refreshed: ask the server about the draft again
+  let now = $state(Date.now()); // the "N min ago" of the host names
 
   let filter = $state<Filter>('all');
   let rows = $state<AccessLogRow[]>([]);
@@ -40,6 +43,8 @@
   const list = $derived(draft ? draft[listKey] : []);
   const dirty = $derived(!!srv && !!draft && JSON.stringify(draft) !== JSON.stringify(srv.config));
   const problems = $derived(check?.problems ?? []);
+  const hosts = $derived<Record<string, AccessHost>>({ ...(srv?.hosts ?? {}), ...(check?.hosts ?? {}) });
+  const hasHosts = $derived(list.some((r) => isHostRule(r)));
   const modeCount = $derived(draft && draft.mode !== 'off' ? draft[draft.mode].length : 0);
 
   function fail(e: unknown): void {
@@ -78,6 +83,19 @@
     return `${addr}/${bits ?? 32}`;
   }
 
+  /** A valid host name in the form the server stores (lower case, no final dot), or null. A name has a dot and does not end in a number. */
+  function hostName(raw: string): string | null {
+    const s = raw.trim().replace(/\.$/, '').toLowerCase();
+    if (!s || s.length > 253 || !s.includes('.')) return null;
+    const labels = s.split('.');
+    if (!labels.every((l) => /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(l))) return null;
+    return /^\d/.test(labels[labels.length - 1]) ? null : s;
+  }
+
+  function isHostRule(rule: AccessRule): boolean {
+    return normalize(rule.cidr) === null && hostName(rule.cidr) !== null;
+  }
+
   function addTo(target: AccessRule[], cidr: string, note: string): string {
     const norm = normalize(cidr);
     if (!norm) return 'addr';
@@ -113,6 +131,8 @@
 
   onMount(() => {
     void load();
+    const timer = setInterval(() => (now = Date.now()), 15000);
+    return () => clearInterval(timer);
   });
 
   // The server judges the draft (what happens to you, whether it may be applied, what happens to the tested address).
@@ -120,6 +140,7 @@
   $effect(() => {
     if (!draft) return;
     const body = $state.snapshot(draft);
+    void refreshTick;
     const ip = testIp.trim();
     const timer = setTimeout(async () => {
       const mine = ++seq;
@@ -140,9 +161,32 @@
     addErr = '';
   }
 
-  function addRule(event: SubmitEvent): void {
+  async function addRule(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!draft) return;
+    if (!draft || hostBusy) return;
+    const host = normalize(newAddr) === null ? hostName(newAddr) : null;
+    if (host) {
+      // a name is added only when DNS knows it: the server looks it up
+      if (draft[listKey].some((r) => r.cidr === host)) {
+        addErr = t('aa.err.dupHost');
+        return;
+      }
+      hostBusy = true;
+      try {
+        await api.accessResolve(host);
+      } catch (e) {
+        if (isUnauthorized(e)) onauthlost();
+        else addErr = e instanceof ApiError && e.status === 422 ? t('aa.err.unresolved', { host }) : t('aa.failed');
+        return;
+      } finally {
+        hostBusy = false;
+      }
+      draft[listKey].push({ cidr: host, note: newNote.trim() });
+      addErr = '';
+      newAddr = '';
+      newNote = '';
+      return;
+    }
     const res = addTo(draft[listKey], newAddr, newNote);
     addErr = res ? t(`aa.err.${res}`) : '';
     if (!res) {
@@ -154,6 +198,23 @@
   function addRfc(): void {
     if (!draft) return;
     for (const c of RFC1918) addTo(draft.white, c, t('aa.rfc.note'));
+  }
+
+  /** Looks the name up again at once (the server also does it every minute). */
+  async function refreshHost(host: string): Promise<void> {
+    if (hostBusy) return;
+    hostBusy = true;
+    try {
+      const res = await api.accessResolve(host);
+      refreshTick++;
+      if (srv) srv.hosts[host] = res.status;
+      showToast(res.status.failing ? t('aa.host.stillDown', { host }) : t('aa.host.refreshed', { host, ips: res.status.ips.join(', ') }));
+    } catch (e) {
+      if (isUnauthorized(e)) onauthlost();
+      else showToast(t('aa.err.unresolved', { host }));
+    } finally {
+      hostBusy = false;
+    }
   }
 
   function removeRule(index: number): void {
@@ -201,7 +262,23 @@
   // ---- text ----
 
   const reasonText = (code: string): string => t(`aa.reason.${code}`);
-  const problemText = (p: { code: string; ip?: string; reason?: string }): string => t(`aa.problem.${p.code}`, { ip: p.ip ?? '', reason: p.reason ? reasonText(p.reason) : '' });
+  const problemText = (p: { code: string; ip?: string; reason?: string; host?: string }): string => t(`aa.problem.${p.code}`, { ip: p.ip ?? '', host: p.host ?? '', reason: p.reason ? reasonText(p.reason) : '' });
+
+  function ago(ts: number): string {
+    const s = Math.max(0, Math.round((now - ts * 1000) / 1000));
+    if (s < 60) return t('aa.ago.s', { n: s });
+    if (s < 3600) return t('aa.ago.m', { n: Math.floor(s / 60) });
+    return t('aa.ago.h', { n: Math.floor(s / 3600) });
+  }
+
+  /** The line under the addresses of a name: when they were checked, or what is wrong. */
+  function hostLine(h: AccessHost | undefined): { text: string; tone: 'ok' | 'warn' } {
+    if (!h || !h.checked_at) return { text: t('aa.host.never'), tone: 'warn' };
+    if (h.expired) return { text: t('aa.host.expired', { ago: ago(h.checked_at) }), tone: 'warn' };
+    if (h.failing) return { text: t('aa.host.failing', { ago: ago(h.checked_at) }), tone: 'warn' };
+    if (now - h.checked_at * 1000 < 5000) return { text: t('aa.host.okNow'), tone: 'ok' };
+    return { text: t('aa.host.ok', { ago: ago(h.checked_at) }), tone: 'ok' };
+  }
 
   function formatTime(ts: number): string {
     return new Date(ts * 1000).toLocaleString(i18n.locale === 'en' ? 'en-GB' : 'ru-RU', {
@@ -241,24 +318,37 @@
           <h4 class="ph">{t(`aa.list.${listKey}`, { n: list.length })}</h4>
           {#if list.length}
             <div class="panel flush"><table class="tbl compact">
-              <thead><tr><th>{t('aa.col.addr')}</th><th>{t('aa.col.note')}</th><th></th></tr></thead>
+              <thead><tr><th>{t('aa.col.addr')}</th><th>{t('aa.col.now')}</th><th>{t('aa.col.note')}</th><th></th></tr></thead>
               <tbody>
                 {#each list as rule, i (rule.cidr)}
+                  {@const host = isHostRule(rule)}
+                  {@const info = hosts[rule.cidr]}
+                  {@const line = host ? hostLine(info) : null}
                   <tr>
-                    <td class="nw mono">{rule.cidr}</td>
+                    <td class="nw mono">{rule.cidr}{#if host}<span class="badge b-info ddns" title={t('aa.host.badgeHint')}>DDNS</span>{/if}</td>
+                    <td>
+                      {#if host && line}
+                        <div class="mono">{#each info?.ips ?? [] as ip (ip)}<div>{ip}</div>{/each}</div>
+                        <div class={line.tone === 'ok' ? 'okt' : 'warnt'}>{line.text}</div>
+                      {:else}<span class="dim">—</span>{/if}
+                    </td>
                     <td>{rule.note || '—'}</td>
-                    <td class="r nw"><button class="btn sm" type="button" aria-label={`${t('aa.remove')} ${rule.cidr}`} onclick={() => removeRule(i)}>{t('aa.remove')}</button></td>
+                    <td class="r nw">
+                      {#if host}<button class="btn sm" type="button" disabled={hostBusy} aria-label={`${t('aa.host.refresh')} ${rule.cidr}`} onclick={() => void refreshHost(rule.cidr)}>{t('aa.host.refresh')}</button>{' '}{/if}
+                      <button class="btn sm" type="button" aria-label={`${t('aa.remove')} ${rule.cidr}`} onclick={() => removeRule(i)}>{t('aa.remove')}</button>
+                    </td>
                   </tr>
                 {/each}
               </tbody>
             </table></div>
+            {#if hasHosts}<p class="warnbox warn">{t('aa.host.note')}</p>{/if}
           {:else}
             <p class="dim">{t('aa.empty')}</p>
           {/if}
           <form class="row add" autocomplete="off" onsubmit={addRule}>
             <span class="field grow2"><input placeholder={t('aa.addr.ph')} aria-label={t('aa.addr.aria')} bind:value={newAddr} /></span>
             <span class="field grow"><input placeholder={t('aa.note.ph')} aria-label={t('aa.note.ph')} maxlength="100" bind:value={newNote} /></span>
-            <button class="btn primary" type="submit">{t('aa.add')}</button>
+            <button class="btn primary" type="submit" disabled={hostBusy}>{t('aa.add')}</button>
             {#if draft.mode === 'white'}<button class="btn" type="button" onclick={addRfc}>{t('aa.rfc')}</button>{/if}
           </form>
           {#if addErr}<div class="err" role="alert">{addErr}</div>{/if}
@@ -324,7 +414,7 @@
           <div class="msg">
             {#if problems.length}
               <span class="critt">{t('aa.cannotApply')}</span>
-              {#each problems as p (p.code)}<br />{problemText(p)}{/each}
+              {#each problems as p (p.code + (p.host ?? ''))}<br />{problemText(p)}{/each}
             {:else if dirty}{t('aa.dirty')}
             {:else}{t('aa.separate')}{/if}
           </div>
