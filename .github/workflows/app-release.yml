@@ -1,9 +1,9 @@
 name: app-release
 # The desktop application for the release: macOS (Apple Silicon), Windows x64 and Linux x64. Each build is one archive
 # that the application unpacks when it updates itself (app/internal/update/install.go), so the layout inside matters:
-#   Linager-macos-arm64.zip    Linager.app/...
-#   Linager-windows-x64.zip    linager-app.exe
-#   Linager-linux-x64.tar.gz   linager-app
+#   linager-desktop_macos_arm64.zip    Linager.app/...
+#   linager-desktop-autoupdate_windows_x64.zip    linager-app.exe
+#   linager-desktop_linux_x64.tar.gz   linager-app
 # Called by the release workflow; can also be run by hand to try the builds.
 on:
   workflow_dispatch:
@@ -38,11 +38,11 @@ jobs:
       - name: Check the archive
         run: |
           test "$(uname -m)" = arm64
-          cd app/bin && unzip -q Linager-macos-arm64.zip -d check && codesign --verify --deep --strict check/Linager.app && file check/Linager.app/Contents/MacOS/linager-app
+          cd app/bin && unzip -q linager-desktop_macos_arm64.zip -d check && codesign --verify --deep --strict check/Linager.app && file check/Linager.app/Contents/MacOS/linager-app
       - uses: actions/upload-artifact@v4
         with:
           name: app-macos
-          path: app/bin/Linager-macos-arm64.zip
+          path: app/bin/linager-desktop_macos_arm64.zip
 
   windows:
     runs-on: windows-latest
@@ -68,18 +68,18 @@ jobs:
           New-Item -ItemType Directory -Force bin | Out-Null
           $v = $env:VERSION.TrimStart('v')
           go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o bin/linager-app.exe .
-          Compress-Archive -Path bin/linager-app.exe -DestinationPath bin/Linager-windows-x64.zip
+          Compress-Archive -Path bin/linager-app.exe -DestinationPath bin/linager-desktop-autoupdate_windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: app-windows
-          path: app/bin/Linager-windows-x64.zip
+          path: app/bin/linager-desktop-autoupdate_windows_x64.zip
       # the installer (WiX, one user, no administrator rights); the archive above is what the update of the application uses,
       # so a failure here must not stop the release
       - name: Install WiX
         continue-on-error: true
         shell: pwsh
         run: dotnet tool install --global wix --version 4.0.5
-      - name: Build Linager-windows-x64.msi
+      - name: Build linager-desktop_windows_x64.msi
         id: msi
         continue-on-error: true
         shell: pwsh
@@ -88,14 +88,14 @@ jobs:
           $core, $pre = ($env:VERSION.TrimStart('v') -split '-', 2)
           $rev = 0
           if ($pre -match '(\d+)\s*$') { $rev = [int]$Matches[1] }
-          wix build packaging/windows/linager-app.wxs -arch x64 -d Version="$core.$rev" -d ExePath=app/bin/linager-app.exe -d IconPath=app/build/windows/appicon.ico -o app/bin/Linager-windows-x64.msi
+          wix build packaging/windows/linager-app.wxs -arch x64 -d Version="$core.$rev" -d ExePath=app/bin/linager-app.exe -d IconPath=app/build/windows/appicon.ico -o app/bin/linager-desktop_windows_x64.msi
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Smoke test (install, check, remove)
         if: steps.msi.outcome == 'success'
         continue-on-error: true
         shell: pwsh
         run: |
-          $msi = (Resolve-Path app/bin/Linager-windows-x64.msi).Path
+          $msi = (Resolve-Path app/bin/linager-desktop_windows_x64.msi).Path
           $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /l*v install.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 60; exit 1 }
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\Linager\linager-app.exe'
@@ -107,7 +107,7 @@ jobs:
         if: steps.msi.outcome == 'success'
         with:
           name: app-windows-installer
-          path: app/bin/Linager-windows-x64.msi
+          path: app/bin/linager-desktop_windows_x64.msi
 
   linux:
     runs-on: ubuntu-24.04
@@ -127,8 +127,8 @@ jobs:
         run: |
           make -C app build VERSION="${VERSION#v}"
           cp app/build/linux/linager.png app/build/linux/linager.desktop app/build/linux/README.txt app/bin/
-          tar -C app/bin -czf app/bin/Linager-linux-x64.tar.gz linager-app linager.png linager.desktop README.txt
+          tar -C app/bin -czf app/bin/linager-desktop_linux_x64.tar.gz linager-app linager.png linager.desktop README.txt
       - uses: actions/upload-artifact@v4
         with:
           name: app-linux
-          path: app/bin/Linager-linux-x64.tar.gz
+          path: app/bin/linager-desktop_linux_x64.tar.gz

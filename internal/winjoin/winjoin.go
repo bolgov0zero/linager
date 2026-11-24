@@ -42,7 +42,7 @@ $me = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 if (-not $me.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run PowerShell as administrator.' }
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'The agent needs 64-bit Windows.' }
 
-$msi = Join-Path $env:TEMP 'linager_windows_amd64.msi'
+$msi = Join-Path $env:TEMP 'linager-agent_windows_amd64.msi'
 "Downloading the agent from $server ..."
 (New-Object Net.WebClient).DownloadFile("https://$server/v1/join/$token/msi", $msi)
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $msi).Hash -ne $want) { Remove-Item -LiteralPath $msi -Force; throw 'The installer does not match the signed release.' }

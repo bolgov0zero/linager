@@ -20,9 +20,9 @@ const maxUnpacked = 1 << 30
 
 // Archive layouts (see .github/workflows/release.yml):
 //
-//	macOS    Linager-macos-arm64.zip       Linager.app/...
-//	Windows  Linager-windows-x64.zip       linager-app.exe
-//	Linux    Linager-linux-x64.tar.gz      linager-app
+//	macOS    linager-desktop_macos_arm64.zip       Linager.app/...
+//	Windows  linager-desktop-autoupdate_windows_x64.zip       linager-app.exe
+//	Linux    linager-desktop_linux_x64.tar.gz      linager-app
 const (
 	winExe   = "linager-app.exe"
 	linuxExe = "linager-app"

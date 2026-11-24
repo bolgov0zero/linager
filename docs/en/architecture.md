@@ -56,7 +56,7 @@ migrations/             SQL, forward only
 web/                    frontend (built into web/dist, go:embed)
 docs/{ru,en}/           documentation; docs/design/ — mockup, docs/kickoff/ — starter package
 .github/workflows/      CI, releases
-packaging/              systemd templates, .deb, Caddy and nginx examples
+packaging/              systemd templates, Windows installers, Caddy and nginx examples
 ```
 
 ## 4. Protocol and agent enrollment
@@ -159,7 +159,7 @@ Summary: admin panel address, agent certificate fingerprint, a ready-to-use comm
 ## 9. Signing and updates
 
 - **Release signing: minisign-compatible Ed25519.** One embedded public key, verification in pure Go with no external dependencies; `minisign` is available in the Debian repository for manual verification. Cosign was rejected: it pulls in the Sigstore chain and network checks, which are unnecessary for closed networks.
-- Release: `linager_linux_amd64` and `linager_linux_arm64`, a `.deb` per architecture, `SHA256SUMS`, `SHA256SUMS.minisig`, `manifest.json` (version, channel, minimum agent version, migration version, changelog), with a signature.
+- Release: `linager_linux_amd64` and `linager_linux_arm64`, the files of the Windows agent and of the application, `SHA256SUMS`, `SHA256SUMS.minisig`, `manifest.json` (version, channel, minimum agent version, migration version, changelog), with a signature.
 - The secret signing key is stored in a GitHub Actions secret (`MINISIGN_KEY`); it is created by the owner (instructions will be in `docs/`).
 - The server caches releases from GitHub (`bolgov0zero/linager`), verifies the signature, and distributes them to agents. Order: the server first, then the agents.
 - Server update: signature check → `pg_dump` → service stop → binary backup → atomic replacement (`rename`) → forward migrations → start → health check → automatic binary rollback on failure (forward migrations are not rolled back, which is why `pg_dump` is taken beforehand).
@@ -172,7 +172,7 @@ TLS on the agent port, mTLS and signed messages; argon2id; TOTP; brute-force loc
 
 ## 11. CI and releases
 
-- GitHub Actions: `go vet`, `golangci-lint`, tests (with PostgreSQL in a service container), frontend build, `linux/amd64` and `linux/arm64` (tests on an arm64 runner too), `.deb` (`nfpm`), `SHA256SUMS`, signing, publication to Releases on a `v*` tag.
+- GitHub Actions: `go vet`, `golangci-lint`, tests (with PostgreSQL in a service container), frontend build, `linux/amd64` and `linux/arm64` (tests on an arm64 runner too), `SHA256SUMS`, signing, publication to Releases on a `v*` tag.
 - Installer test: a matrix of Debian 12/13 and Ubuntu 22.04/24.04/26.04 in containers with systemd (non-interactive mode), plus a TUI check via terminal snapshots.
 - Versioning: SemVer, `stable` (tags `vX.Y.Z`) and `beta` (`vX.Y.Z-beta.N`) channels.
 

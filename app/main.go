@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -94,6 +95,22 @@ func main() {
 		}
 		opts.Update = up
 		opts.OpenWindow = wins.show
+		// the window the person is working in (the one in focus) goes to the full screen and back
+		opts.Fullscreen = func(set *bool) (bool, error) {
+			w, ok := wins.app.Window.Current().(*application.WebviewWindow)
+			if !ok || w == nil {
+				return false, errors.New("no window")
+			}
+			if set != nil {
+				if *set {
+					w.Fullscreen()
+				} else {
+					w.UnFullscreen()
+				}
+				return *set, nil // the window changes a moment later: the answer is what was asked
+			}
+			return w.IsFullscreen(), nil
+		}
 		opts.PickFile = func(ext string) (string, bool, error) {
 			path, err := wins.app.Dialog.OpenFile().AddFilter("Linager keys", "*"+ext).CanChooseFiles(true).CanChooseDirectories(false).PromptForSingleSelection()
 			return path, path != "", err

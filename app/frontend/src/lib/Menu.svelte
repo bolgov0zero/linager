@@ -3,9 +3,13 @@
   import Icon from './Icon.svelte';
 
   // A button with a list: a click on an item calls onpick. Nothing stays selected (a menu, not a select).
-  let { items, onpick, icon = '', label, empty = '', small = true, children }: {
-    items: { v: string; t: string }[];
+  // An item can carry a second action as a small icon button at its end (onalt): "alt" on the item turns it on.
+  let { items, onpick, onalt, altIcon = '', altTitle = '', icon = '', label, empty = '', small = true, children }: {
+    items: { v: string; t: string; alt?: boolean }[];
     onpick: (v: string) => void;
+    onalt?: (v: string) => void;
+    altIcon?: string;
+    altTitle?: string;
     icon?: string;
     label: string;
     empty?: string;
@@ -41,7 +45,14 @@
 {#if open}
   <div bind:this={pop} class="pop" role="menu" style="left:{pos.left}px;top:{pos.top}px;max-height:60vh;overflow:auto">
     {#each items as it (it.v)}
-      <button type="button" role="menuitem" onclick={() => { open = false; onpick(it.v); }}>{it.t}</button>
+      {#if it.alt && onalt}
+        <div class="mrow">
+          <button type="button" role="menuitem" onclick={() => { open = false; onpick(it.v); }}>{it.t}</button>
+          <button type="button" class="malt" title={altTitle} aria-label={altTitle} onclick={() => { open = false; onalt(it.v); }}><Icon name={altIcon} size={14} /></button>
+        </div>
+      {:else}
+        <button type="button" role="menuitem" onclick={() => { open = false; onpick(it.v); }}>{it.t}</button>
+      {/if}
     {:else}
       <span class="dim" style="padding:6px 9px;font-size:12px">{empty}</span>
     {/each}

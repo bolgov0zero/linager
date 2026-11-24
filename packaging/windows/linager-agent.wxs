@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   MSI package of the Linager agent for Windows (WiX v4).
-  Build: wix build packaging/windows/linager-agent.wxs -arch x64 -ext WixToolset.Util.wixext -d Version=0.3.0.1 -d ExePath=bin/linager_windows_amd64.exe
-  Install: msiexec /i linager_windows_amd64.msi /qn SERVER=host:9443 [FINGERPRINT=SHA256:...]
+  Build: wix build packaging/windows/linager-agent.wxs -arch x64 -ext WixToolset.Util.wixext -d Version=0.3.0.1 -d ExePath=bin/linager-agent_windows_amd64.exe
+  Install: msiexec /i linager-agent_windows_amd64.msi /qn SERVER=host:9443 [FINGERPRINT=SHA256:...]
   SERVER and FINGERPRINT are kept in HKLM\SOFTWARE\Linager\Agent; the service reads them to pair with the server.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">

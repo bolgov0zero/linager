@@ -130,6 +130,11 @@ func TestLoadCachedChecksEveryArchitecture(t *testing.T) {
 // publishWindows adds the Windows agent to a release that was published with publishArches. tamper serves a file
 // that differs from the signed checksum.
 func (r *fakeRepo) publishWindows(tag, body string, tamper bool) {
+	r.publishWindowsNamed(tag, release.WindowsBinaryAsset, body, tamper)
+}
+
+// publishWindowsNamed is publishWindows with the file name of the Windows agent chosen by the release.
+func (r *fakeRepo) publishWindowsNamed(tag, name, body string, tamper bool) {
 	var rel map[string]any
 	for _, x := range r.rels {
 		if x["tag_name"] == tag {
@@ -139,15 +144,15 @@ func (r *fakeRepo) publishWindows(tag, body string, tamper bool) {
 	var m release.Manifest
 	_ = json.Unmarshal(r.data[tag+"/m"], &m)
 	sum := sha256.Sum256([]byte(body))
-	m.Assets[release.WindowsKey] = release.Asset{Name: release.WindowsBinaryAsset, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(body))}
+	m.Assets[release.WindowsKey] = release.Asset{Name: name, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(body))}
 	mb, _ := json.Marshal(m)
 	r.data[tag+"/m"], r.data[tag+"/s"] = mb, []byte(signFile(r.priv, r.key.ID, mb))
 	served := body
 	if tamper {
 		served += "evil"
 	}
-	r.data[tag+"/"+release.WindowsBinaryAsset] = []byte(served)
-	rel["assets"] = append(rel["assets"].([]map[string]string), map[string]string{"name": release.WindowsBinaryAsset, "browser_download_url": r.srv.URL + "/dl/" + tag + "/" + release.WindowsBinaryAsset})
+	r.data[tag+"/"+name] = []byte(served)
+	rel["assets"] = append(rel["assets"].([]map[string]string), map[string]string{"name": name, "browser_download_url": r.srv.URL + "/dl/" + tag + "/" + name})
 }
 
 func TestDownloadStoresTheWindowsAgent(t *testing.T) {
@@ -179,6 +184,28 @@ func TestDownloadStoresTheWindowsAgent(t *testing.T) {
 	}
 	if _, err := LoadCached(r.key, dir, "v0.2.0"); err == nil {
 		t.Fatal("a tampered Windows file must fail the check")
+	}
+}
+
+// The file names of a release come from its signed manifest, so a release may rename its files (the Windows agent was
+// "linager_windows_amd64.exe" before it became "linager-agent_windows_amd64.exe") and servers still fetch and serve them.
+func TestDownloadFollowsTheNamesOfTheManifest(t *testing.T) {
+	for _, name := range []string{"linager_windows_amd64.exe", "linager-agent_windows_amd64.exe", "anything-else.exe"} {
+		r := newFakeRepo(t)
+		r.publishArches("v0.2.0", map[string]string{"amd64": "AMD64-binary", "arm64": "ARM64-binary"}, "", "")
+		r.publishWindowsNamed("v0.2.0", name, "WINDOWS-exe", false)
+		rels, _ := URL(r.srv.URL).Releases(context.Background())
+		dir := t.TempDir()
+		c, err := Download(context.Background(), rels[0], r.key, dir)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if b, err := os.ReadFile(c.Dir + "/" + name); err != nil || string(b) != "WINDOWS-exe" {
+			t.Fatalf("%s is not in the cache: %q %v", name, b, err)
+		}
+		if _, err := LoadCached(r.key, dir, "v0.2.0"); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
 	}
 }
 

@@ -615,10 +615,6 @@
     mode = kind;
   }
 
-  export function fullscreen(): void {
-    void host?.requestFullscreen?.();
-  }
-
   const label = $derived(session === 'console' ? t('assist.console') : t('assist.sessionN', { n: session }));
 </script>
 

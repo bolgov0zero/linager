@@ -21,21 +21,21 @@ for ARCH in $ARCHES; do
 done
 # The Windows agent is optional: its file is there when the Windows job of the release workflow succeeded. The key is
 # not a GOARCH value, so servers and agents that do not know it ignore it.
-WIN=bin/linager_windows_amd64.exe
+WIN=bin/linager-agent_windows_amd64.exe
 if [ -f "$WIN" ]; then
   WSIZE=$(wc -c < "$WIN" | tr -d ' ')
-  ASSETS=$(printf '%s' "$ASSETS" | jq -c --arg n "linager_windows_amd64.exe" --arg sha "$(sha256 "$WIN")" --argjson size "$WSIZE" \
+  ASSETS=$(printf '%s' "$ASSETS" | jq -c --arg n "linager-agent_windows_amd64.exe" --arg sha "$(sha256 "$WIN")" --argjson size "$WSIZE" \
     '. + {windows_amd64: {name: $n, sha256: $sha, size: $size}}')
 fi
-MSI=bin/linager_windows_amd64.msi
+MSI=bin/linager-agent_windows_amd64.msi
 if [ -f "$MSI" ]; then
   MSIZE=$(wc -c < "$MSI" | tr -d ' ')
-  ASSETS=$(printf '%s' "$ASSETS" | jq -c --arg n "linager_windows_amd64.msi" --arg sha "$(sha256 "$MSI")" --argjson size "$MSIZE" \
+  ASSETS=$(printf '%s' "$ASSETS" | jq -c --arg n "linager-agent_windows_amd64.msi" --arg sha "$(sha256 "$MSI")" --argjson size "$MSIZE" \
     '. + {windows_msi: {name: $n, sha256: $sha, size: $size}}')
 fi
 # The desktop application (app_<GOOS>_<GOARCH>): the application updates itself from these entries (app/internal/update).
 # macOS is Apple Silicon only. Each file is optional, like the Windows agent.
-for ENTRY in app_darwin_arm64:Linager-macos-arm64.zip app_windows_amd64:Linager-windows-x64.zip app_linux_amd64:Linager-linux-x64.tar.gz; do
+for ENTRY in app_darwin_arm64:linager-desktop_macos_arm64.zip app_windows_amd64:linager-desktop-autoupdate_windows_x64.zip app_linux_amd64:linager-desktop_linux_x64.tar.gz; do
   KEY=${ENTRY%%:*}; NAME=${ENTRY#*:}
   if [ -f "bin/$NAME" ]; then
     ASIZE=$(wc -c < "bin/$NAME" | tr -d ' ')

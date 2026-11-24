@@ -1,6 +1,8 @@
 <script lang="ts">
   import ContextMenu, { type CtxItem } from '../ContextMenu.svelte';
   import { t } from '../i18n.svelte';
+  import FloatingBar from '../FloatingBar.svelte';
+  import { createFullscreen } from '../fullscreen.svelte';
   import Icon from '../Icon.svelte';
   import { native } from '../native';
   import DesktopSessionView, { type DeskPhase } from './DesktopSession.svelte';
@@ -12,6 +14,8 @@
   let autoResize = $state(true);
   let session = $state<DesktopSessionView | null>(null);
   let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
+  let root = $state<HTMLDivElement | null>(null);
+  const full = createFullscreen({ native: () => nativeWindows, root: () => root });
 
   const live = $derived(phase === 'open');
   const statusText = $derived(phase === 'connecting' ? t('desk.connecting') : phase === 'open' ? t('desk.open') : t('desk.closed'));
@@ -29,7 +33,7 @@
       { key: 'fit', label: t('desk.scaleFit'), separated: true, onselect: () => s?.setScale('fit') },
       { key: 'real', label: t('desk.scaleReal'), onselect: () => s?.setScale('real') },
       { key: 'auto', label: `${autoResize ? '✓ ' : ''}${t('desk.autoResize')}`, onselect: () => (autoResize = !autoResize) },
-      { key: 'full', label: t('desk.fullscreen'), onselect: () => s?.fullscreen() },
+      { key: 'full', label: full.on ? t('fs.exit') : t('desk.fullscreen'), onselect: () => void full.toggle() },
       { key: 'off', label: t('desk.disconnect'), separated: true, onselect: () => s?.disconnect() },
     ];
   });
@@ -39,19 +43,22 @@
   }
 </script>
 
-<div class="asst-pane">
-  <div class="asst-bar">
+{#snippet bar()}
     <span class="dot" class:ok={online && phase === 'open'}></span>
     <b>{t('desk.header', { name })}</b>{#if online}<span class="dim">· {statusText}</span>{/if}
     <span class="grow"></span>
     {#if online && live}
-      <button class="btn sm" type="button" title={t('desk.cadHint')} onclick={() => session?.ctrlAltDel()}>Ctrl+Alt+Del</button>
+      <button class="btn sm icon" type="button" title={t('desk.cadHint')} aria-label="Ctrl+Alt+Del" onclick={() => session?.ctrlAltDel()}><Icon name="keyboard" size={14} /></button>
       <button class="btn sm" type="button" onclick={more}>{t('desk.more')}<Icon name="chevron-down" size={13} /></button>
     {/if}
     <button class="btn sm icon" type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', serverId, name, nativeWindows)}><Icon name="folder" size={14} /></button>
     <button class="btn sm icon" type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', serverId, name, nativeWindows)}><Icon name="activity" size={14} /></button>
-    {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
-  </div>
+    {#if full.on}<button class="btn sm icon" type="button" title={t('fs.exit')} aria-label={t('fs.exit')} onclick={() => void full.set(false)}><Icon name="minimize-2" size={14} /></button>
+    {:else if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
+{/snippet}
+
+<div class="asst-pane" class:fs={full.on} bind:this={root}>
+  {#if full.on}<FloatingBar>{@render bar()}</FloatingBar>{:else}<div class="asst-bar">{@render bar()}</div>{/if}
   {#if !online}<p class="dim pad">{t('desk.offline')}</p>
   {:else}<div class="asst-box"><div class="asst-screen"><DesktopSessionView {serverId} {address} bind:phase bind:autoResize bind:this={session} /></div></div>{/if}
 </div>

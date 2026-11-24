@@ -31,11 +31,11 @@ The ready files are in the [releases](https://github.com/bolgov0zero/linager/rel
 
 | System | File | Inside |
 |---|---|---|
-| macOS (Apple Silicon only) | `Linager-macos-arm64.zip` | `Linager.app` |
-| Windows 10/11 x64 | `Linager-windows-x64.zip` | `linager-app.exe` (WebView2 is needed, Windows 11 has it) |
-| Linux x64 | `Linager-linux-x64.tar.gz` | `linager-app` (`libgtk-4` and `libwebkitgtk-6.0` are needed) |
+| macOS (Apple Silicon only) | `linager-desktop_macos_arm64.zip` | `Linager.app` |
+| Windows 10/11 x64 | `linager-desktop_windows_x64.msi` (installer), `linager-desktop-autoupdate_windows_x64.zip` (the archive that the self-update uses; it also works as a portable copy) | `linager-app.exe` (WebView2 is needed, Windows 11 has it) |
+| Linux x64 | `linager-desktop_linux_x64.tar.gz` | `linager-app` (`libgtk-4` and `libwebkitgtk-6.0` are needed) |
 
-Unpack and run. The builds are not signed by a developer or notarized: on macOS open the application from the context menu the first time (right click, "Open"); if macOS says the file is damaged (it does with a zip downloaded from the network), remove the quarantine: `xattr -dr com.apple.quarantine Linager.app`. Windows shows SmartScreen. On Windows there is also an installer, `Linager-windows-x64.msi`: it installs for the current user only (no administrator rights) into `%LocalAppData%\Programs\Linager`, adds a Start menu shortcut and an entry in "Apps", and self-update works from there. On Linux the archive holds `linager.desktop` and `linager.png` for the menu of the desktop (the commands are in `README.txt` of the archive). Put the application where you can write (on macOS `~/Applications`, or `/Applications` as an administrator): self-update replaces the files in place.
+Unpack and run. The builds are not signed by a developer or notarized: on macOS open the application from the context menu the first time (right click, "Open"); if macOS says the file is damaged (it does with a zip downloaded from the network), remove the quarantine: `xattr -dr com.apple.quarantine Linager.app`. Windows shows SmartScreen. On Windows there is also an installer, `linager-desktop_windows_x64.msi`: it installs for the current user only (no administrator rights) into `%LocalAppData%\Programs\Linager`, adds a Start menu shortcut and an entry in "Apps", and self-update works from there. On Linux the archive holds `linager.desktop` and `linager.png` for the menu of the desktop (the commands are in `README.txt` of the archive). Put the application where you can write (on macOS `~/Applications`, or `/Applications` as an administrator): self-update replaces the files in place.
 
 The checksums of every file are in `SHA256SUMS` and in the signed `manifest.json`, with the same release signature (minisign) as the server and the agent.
 
@@ -49,7 +49,7 @@ Install the first beta with the application (`0.10.0-beta.4`) by hand; later upd
 
 ```bash
 make -C app bundle   # app/bin/Linager.app
-make -C app zip      # app/bin/Linager-macos-arm64.zip (x86_64 on Intel), to hand it to another Mac
+make -C app zip      # app/bin/linager-desktop_macos_arm64.zip (x86_64 on Intel), to hand it to another Mac
 ```
 
 ## The tray

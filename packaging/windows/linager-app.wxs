@@ -2,7 +2,7 @@
 <!--
   Installer of the Linager desktop application for Windows (WiX v4), one user, no administrator rights.
   Build: wix build packaging/windows/linager-app.wxs -arch x64 -d Version=0.10.0.11 -d ExePath=app/bin/linager-app.exe -d IconPath=app/build/windows/appicon.ico
-  Install: double click, or msiexec /i Linager-windows-x64.msi /qn
+  Install: double click, or msiexec /i linager-desktop_windows_x64.msi /qn
   The program goes to %LocalAppData%\Programs\Linager (a folder the person can write, so that the update from the application
   works), a shortcut to the Start menu, an entry to "Apps". The settings (profiles, the tray) are in %AppData%\Linager and
   stay after the removal.

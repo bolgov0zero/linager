@@ -67,8 +67,12 @@
     </div>
     <label class="fl"><span>{t('keys.pass')}</span><span class="field"><input type="password" bind:value={pass} autocomplete="current-password" oninput={() => (error = '')} /></span></label>
     {#if error}<div class="err" role="alert">{error}</div>{/if}
-    <button class="btn primary" type="submit" disabled={!pass || busy}>{busy ? t('keys.open.busy') : t('keys.unlock.go')}</button>
-    <div class="row kother"><button class="btn sm ghost" type="button" onclick={choose}>{t('keys.unlock.other')}</button><button class="btn sm ghost" type="button" onclick={forget}>{t('keys.file.forget')}</button></div>
+    <div class="krow">
+      <button class="btn" type="button" disabled={busy} onclick={choose}>{t('keys.unlock.other')}</button>
+      <button class="btn danger" type="button" disabled={busy} onclick={forget}>{t('keys.file.forget')}</button>
+      <span class="grow"></span>
+      <button class="btn primary" type="submit" disabled={!pass || busy}>{busy ? t('keys.open.busy') : t('keys.unlock.go')}</button>
+    </div>
   {:else}
     <div class="fl"><span>{t('keys.file')}</span>
       <div class="row"><span class="fn" class:none={!picked}>{picked?.name ?? t('keys.file.none')}</span><button class="btn" type="button" onclick={choose}>{t('keys.file.pick')}</button></div></div>

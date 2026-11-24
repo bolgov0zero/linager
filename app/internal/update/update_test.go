@@ -123,7 +123,7 @@ func (f *fake) release(tag string, o relOpt) {
 	}
 	if o.body != nil {
 		sum := sha256.Sum256(o.body)
-		a := Asset{Name: "Linager-linux-x64.tar.gz", SHA256: hex.EncodeToString(sum[:]), Size: int64(len(o.body))}
+		a := Asset{Name: "linager-desktop_linux_x64.tar.gz", SHA256: hex.EncodeToString(sum[:]), Size: int64(len(o.body))}
 		switch o.lie {
 		case "sha":
 			a.SHA256 = strings.Repeat("0", 64)

@@ -57,6 +57,8 @@ type Options struct {
 	Tray         *tray.Store
 	OnTray       func()
 	AutostartExe string
+	// Fullscreen reads (set nil) or changes the full screen state of the window the person is working in; nil in the headless run.
+	Fullscreen func(set *bool) (bool, error)
 	// VaultMemo is the file that remembers the chosen vault file for seven days; empty keeps nothing.
 	VaultMemo string
 	Version   string
@@ -137,6 +139,8 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("PUT /app/tray", s.trayPut)
 	inner.HandleFunc("GET /app/autostart", s.autostartGet)
 	inner.HandleFunc("PUT /app/autostart", s.autostartPut)
+	inner.HandleFunc("GET /app/fullscreen", s.fullscreenGet)
+	inner.HandleFunc("PUT /app/fullscreen", s.fullscreenPut)
 	inner.HandleFunc("GET /app/vault/last", s.vaultLast)
 	inner.HandleFunc("DELETE /app/vault/last", s.vaultForget)
 	inner.HandleFunc("GET /app/prefs", s.prefsGet)
@@ -660,6 +664,38 @@ func (s *Server) trayPut(w http.ResponseWriter, r *http.Request) {
 	}
 	s.changed()
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) fullscreenGet(w http.ResponseWriter, _ *http.Request) {
+	if s.o.Fullscreen == nil {
+		fail(w, http.StatusNotImplemented, "no_native_windows")
+		return
+	}
+	on, err := s.o.Fullscreen(nil)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "window")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"on": on})
+}
+
+func (s *Server) fullscreenPut(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		On bool `json:"on"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if s.o.Fullscreen == nil {
+		fail(w, http.StatusNotImplemented, "no_native_windows")
+		return
+	}
+	on, err := s.o.Fullscreen(&req.On)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "window")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"on": on})
 }
 
 func (s *Server) autostartGet(w http.ResponseWriter, _ *http.Request) {

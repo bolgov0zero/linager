@@ -20,10 +20,10 @@ Not available on Windows (the tabs are hidden): firewall, security (fail2ban, ke
 
 ## Install
 
-Download `linager_windows_amd64.msi` from the release (check it against `SHA256SUMS`) and install it in an elevated prompt:
+Download `linager-agent_windows_amd64.msi` from the release (check it against `SHA256SUMS`) and install it in an elevated prompt:
 
 ```powershell
-msiexec /i linager_windows_amd64.msi /qn SERVER=panel.example.com:9443
+msiexec /i linager-agent_windows_amd64.msi /qn SERVER=panel.example.com:9443
 ```
 
 `SERVER` is the agent port of the server (`host:port`). `FINGERPRINT=SHA256:...` is optional: with it the agent trusts only that server certificate; without it the pairing is protected by the check code (see below). The package installs `C:\Program Files\Linager\linager.exe`, registers the service **Linager Agent** (`LinagerAgent`, automatic start, runs as SYSTEM, started again after a failure) and starts it.
@@ -32,10 +32,10 @@ msiexec /i linager_windows_amd64.msi /qn SERVER=panel.example.com:9443
 The easiest way: in the panel open "Add server", tab "Install by a link", create a link and switch the command to **Windows**. On the new computer open PowerShell **as administrator** and paste the command. It checks the certificate of your server by its fingerprint (carried in the command), downloads the installer from the server, compares it with the signed release, hands the one-time code of the link to the service through a file that only SYSTEM and the administrators can read (`C:\ProgramData\Linager\agent\join.token`), installs and starts the service. The computer appears in the "Confirmations" tab and is confirmed in one click: no key to copy and no file to open. The script can be read first at `https://<server>/v1/join/<link>/windows`.
 
 ### Install from a local file
-Download `linager_windows_amd64.msi` and `SHA256SUMS` from the release (or take the file from the server: `https://<server>/v1/join/<link>/msi`), compare the checksum (`Get-FileHash -Algorithm SHA256 .\linager_windows_amd64.msi`), copy the MSI to the computer and, in PowerShell as administrator:
+Download `linager-agent_windows_amd64.msi` and `SHA256SUMS` from the release (or take the file from the server: `https://<server>/v1/join/<link>/msi`), compare the checksum (`Get-FileHash -Algorithm SHA256 .\linager-agent_windows_amd64.msi`), copy the MSI to the computer and, in PowerShell as administrator:
 
 ```powershell
-msiexec /i C:\path\linager_windows_amd64.msi /qn SERVER=host:port FINGERPRINT=SHA256:...
+msiexec /i C:\path\linager-agent_windows_amd64.msi /qn SERVER=host:port FINGERPRINT=SHA256:...
 ```
 
 The address is the agent port of the server, the fingerprint is shown in the panel (the install link command carries it). Then confirm the computer in "Confirmations" with the key from `C:\ProgramData\Linager\agent\enroll.txt`. For the confirmation in one click without a key, create a link in the panel and write its code to the protected file before the installation:
@@ -99,10 +99,10 @@ Limits: no sound and no file transfer (use the file manager), no recording, no c
 - `C:\ProgramData\Linager\agent\` keys and state; `C:\ProgramData\Linager\agent.yaml` (modules, optional, the same format as on Linux: `modules:` with `true` / `false`); `C:\ProgramData\Linager\agent.log` the log (a file over 5 MB is moved to `agent.log.1`). The folder `C:\ProgramData\Linager` is open to SYSTEM and the administrators only; this is the counterpart of the mode 600 of the Linux agent.
 - `linager.exe agent status` shows the version, the server and the state of the service.
 - After a change in `agent.yaml` restart the service: `Restart-Service LinagerAgent`.
-- Remove: `msiexec /x linager_windows_amd64.msi /qn`. The keys, the log and the address of the server stay; to remove them as well, delete `C:\ProgramData\Linager` and the key `HKLM\SOFTWARE\Linager`. "Delete server" in the panel makes the agent remove its identity and service.
+- Remove: `msiexec /x linager-agent_windows_amd64.msi /qn`. The keys, the log and the address of the server stay; to remove them as well, delete `C:\ProgramData\Linager` and the key `HKLM\SOFTWARE\Linager`. "Delete server" in the panel makes the agent remove its identity and service.
 
 ## Updating
-From the panel, like a Linux agent: the "Updates" page (one agent, selected ones or all). The server gives the agent the signed `linager_windows_amd64.exe` of its release (the same file the MSI installs). The agent checks the signature of the manifest and the checksum, saves the running exe as `C:\ProgramData\Linager\agent\linager.prev.exe`, moves the running file aside (Windows allows renaming a running program, not overwriting it), puts the new one in its place and restarts the service. The stages are the same as on Linux (download, verify, backup, replace, restart, offline, reconnect, confirm).
+From the panel, like a Linux agent: the "Updates" page (one agent, selected ones or all). The server gives the agent the signed `linager-agent_windows_amd64.exe` of its release (the same file the MSI installs). The agent checks the signature of the manifest and the checksum, saves the running exe as `C:\ProgramData\Linager\agent\linager.prev.exe`, moves the running file aside (Windows allows renaming a running program, not overwriting it), puts the new one in its place and restarts the service. The stages are the same as on Linux (download, verify, backup, replace, restart, offline, reconnect, confirm).
 
 **Rollback.** Before the restart the agent creates a one-shot task of the Windows Task Scheduler, `LinagerAgentRollback` (runs as SYSTEM, about 70 seconds later). The new version confirms itself with its first connection to the server and deletes the task. If it does not (it cannot start, or cannot reach the server), the task runs the OLD exe: it stops the service, puts the old file back and starts the service again. By hand: `linager.exe agent update`, `linager.exe agent status`.
 

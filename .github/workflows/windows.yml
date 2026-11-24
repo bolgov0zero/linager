@@ -39,7 +39,7 @@ jobs:
           go vet ./agent ./cmd/linager ./internal/...
           go test -v -run 'TestWindows' ./agent
           go test ./agent ./internal/...
-      - name: Build linager_windows_amd64.exe
+      - name: Build linager-agent_windows_amd64.exe
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force bin | Out-Null
@@ -47,14 +47,14 @@ jobs:
           $pkg = 'github.com/bolgov0zero/linager/internal/version'
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
           $sha = (git rev-parse --short HEAD)
-          go build -trimpath -ldflags "-s -w -X $pkg.Version=$env:VERSION -X $pkg.Commit=$sha -X $pkg.Date=$date" -o bin/linager_windows_amd64.exe ./cmd/linager
-          ./bin/linager_windows_amd64.exe version
+          go build -trimpath -ldflags "-s -w -X $pkg.Version=$env:VERSION -X $pkg.Commit=$sha -X $pkg.Date=$date" -o bin/linager-agent_windows_amd64.exe ./cmd/linager
+          ./bin/linager-agent_windows_amd64.exe version
       - name: Install WiX
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 4.0.5
           wix extension add --global WixToolset.Util.wixext/4.0.5
-      - name: Build linager_windows_amd64.msi
+      - name: Build linager-agent_windows_amd64.msi
         shell: pwsh
         run: |
           # 0.3.0-beta.2 -> 0.3.0.2 (the fourth number is the beta number; a final release has 0)
@@ -62,13 +62,13 @@ jobs:
           $rev = 0
           if ($pre -match '(\d+)\s*$') { $rev = [int]$Matches[1] }
           $msiVersion = "$core.$rev"
-          wix build packaging/windows/linager-agent.wxs -arch x64 -ext WixToolset.Util.wixext -d Version=$msiVersion -d ExePath=bin/linager_windows_amd64.exe -o bin/linager_windows_amd64.msi
+          wix build packaging/windows/linager-agent.wxs -arch x64 -ext WixToolset.Util.wixext -d Version=$msiVersion -d ExePath=bin/linager-agent_windows_amd64.exe -o bin/linager-agent_windows_amd64.msi
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          Get-Item bin/linager_windows_amd64.msi | Format-List Name, Length
+          Get-Item bin/linager-agent_windows_amd64.msi | Format-List Name, Length
       - name: Smoke test (install, run, remove)
         shell: pwsh
         run: |
-          $msi = (Resolve-Path bin/linager_windows_amd64.msi).Path
+          $msi = (Resolve-Path bin/linager-agent_windows_amd64.msi).Path
           $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /l*v install.log SERVER=127.0.0.1:9" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 80; throw "install failed: $($p.ExitCode)" }
           Start-Sleep -Seconds 8
@@ -91,7 +91,7 @@ jobs:
         with:
           name: windows
           path: |
-            bin/linager_windows_amd64.exe
-            bin/linager_windows_amd64.msi
+            bin/linager-agent_windows_amd64.exe
+            bin/linager-agent_windows_amd64.msi
           if-no-files-found: error
           retention-days: 7

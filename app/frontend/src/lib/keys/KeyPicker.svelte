@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
-  import KeyUnlockModal from './KeyUnlockModal.svelte';
+  import KeyOpenForm from './KeyOpenForm.svelte';
   import { loadDirectory, touch, vault } from './store';
   import { accountOf, sectionsFor, type Entry, type Known, type Sections, type Target } from './vault';
 
@@ -14,7 +14,6 @@
 
   let button = $state<HTMLButtonElement | null>(null);
   let open = $state(false);
-  let unlocking = $state(false);
   let more = $state(false);
   let pos = $state({ left: 0, top: 0, width: 0, up: false, max: 280 });
   let target = $state<Target>({ serverId: '', groupId: null });
@@ -95,9 +94,10 @@
 {/if}
 
 {#if open}
-  <div bind:this={list} class="pop keylist" role="listbox" aria-label={t('keys.pick.label')} style="left:{pos.left}px;top:{pos.up ? 'auto' : `${pos.top}px`};bottom:{pos.up ? `${window.innerHeight - pos.top}px` : 'auto'};width:{pos.width}px;max-height:{pos.max}px">
+  <div bind:this={list} class="pop keylist" role={$vault ? 'listbox' : 'dialog'} aria-label={t('keys.pick.label')} style="left:{pos.left}px;top:{pos.up ? 'auto' : `${pos.top}px`};bottom:{pos.up ? `${window.innerHeight - pos.top}px` : 'auto'};width:{pos.width}px;max-height:{pos.max}px">
     {#if !$vault}
-      <div class="key" style="cursor:default"><span class="dim">{t('keys.pick.closed')}</span><button class="btn sm primary" type="button" onclick={() => { hide(); unlocking = true; }}>{t('keys.pick.open')}</button></div>
+      <!-- the vault is locked: its unlocking is here, under the button, not in a window of its own -->
+      <div class="keyunlock"><KeyOpenForm onopened={() => { touch(); void show(); }} /></div>
     {:else}
       {#if sections.here.length}<div class="gh">{serverName ? t('keys.pick.here', { name: serverName }) : t('keys.pick.thisServer')}</div>{#each sections.here as e (e.id)}{@render item(e)}{/each}{/if}
       {#if sections.group.length}<div class="gh">{t('keys.pick.group', { name: groupName })}</div>{#each sections.group as e (e.id)}{@render item(e)}{/each}{/if}
@@ -110,4 +110,3 @@
     {/if}
   </div>
 {/if}
-{#if unlocking}<KeyUnlockModal onopened={() => { unlocking = false; void show(); }} onclose={() => (unlocking = false)} />{/if}

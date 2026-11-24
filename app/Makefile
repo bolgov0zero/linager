@@ -20,7 +20,7 @@ bundle: build
 	./build/macos/bundle.sh $(VERSION)
 
 zip: bundle
-	cd bin && ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent Linager.app Linager-macos-$$(uname -m).zip
+	cd bin && ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent Linager.app linager-desktop_macos_$$(uname -m).zip
 
 # the window of the application (a connection to a server is asked for on the first start)
 run: build

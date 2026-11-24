@@ -75,6 +75,9 @@ export const native = {
   /** The start at login (the application starts hidden in the tray). */
   autostartGet: () => call<{ supported: boolean; enabled: boolean }>('GET', 'autostart'),
   autostartSet: (enabled: boolean) => call<{ supported: boolean; enabled: boolean }>('PUT', 'autostart', { enabled }),
+  /** The full screen of the window in focus: reads the state, or sets it (the system window goes to the full screen). */
+  fullscreenGet: () => call<{ on: boolean }>('GET', 'fullscreen'),
+  fullscreenSet: (on: boolean) => call<{ on: boolean }>('PUT', 'fullscreen', { on }),
   /** Opens a native window; in a browser (development) the same page opens in a new tab. */
   openWindow: async (kind: WindowKind, id: string, title: string, native: boolean, arg = ''): Promise<void> => {
     if (native) {

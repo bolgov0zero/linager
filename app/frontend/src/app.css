@@ -735,7 +735,7 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .kunlock{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg2)}
 .kunlock .ki{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent)}
 .kunlock .kt{display:flex;flex-direction:column;gap:2px;min-width:0}.kunlock .kn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.kother{justify-content:center;gap:4px}
+.krow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 /* the filters of the Console: the choices share the width of the panel */
 .con-filters{gap:4px}.con-filters .lbl{font-size:11.5px;color:var(--text2);margin-top:4px;padding-left:2px}
 .con-filters .seg{display:flex;width:100%}.con-filters .seg button{flex:1;justify-content:center;padding:0 4px}
@@ -744,3 +744,23 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .chip{gap:0}
 /* the tags of a row of the dashboard are apart from each other */
 .tbl.rows .tgs{display:inline-flex;gap:5px;white-space:nowrap}
+/* the full screen of the remote desktop and of the Assistant: the picture takes the window, the buttons are an island over it */
+.asst-pane.fs{position:fixed;inset:0;z-index:200;background:#000}
+.asst-pane.fs .asst-box{position:absolute;inset:0}
+.fb{position:absolute;z-index:5;display:flex;align-items:center;gap:6px;max-width:calc(100% - 24px);padding:5px 6px;border:1px solid var(--border-h);border-radius:12px;background:color-mix(in srgb,var(--bg2) 94%,transparent);box-shadow:0 6px 24px rgba(0,0,0,.5);backdrop-filter:blur(8px);font-size:12.5px;color:var(--text)}
+.fb .grow{display:none}.fb .dim{display:none}.fb b{font-weight:600;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.fb-grip{display:grid;place-items:center;width:20px;height:28px;color:var(--text3);cursor:grab;touch-action:none}.fb-grip:active{cursor:grabbing}
+.fb.sq{padding:0;width:34px;height:34px;border-radius:10px}
+.fb-sq{width:100%;height:100%;display:grid;place-items:center;border:0;background:none;color:var(--text);cursor:pointer;touch-action:none}
+.keyunlock{padding:10px 12px}
+
+/* a menu item with a second action at its end (the snippets of the terminal: run, or only paste) */
+.pop .mrow{display:flex;align-items:center;gap:2px}.pop .mrow>button:first-child{flex:1;min-width:0}
+.pop .malt{flex:none;width:28px;padding:0;justify-content:center;color:var(--text2)}.pop .malt:hover{color:var(--text)}
+/* the buttons inside a popover keep their own look (the popover styles its plain buttons as menu items) */
+.pop .keyunlock .btn{justify-content:center;height:var(--btn-h);padding:0 11px;border:1px solid var(--border-h);background:var(--surface);gap:6px}
+.pop .keyunlock .btn:hover{background:var(--hover);border-color:var(--border-hh)}
+.pop .keyunlock .btn.primary{background:linear-gradient(180deg,#4c97ff,#2563eb);border-color:#2563eb;color:#fff}
+.pop .keyunlock .btn.danger{color:var(--crit-t);border-color:color-mix(in srgb,var(--crit) 40%,transparent)}
+.pop .keyunlock .btn.danger:hover{background:var(--crit-s);border-color:var(--crit)}
+.pop .keyunlock .krow .btn.primary{margin-left:auto}

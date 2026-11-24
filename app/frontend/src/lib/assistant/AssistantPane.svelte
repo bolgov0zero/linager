@@ -2,6 +2,8 @@
   import { assistantApi, type AssistSession } from '../api';
   import ContextMenu, { type CtxItem } from '../ContextMenu.svelte';
   import { t } from '../i18n.svelte';
+  import FloatingBar from '../FloatingBar.svelte';
+  import { createFullscreen } from '../fullscreen.svelte';
   import Icon from '../Icon.svelte';
   import { native } from '../native';
   import AssistantBadge from './AssistantBadge.svelte';
@@ -26,6 +28,8 @@
   let list = $state<AssistSession[]>([]);
   let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
   let quality = $state(false);
+  let root = $state<HTMLDivElement | null>(null);
+  const full = createFullscreen({ native: () => nativeWindows, root: () => root });
 
   $effect(() => screen?.setPaused(paused));
   $effect(() => screen?.setScale(display));
@@ -68,7 +72,7 @@
     { key: 'fit', label: `${display === 'fit' ? '✓ ' : ''}${t('assist.mode.fit')}`, onselect: () => (display = 'fit') },
     { key: 'fill', label: `${display === 'fill' ? '✓ ' : ''}${t('assist.mode.fill')}`, onselect: () => (display = 'fill') },
     { key: 'real', label: `${display === 'real' ? '✓ ' : ''}${t('assist.mode.real')}`, onselect: () => (display = 'real') },
-    { key: 'full', label: t('assist.mode.full'), separated: true, onselect: () => screen?.fullscreen() },
+    { key: 'full', label: full.on ? t('fs.exit') : t('assist.mode.full'), separated: true, onselect: () => void full.toggle() },
   ]);
   const moreItems = $derived.by<CtxItem[]>(() => {
     const s = screen;
@@ -104,8 +108,7 @@
   }
 </script>
 
-<div class="asst-pane">
-  <div class="asst-bar">
+{#snippet bar()}
     <span class="dot" class:ok={online && phase === 'open'}></span>
     <b>{t('assist.header', { name })}</b>{#if online}<span class="dim">· {statusText}</span>{/if}
     {#if online && phase === 'open'}<AssistantBadge desktop={info?.desktop} />{/if}
@@ -115,19 +118,23 @@
       <button class="btn sm icon" type="button" title={t('assist.display')} aria-label={t('assist.display')} onclick={(e) => open(displayItems, e)}><Icon name="monitor" size={14} /></button>
       {#if live}
         {#if canType}<KeyPicker {serverId} use="uac" variant="icon" title={t('keys.act.title')} onact={typeKey} />{/if}
-        {#if !linux}<button class="btn sm" type="button" title={canCad ? t('assist.cadHint') : t('assist.cadConsoleOnly')} disabled={!canCad} onclick={() => screen?.ctrlAltDel()}>Ctrl+Alt+Del</button>{/if}
+        {#if !linux}<button class="btn sm icon" type="button" title={canCad ? t('assist.cadHint') : t('assist.cadConsoleOnly')} aria-label="Ctrl+Alt+Del" disabled={!canCad} onclick={() => screen?.ctrlAltDel()}><Icon name="keyboard" size={14} /></button>{/if}
         <button class="btn sm" type="button" onclick={(e) => open(moreItems, e)}>{t('assist.more')}<Icon name="chevron-down" size={13} /></button>
       {/if}
     {/if}
     <button class="btn sm icon" type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', serverId, name, nativeWindows)}><Icon name="folder" size={14} /></button>
     <button class="btn sm icon" type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', serverId, name, nativeWindows)}><Icon name="activity" size={14} /></button>
-    {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
-  </div>
+    {#if full.on}<button class="btn sm icon" type="button" title={t('fs.exit')} aria-label={t('fs.exit')} onclick={() => void full.set(false)}><Icon name="minimize-2" size={14} /></button>
+    {:else if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
+{/snippet}
+
+<div class="asst-pane" class:fs={full.on} bind:this={root}>
+  {#if full.on}<FloatingBar>{@render bar()}</FloatingBar>{:else}<div class="asst-bar">{@render bar()}</div>{/if}
   {#if !online}<p class="dim pad">{t('assist.offline')}</p>
   {:else}
     <div class="asst-box">
       <div class="asst-screen"><AssistantSessionView {serverId} {session} bind:phase bind:info bind:this={screen} /></div>
-      {#if $assistInfoShown}<AssistantStats {serverId} {phase} {info} onsettings={() => (quality = true)} />{/if}
+      {#if $assistInfoShown && !full.on}<AssistantStats {serverId} {phase} {info} onsettings={() => (quality = true)} />{/if}
     </div>
   {/if}
 </div>

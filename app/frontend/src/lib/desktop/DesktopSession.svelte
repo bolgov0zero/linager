@@ -363,10 +363,6 @@
     ui?.setScale(SCALE[kind]);
   }
 
-  export function fullscreen(): void {
-    void host?.requestFullscreen?.();
-  }
-
   /** The local clipboard to the computer (the browser asks for permission). */
   export async function sendClipboard(): Promise<void> {
     try {

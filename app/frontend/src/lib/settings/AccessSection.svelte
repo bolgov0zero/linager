@@ -309,7 +309,7 @@
       <p class="dim">{t('aa.log.foot')}</p>
     </Fold>
 
-    {#if dirty}
+    {#if dirty || !srv.configured}
       <div class="applybar" role="region" aria-live="polite">
         {#if confirming}
           <div class="msg">
@@ -325,9 +325,10 @@
             {#if problems.length}
               <span class="critt">{t('aa.cannotApply')}</span>
               {#each problems as p (p.code)}<br />{problemText(p)}{/each}
-            {:else}{t('aa.dirty')}{/if}
+            {:else if dirty}{t('aa.dirty')}
+            {:else}{t('aa.separate')}{/if}
           </div>
-          <button class="btn" type="button" onclick={revert}>{t('aa.revert')}</button>
+          {#if dirty}<button class="btn" type="button" onclick={revert}>{t('aa.revert')}</button>{/if}
           <button class="btn primary" type="button" disabled={busy || problems.length > 0 || !check} onclick={() => (confirming = true)}>{t('aa.apply')}</button>
         {/if}
       </div>

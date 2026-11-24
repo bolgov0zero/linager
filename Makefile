@@ -23,7 +23,7 @@ build: web
 # The Windows agent: no server inside, so the web interface is not needed.
 build-windows:
 	mkdir -p bin
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/linager_windows_amd64.exe ./cmd/linager
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/linager-agent_windows_amd64.exe ./cmd/linager
 
 test:
 	go vet ./... && go test -race ./...

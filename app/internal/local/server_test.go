@@ -537,3 +537,30 @@ func TestTrayEndpoints(t *testing.T) {
 		t.Fatalf("autostart put: %d", c)
 	}
 }
+
+func TestFullscreenEndpoints(t *testing.T) {
+	s, _, _ := start(t)
+	if c := call(t, "GET", s.URL()+"app/fullscreen", nil, nil); c != http.StatusNotImplemented {
+		t.Fatalf("no window: %d", c)
+	}
+	state := false
+	s.o.Fullscreen = func(set *bool) (bool, error) {
+		if set != nil {
+			state = *set
+		}
+		return state, nil
+	}
+	var out struct {
+		On bool `json:"on"`
+	}
+	if c := call(t, "PUT", s.URL()+"app/fullscreen", map[string]bool{"on": true}, &out); c != 200 || !out.On || !state {
+		t.Fatalf("on: %d %+v", c, out)
+	}
+	out.On = false
+	if c := call(t, "GET", s.URL()+"app/fullscreen", nil, &out); c != 200 || !out.On {
+		t.Fatalf("read: %d %+v", c, out)
+	}
+	if c := call(t, "PUT", s.URL()+"app/fullscreen", map[string]bool{"on": false}, &out); c != 200 || out.On || state {
+		t.Fatalf("off: %d %+v", c, out)
+	}
+}

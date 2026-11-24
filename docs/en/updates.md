@@ -1,7 +1,7 @@
 # Updates, backups, and rollback
 
 ## How releases are built
-Each GitHub release contains the binaries `linager_linux_amd64` and `linager_linux_arm64`, `.deb` packages, `SHA256SUMS`, and a signed `manifest.json` (version, channel, per-architecture binary checksums, number of DB migrations, minimum agent version, changelog). The minisign signature (Ed25519) is verified with the public key **embedded in the binary**. A binary that does not match the signed manifest is not installed, neither on the server nor on an agent.
+Each GitHub release contains the binaries `linager_linux_amd64` and `linager_linux_arm64`, the files of the Windows agent (`linager-agent_windows_amd64.exe` and `.msi`), the application (`linager-desktop_…`), `SHA256SUMS`, and a signed `manifest.json` (version, channel, per-architecture binary checksums, number of DB migrations, minimum agent version, changelog). The minisign signature (Ed25519) is verified with the public key **embedded in the binary**. A binary that does not match the signed manifest is not installed, neither on the server nor on an agent.
 
 ## Updating the server
 From the admin panel: the "Updates" page (the header button with a counter), then "Update to X". From the terminal:

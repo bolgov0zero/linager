@@ -31,11 +31,11 @@
 
 | Система | Файл | Что внутри |
 |---|---|---|
-| macOS (только Apple Silicon) | `Linager-macos-arm64.zip` | `Linager.app` |
-| Windows 10/11 x64 | `Linager-windows-x64.zip` | `linager-app.exe` (нужен WebView2, в Windows 11 он есть) |
-| Linux x64 | `Linager-linux-x64.tar.gz` | `linager-app` (нужны `libgtk-4` и `libwebkitgtk-6.0`) |
+| macOS (только Apple Silicon) | `linager-desktop_macos_arm64.zip` | `Linager.app` |
+| Windows 10/11 x64 | `linager-desktop_windows_x64.msi` (установщик), `linager-desktop-autoupdate_windows_x64.zip` (архив для самообновления; годится и как переносная копия) | `linager-app.exe` (нужен WebView2, в Windows 11 он есть) |
+| Linux x64 | `linager-desktop_linux_x64.tar.gz` | `linager-app` (нужны `libgtk-4` и `libwebkitgtk-6.0`) |
 
-Распакуйте и запустите. Сборки не подписаны разработчиком и не нотаризованы: на macOS первый раз откройте приложение через контекстное меню (правый клик, «Открыть»); если macOS пишет, что файл повреждён (так бывает с zip, скачанным из сети), снимите карантин: `xattr -dr com.apple.quarantine Linager.app`. Windows покажет SmartScreen. Для Windows есть и установщик `Linager-windows-x64.msi`: он ставит приложение только для текущего пользователя (права администратора не нужны) в `%LocalAppData%\Programs\Linager`, добавляет ярлык в меню «Пуск» и запись в «Приложения», самообновление оттуда работает. Для Linux в архиве лежат `linager.desktop` и `linager.png` для меню рабочего стола (команды в `README.txt` архива). Положите приложение туда, где у вас есть право записи (для macOS это `~/Applications` или `/Applications` под администратором): самообновление заменяет файлы на месте.
+Распакуйте и запустите. Сборки не подписаны разработчиком и не нотаризованы: на macOS первый раз откройте приложение через контекстное меню (правый клик, «Открыть»); если macOS пишет, что файл повреждён (так бывает с zip, скачанным из сети), снимите карантин: `xattr -dr com.apple.quarantine Linager.app`. Windows покажет SmartScreen. Для Windows есть и установщик `linager-desktop_windows_x64.msi`: он ставит приложение только для текущего пользователя (права администратора не нужны) в `%LocalAppData%\Programs\Linager`, добавляет ярлык в меню «Пуск» и запись в «Приложения», самообновление оттуда работает. Для Linux в архиве лежат `linager.desktop` и `linager.png` для меню рабочего стола (команды в `README.txt` архива). Положите приложение туда, где у вас есть право записи (для macOS это `~/Applications` или `/Applications` под администратором): самообновление заменяет файлы на месте.
 
 Контрольные суммы всех файлов лежат в `SHA256SUMS` и в подписанном `manifest.json` той же релизной подписью (minisign), что и у сервера и агента.
 
@@ -49,7 +49,7 @@
 
 ```bash
 make -C app bundle   # app/bin/Linager.app
-make -C app zip      # app/bin/Linager-macos-arm64.zip (или x86_64 на Intel), чтобы передать на другой Mac
+make -C app zip      # app/bin/linager-desktop_macos_arm64.zip (или x86_64 на Intel), чтобы передать на другой Mac
 ```
 
 ## Трей

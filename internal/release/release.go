@@ -248,13 +248,13 @@ func SupportedArch(arch string) bool {
 const WindowsKey = "windows_amd64"
 
 // WindowsBinaryAsset is the release asset name of the Windows agent (the same file the MSI package installs).
-const WindowsBinaryAsset = "linager_windows_amd64.exe"
+const WindowsBinaryAsset = "linager-agent_windows_amd64.exe"
 
 // WindowsMSIKey is the key of the Windows installer package in Manifest.Assets; the install by a link downloads it.
 const WindowsMSIKey = "windows_msi"
 
 // WindowsMSIAsset is the release asset name of the Windows installer package.
-const WindowsMSIAsset = "linager_windows_amd64.msi"
+const WindowsMSIAsset = "linager-agent_windows_amd64.msi"
 
 // WindowsMSI returns the installer package of the release, when it has one.
 func (m Manifest) WindowsMSI() (Asset, bool) {

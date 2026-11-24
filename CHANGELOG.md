@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0-beta.13
+
+- Change (release): **the files of a release have clear names**. The application: `linager-desktop_macos_arm64.zip`, `linager-desktop_linux_x64.tar.gz`, `linager-desktop_windows_x64.msi` (the installer) and `linager-desktop-autoupdate_windows_x64.zip` (the archive of the self-update; it also works as a portable copy). The Windows agent: `linager-agent_windows_amd64.exe` and `.msi`. The Linux server and agent binaries (`linager_linux_amd64`, `linager_linux_arm64`) and the signed files keep their names. The `.deb` packages are no longer published (nothing used them: the installer and the updates work with the binaries). The names are taken from the signed manifest, so the application, the server and the agents of earlier versions update from this release as before.
+- Change (application): the window "Picture quality and frame rate" of the Assistant has no long hints (the cursor note is a tooltip, the estimate is one short line) and **Save saves and closes the window** (the number of sessions that took the values is shown as a short message).
+- Change (application): in the RDP and the Assistant the button **Ctrl+Alt+Del is an icon** (a keyboard; the hint tells what it sends).
+- Fix (application): the window "Unlock the vault": "Another file…" and "Forget the file" (red) stand in one row with "Unlock", the first two at the left, the button at the right, not full width.
+- Change (application): the item "Quality and frame rate…" of the menu "More" of the Assistant is "Picture quality…", and the title of its window is "Picture quality".
+- Fix (application): **the full screen of the RDP and of the Assistant** did not work (the web view of the system does not give the full screen to a page). Now the window of the application goes to the full screen itself (`GET`/`PUT /app/fullscreen`), the picture takes the whole window, and the buttons are an **island over the picture**: it can be dragged and folded into a small square with an arrow (and back); the cross-arrows button leaves the full screen (the same item is in the display menu). The panel stays where it was left until the application is closed. The full screen ends by itself when the system leaves it or when the tab is hidden.
+- Change (application): **unlocking the vault** from the key button of a form (RDP, the Assistant bar) is a menu under the button, not a window of its own; the window "Unlock the vault" is removed.
+- Change (application): **the snippets of the terminal**: the separate button "Paste and run" is removed; each snippet in the list has a small icon of pasting at its end that types the snippet without the Enter (a click on the name still runs it).
+
 ## 0.10.0-beta.12
 
 - Fix (Windows): the installer `Linager-windows-x64.msi` of 0.10.0-beta.11 was not built (the components of the package had no GUID); it is built now. Release 0.10.0-beta.11 also has no macOS archive (the build of the macOS application got no runner), so this release is the one that carries everything of 0.10.0-beta.11 for macOS. The server and the agent are unchanged.
