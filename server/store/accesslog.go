@@ -49,16 +49,17 @@ func clip(s string, n int) string {
 	return s[:n]
 }
 
-// AccessLogList returns visits newest first. filter is one of all, denied, login, fail, proxy, direct.
-func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, limit int) ([]AccessLogRow, error) {
+// AccessLogList returns visits newest first. filter is one of all, denied, login, fail, proxy, direct; onlyDirect keeps
+// the visits of the application port (a direct connection) whatever the filter is.
+func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, limit int, onlyDirect bool) ([]AccessLogRow, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 	rows, err := s.Pool.Query(ctx, `SELECT id, extract(epoch FROM ts)::bigint, client_ip, remote_addr, via_proxy, proxy_trusted, event, login, path, user_agent, reason
-		FROM access_log WHERE ($1::bigint = 0 OR id < $1) AND (
+		FROM access_log WHERE ($1::bigint = 0 OR id < $1) AND (NOT $4 OR NOT via_proxy) AND (
 			$2 = 'all' OR ($2 = 'denied' AND event = 'denied') OR ($2 = 'login' AND event LIKE 'login.%')
 			OR ($2 = 'fail' AND event = 'login.fail') OR ($2 = 'proxy' AND via_proxy) OR ($2 = 'direct' AND NOT via_proxy))
-		ORDER BY id DESC LIMIT $3`, before, filter, limit)
+		ORDER BY id DESC LIMIT $3`, before, filter, limit, onlyDirect)
 	if err != nil {
 		return nil, err
 	}
@@ -74,10 +75,10 @@ func (s *Store) AccessLogList(ctx context.Context, filter string, before int64, 
 	return out, rows.Err()
 }
 
-// AccessDeniedSince counts the refused requests since the given time.
-func (s *Store) AccessDeniedSince(ctx context.Context, since time.Time) (int, error) {
+// AccessDeniedSince counts the refused requests since the given time; onlyDirect counts the application port only.
+func (s *Store) AccessDeniedSince(ctx context.Context, since time.Time, onlyDirect bool) (int, error) {
 	var n int
-	err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM access_log WHERE event = 'denied' AND ts >= $1`, since).Scan(&n)
+	err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM access_log WHERE event = 'denied' AND ts >= $1 AND (NOT $2 OR NOT via_proxy)`, since, onlyDirect).Scan(&n)
 	return n, err
 }
 

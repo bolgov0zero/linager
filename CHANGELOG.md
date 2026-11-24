@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-beta.11
+
+- New (application): **Settings → Server access** replaces "Admin access" in the application: the white or black list of addresses that may connect to the application port, a test of an address, the journal of the connections of the application. The lists are apart from the admin panel; until they are saved the port follows the admin restriction, so nothing opens after the update. A list that would lock you out is refused. New (server): `GET`/`PUT /api/app-access`, `POST /api/app-access/check`, `GET /api/access/log?port=app`, the audit action `appaccess.update`; `linager access reset` turns both restrictions off. Addresses and networks only (no host names).
+- Change (application): **Keys**: a remembered file (seven days) is not opened again; the window shows the file name, the passphrase field and "Unlock" ("Another file" and "Forget the file" are the small buttons below).
+- New (Windows): the installer **`Linager-windows-x64.msi`** (for the current user, no administrator rights, `%LocalAppData%\Programs\Linager`, a Start menu shortcut, an entry in "Apps"). Fix: `linager-app.exe` had no icon and no manifest; it has the icon now, per-monitor DPI awareness, long paths and UTF-8. Linux: the archive holds `linager.desktop`, `linager.png` and `README.txt` for the menu of the desktop.
+- Fix (application): the filters of the Console are as wide as the panel with equal cells; the cross of a tag in the settings of a server sits in the middle of the chip; in the dashboard rows the tags of the status are apart from each other, and the sort by Status follows what the column shows (the worse and the more tags, the nearer to the top; offline last).
+
 ## 0.10.0-beta.10
 
 - Fix (application): the icons of the connections in the tray menu were too big (36 pixels shown as 36 points); now they are 16 points (32 pixels at 144 dpi on macOS, 16 pixels on Windows and Linux). The server and the agent are unchanged.

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Installer of the Linager desktop application for Windows (WiX v4), one user, no administrator rights.
+  Build: wix build packaging/windows/linager-app.wxs -arch x64 -d Version=0.10.0.11 -d ExePath=app/bin/linager-app.exe -d IconPath=app/build/windows/appicon.ico
+  Install: double click, or msiexec /i Linager-windows-x64.msi /qn
+  The program goes to %LocalAppData%\Programs\Linager (a folder the person can write, so that the update from the application
+  works), a shortcut to the Start menu, an entry to "Apps". The settings (profiles, the tray) are in %AppData%\Linager and
+  stay after the removal.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Linager" Manufacturer="Linager" Version="$(Version)" UpgradeCode="5C0E5C75-6F8A-4D52-9B1E-2A8C6F1B7D34"
+           Scope="perUser" Language="1033" InstallerVersion="500" Compressed="yes">
+    <SummaryInformation Description="Linager desktop application" />
+
+    <!-- The fourth number of the version (the beta number) is ignored by Windows Installer, so a package of the same
+         version replaces the installed one. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Linager is already installed." AllowSameVersionUpgrades="yes" />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="AppIcon.ico" SourceFile="$(IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsDir" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="Linager" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <!-- the key of a component of one user is a value of the registry of the user -->
+      <Component Id="AppExe">
+        <File Id="LinagerAppExe" Source="$(ExePath)" Name="linager-app.exe" />
+        <RegistryValue Root="HKCU" Key="Software\Linager\App" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveProgramsDir" Directory="ProgramsDir" On="uninstall" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="AppShortcuts" Directory="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut">
+        <Shortcut Id="LinagerShortcut" Name="Linager" Description="Linager server management" Target="[INSTALLFOLDER]linager-app.exe"
+                  WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
+        <RegistryValue Root="HKCU" Key="Software\Linager\App" Name="Shortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Main" Title="Linager" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="AppShortcuts" />
+    </Feature>
+  </Package>
+</Wix>

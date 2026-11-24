@@ -38,7 +38,7 @@ func (a *Admin) accessYou(r *http.Request, ar *accessRules) accessYou {
 
 func (a *Admin) accessState(r *http.Request) accessState {
 	snap := a.Access.snap.Load()
-	n, _ := a.DB.AccessDeniedSince(r.Context(), time.Now().Add(-24*time.Hour))
+	n, _ := a.DB.AccessDeniedSince(r.Context(), time.Now().Add(-24*time.Hour), false)
 	return accessState{Config: snap.cfg, Configured: snap.configured, You: a.accessYou(r, snap.rules), Denied24h: n, Hosts: a.Access.hostStatuses(snap.rules.hosts)}
 }
 
@@ -170,7 +170,7 @@ func (a *Admin) accessLog(w http.ResponseWriter, r *http.Request, _ *store.User)
 	}
 	before, _ := strconv.ParseInt(q.Get("before"), 10, 64)
 	limit, _ := strconv.Atoi(q.Get("limit"))
-	rows, err := a.DB.AccessLogList(r.Context(), filter, before, limit)
+	rows, err := a.DB.AccessLogList(r.Context(), filter, before, limit, q.Get("port") == "app")
 	if err != nil {
 		jsonErr(w, http.StatusInternalServerError, "internal error")
 		return

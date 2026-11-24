@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Linager
+Comment=Linager server management
+Exec=linager-app
+Icon=linager
+Terminal=false
+Categories=Network;System;
+StartupWMClass=linager-app

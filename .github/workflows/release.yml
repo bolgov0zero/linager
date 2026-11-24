@@ -58,7 +58,7 @@ jobs:
         run: |
           git fetch --tags --force
           sh packaging/make-manifest.sh "${GITHUB_REF_NAME}"
-          cd bin && sha256sum linager_linux_amd64 linager_linux_arm64 linager_amd64.deb linager_arm64.deb $(ls linager_windows_amd64.exe linager_windows_amd64.msi Linager-macos-arm64.zip Linager-windows-x64.zip Linager-linux-x64.tar.gz 2>/dev/null) > SHA256SUMS
+          cd bin && sha256sum linager_linux_amd64 linager_linux_arm64 linager_amd64.deb linager_arm64.deb $(ls linager_windows_amd64.exe linager_windows_amd64.msi Linager-macos-arm64.zip Linager-windows-x64.zip Linager-windows-x64.msi Linager-linux-x64.tar.gz 2>/dev/null) > SHA256SUMS
       - name: Sign (minisign)
         env:
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
@@ -78,7 +78,7 @@ jobs:
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease";; esac
           files="bin/linager_linux_amd64 bin/linager_linux_arm64 bin/linager_amd64.deb bin/linager_arm64.deb bin/SHA256SUMS bin/manifest.json"
-          for w in bin/linager_windows_amd64.exe bin/linager_windows_amd64.msi bin/Linager-macos-arm64.zip bin/Linager-windows-x64.zip bin/Linager-linux-x64.tar.gz; do [ -f "$w" ] && files="$files $w"; done
+          for w in bin/linager_windows_amd64.exe bin/linager_windows_amd64.msi bin/Linager-macos-arm64.zip bin/Linager-windows-x64.zip bin/Linager-windows-x64.msi bin/Linager-linux-x64.tar.gz; do [ -f "$w" ] && files="$files $w"; done
           if [ -n "${UNSIGNED:-}" ]; then flags="--prerelease"; else files="$files bin/SHA256SUMS.minisig bin/manifest.json.minisig"; fi
           # Release notes: this version's section of CHANGELOG.md (the server shows them on the updates page).
           ver="${GITHUB_REF_NAME#v}"

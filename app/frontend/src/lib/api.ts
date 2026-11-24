@@ -93,18 +93,15 @@ export interface UserRow {
   access?: UserAccess;
 }
 
-/** Access restriction of the admin panel (Settings, "Access"). */
+/** Access restriction of the application port (Settings, "Application access"). */
 export interface AccessRule { cidr: string; note: string }
 export type AccessMode = 'off' | 'white' | 'black';
-export interface AccessConfig { mode: AccessMode; only_proxy: boolean; white: AccessRule[]; black: AccessRule[]; proxies: AccessRule[]; retention_days: number }
-export interface AccessYou { ip: string; remote_addr: string; forwarded_for: string; via_proxy: boolean; peer_trusted: boolean }
-/** What a host name of a list points to now (checked_at: unix time of the last good lookup, 0 when there was none). */
-export interface AccessHost { ips: string[]; checked_at: number; failing: boolean; expired: boolean }
-export interface AccessState { config: AccessConfig; configured: boolean; you: AccessYou; denied_24h: number; hosts: Record<string, AccessHost> }
 export interface AccessProblem { code: string; ip?: string; reason?: string; host?: string }
-export interface AccessVerdict { ip: string; allowed: boolean; reason: string; via_proxy: boolean; ignored_xff: boolean }
-export interface AccessCheck { problems: AccessProblem[]; you: AccessVerdict; test?: AccessVerdict; hosts: Record<string, AccessHost> }
-export type AccessLogFilter = 'all' | 'denied' | 'login' | 'fail' | 'proxy' | 'direct';
+/** The restriction of the application port: its own lists, apart from the admin panel. */
+export interface AppAccessConfig { mode: AccessMode; white: AccessRule[]; black: AccessRule[] }
+export interface AppAccessState { config: AppAccessConfig; configured: boolean; you?: { ip: string; allowed: boolean; reason: string }; denied_24h: number }
+export interface AppAccessCheck { problems: AccessProblem[]; you?: { ip: string; allowed: boolean; reason: string }; test?: { ip: string; allowed: boolean; reason: string } }
+
 export interface AccessLogRow {
   id: number; ts: number; client_ip: string; remote_addr: string; via_proxy: boolean; proxy_trusted: boolean;
   event: 'page' | 'login.ok' | 'login.fail' | 'denied'; login: string; path: string; user_agent: string; reason: string;
@@ -347,13 +344,10 @@ export const api = {
   userSetPassword: (id: number, password: string) => request<{ ok: boolean }>('POST', `api/users/${id}/password`, { password, confirm: true }),
   userReset2fa: (id: number) => request<{ ok: boolean }>('POST', `api/users/${id}/2fa/reset`, { confirm: true }),
 
-  access: () => request<AccessState>('GET', 'api/access'),
-  accessSave: (config: AccessConfig) => request<AccessState>('PUT', 'api/access', config),
-  accessCheck: (config: AccessConfig, test?: { ip: string; proxy: boolean }) => request<AccessCheck>('POST', 'api/access/check', { config, test }),
-  /** Looks a host name up now; a name that is already in a list gets its new address in force. 422 "unresolved" when it has none. */
-  accessResolve: (host: string) => request<{ host: string; status: AccessHost }>('POST', 'api/access/resolve', { host }),
-  accessRetention: (days: number) => request<AccessState>('PUT', 'api/access/retention', { days }),
-  accessLog: (filter: AccessLogFilter, before = 0) => request<{ rows: AccessLogRow[] }>('GET', `api/access/log?filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
+  appAccess: () => request<AppAccessState>('GET', 'api/app-access'),
+  appAccessSave: (config: AppAccessConfig) => request<AppAccessState>('PUT', 'api/app-access', config),
+  appAccessCheck: (config: AppAccessConfig, testIp?: string) => request<AppAccessCheck>('POST', 'api/app-access/check', { config, test_ip: testIp ?? '' }),
+  appAccessLog: (filter: 'all' | 'denied' | 'login' | 'fail', before = 0) => request<{ rows: AccessLogRow[] }>('GET', `api/access/log?port=app&filter=${filter}&limit=50${before ? `&before=${before}` : ''}`),
 
   connection: () => request<ConnectionState>('GET', 'api/connection'),
   connectionSave: (agentPort: number, appPort: number) => request<ConnectionState>('PUT', 'api/connection', { agent_port: agentPort, app_port: appPort }),

@@ -17,11 +17,11 @@ func newAccessCmd() *cobra.Command {
 	var cfgPath string
 	cmd := &cobra.Command{
 		Use:   "access",
-		Short: "Access restriction of the admin panel",
+		Short: "Access restrictions of the admin panel and of the application port",
 	}
 	reset := &cobra.Command{
 		Use:   "reset",
-		Short: "Turn the access restriction of the admin panel off (the lists are kept); a running server applies it within seconds",
+		Short: "Turn the access restrictions of the admin panel and of the application port off (the lists are kept); a running server applies it within seconds",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			cfg, err := config.LoadServer(cfgPath)

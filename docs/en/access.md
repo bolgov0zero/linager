@@ -74,4 +74,8 @@ On the server:
 sudo linager access reset
 ```
 
-The restriction turns off, the lists stay. A running server applies it within a few seconds.
+The restriction turns off (the admin panel and the application port), the lists stay. A running server applies it within a few seconds.
+
+## Server access (the application port)
+
+The application port has its own lists: Settings in the application → **Server access**. It is a white or black list of addresses and networks (host names are not supported), a test of an address and the journal of the connections of the application. The port is direct, without a proxy: the address of the connection itself is judged and `X-Forwarded-For` is dropped. Until the list of the port is saved it follows the restriction of the admin panel (as before); after the first "Apply" they are independent. A list that would close the port to you yourself cannot be applied. `linager access reset` turns both restrictions off.

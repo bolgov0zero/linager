@@ -73,6 +73,41 @@ jobs:
         with:
           name: app-windows
           path: app/bin/Linager-windows-x64.zip
+      # the installer (WiX, one user, no administrator rights); the archive above is what the update of the application uses,
+      # so a failure here must not stop the release
+      - name: Install WiX
+        continue-on-error: true
+        shell: pwsh
+        run: dotnet tool install --global wix --version 4.0.5
+      - name: Build Linager-windows-x64.msi
+        id: msi
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          # 0.10.0-beta.11 -> 0.10.0.11 (the fourth number is the beta number; a final release has 0)
+          $core, $pre = ($env:VERSION.TrimStart('v') -split '-', 2)
+          $rev = 0
+          if ($pre -match '(\d+)\s*$') { $rev = [int]$Matches[1] }
+          wix build packaging/windows/linager-app.wxs -arch x64 -d Version="$core.$rev" -d ExePath=app/bin/linager-app.exe -d IconPath=app/build/windows/appicon.ico -o app/bin/Linager-windows-x64.msi
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Smoke test (install, check, remove)
+        if: steps.msi.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $msi = (Resolve-Path app/bin/Linager-windows-x64.msi).Path
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /l*v install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 60; exit 1 }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Linager\linager-app.exe'
+          if (-not (Test-Path $exe)) { Write-Error "not installed: $exe"; exit 1 }
+          $p = Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /l*v remove.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content remove.log -Tail 60; exit 1 }
+          if (Test-Path $exe) { Write-Error "not removed: $exe"; exit 1 }
+      - uses: actions/upload-artifact@v4
+        if: steps.msi.outcome == 'success'
+        with:
+          name: app-windows-installer
+          path: app/bin/Linager-windows-x64.msi
 
   linux:
     runs-on: ubuntu-24.04
@@ -91,7 +126,8 @@ jobs:
       - name: Build
         run: |
           make -C app build VERSION="${VERSION#v}"
-          tar -C app/bin -czf app/bin/Linager-linux-x64.tar.gz linager-app
+          cp app/build/linux/linager.png app/build/linux/linager.desktop app/build/linux/README.txt app/bin/
+          tar -C app/bin -czf app/bin/Linager-linux-x64.tar.gz linager-app linager.png linager.desktop README.txt
       - uses: actions/upload-artifact@v4
         with:
           name: app-linux

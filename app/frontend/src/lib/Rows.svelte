@@ -32,7 +32,15 @@
     setPref(SKEY, JSON.stringify(sort));
   }
 
-  const LEVEL = { crit: 0, warn: 1, ok: 2, off: 3 } as const;
+  /** What the column "Status" shows decides the order: the more and the worse tags, the nearer to the top (ascending); a server that is offline goes last. */
+  function stateRank(c: ServerCard): number {
+    if (!c.online) return 1;
+    let r = 0;
+    for (const tag of tagsOf(c, agents[c.id] ?? null)) {
+      r -= (tag.tone === 'crit' ? 1_000_000 : tag.tone === 'warn' ? 10_000 : tag.tone === 'mute' ? 100 : 0) + Math.min(tag.n ?? 0, 99);
+    }
+    return r;
+  }
   const ipNum = (a: string): number => a.split('.').reduce((n, p) => n * 256 + (Number(p) || 0), 0);
   /** The value of a column; an absent number (offline) sorts as the lowest. */
   function val(c: ServerCard, k: Key): number | string {
@@ -44,7 +52,7 @@
       case 'cpu': return c.online && s ? s.cpu : -1;
       case 'mem': return c.online && s ? s.mem_pct : -1;
       case 'disk': return c.online && s ? s.disk_pct : -1;
-      case 'state': return LEVEL[levelOf(c)];
+      case 'state': return stateRank(c);
       case 'uptime': return c.online && s ? s.uptime : -1;
     }
   }
@@ -92,7 +100,7 @@
             {:else}<span class="dim">—</span>{/if}
           </td>
         {/each}
-        <td class="nw">{#each tagsOf(c, agents[c.id] ?? null) as tag (tag.id)}<span class="badge b-{tag.tone}" title={t(`tag.${tag.id}`, { n: tag.n ?? 0 })}>{t(SHORT.has(tag.id) ? `tag.s.${tag.id}` : `tag.${tag.id}`, { n: tag.n ?? 0 })}</span> {/each}</td>
+        <td class="nw"><span class="tgs">{#each tagsOf(c, agents[c.id] ?? null) as tag (tag.id)}<span class="badge b-{tag.tone}" title={t(`tag.${tag.id}`, { n: tag.n ?? 0 })}>{t(SHORT.has(tag.id) ? `tag.s.${tag.id}` : `tag.${tag.id}`, { n: tag.n ?? 0 })}</span>{/each}</span></td>
         <td class="mono dim nw">{c.online ? (s ? fmtUptime(s.uptime, units) : '—') : fmtAgo(c.last_seen_at, now, units)}</td>
         <td class="r"><span class="r-btns">
           {#if hasModule('terminal')}      <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!c.online} onclick={() => onopen(c, 'terminal')}><Icon name="square-terminal" size={14} /></button>{/if}

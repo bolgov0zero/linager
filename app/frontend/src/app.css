@@ -730,3 +730,17 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .tbl.dk td.cut,.tbl.dk .sub.cut{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tbl.dk td{white-space:nowrap}
 .tbl.dk td.r{overflow:visible}
+
+/* the Keys: a remembered file only needs its passphrase */
+.kunlock{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg2)}
+.kunlock .ki{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent)}
+.kunlock .kt{display:flex;flex-direction:column;gap:2px;min-width:0}.kunlock .kn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.kother{justify-content:center;gap:4px}
+/* the filters of the Console: the choices share the width of the panel */
+.con-filters{gap:4px}.con-filters .lbl{font-size:11.5px;color:var(--text2);margin-top:4px;padding-left:2px}
+.con-filters .seg{display:flex;width:100%}.con-filters .seg button{flex:1;justify-content:center;padding:0 4px}
+/* a removable tag chip: the cross sits in the middle of the chip */
+.chip .btn.xs{width:18px;height:18px;margin:0 -6px 0 4px;border-radius:4px;flex:none}
+.chip{gap:0}
+/* the tags of a row of the dashboard are apart from each other */
+.tbl.rows .tgs{display:inline-flex;gap:5px;white-space:nowrap}

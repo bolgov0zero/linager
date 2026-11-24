@@ -342,6 +342,7 @@ type AccessGuard struct {
 	trust *ProxyTrust
 	yaml  []string
 	snap  atomic.Pointer[accessSnapshot]
+	app   atomic.Pointer[appAccessSnapshot] // the application port; nil: not saved yet, it follows the admin panel
 
 	mu       sync.Mutex
 	lastPage map[string]time.Time
@@ -399,6 +400,7 @@ func (g *AccessGuard) reapply() {
 
 // Load reads the stored restriction.
 func (g *AccessGuard) Load(ctx context.Context) {
+	g.loadApp(ctx)
 	raw := g.db.SettingRaw(ctx, accessSetting)
 	if len(raw) == 0 {
 		g.apply(g.defaults(), false)
@@ -466,12 +468,19 @@ func (g *AccessGuard) Purge(ctx context.Context) {
 	}
 }
 
-// ResetAccess turns the restriction off in the database (the lists stay). It is the way back when the admin has
+// ResetAccess turns the restrictions of the admin panel and of the application port off in the database (the lists stay). It is the way back when the admin has
 // locked themselves out: `linager access reset` on the server.
 func ResetAccess(ctx context.Context, db *store.Store) (bool, error) {
+	appChanged, err := resetApp(ctx, db)
+	if err != nil {
+		return false, err
+	}
 	raw := db.SettingRaw(ctx, accessSetting)
 	if len(raw) == 0 {
-		return false, nil
+		if appChanged {
+			_ = db.WriteAudit(ctx, store.Audit{Actor: "cli", Action: "access.reset", TargetType: "access", Result: "ok"})
+		}
+		return appChanged, nil
 	}
 	cfg := AccessConfig{}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
@@ -488,7 +497,7 @@ func ResetAccess(ctx context.Context, db *store.Store) (bool, error) {
 		return false, err
 	}
 	_ = db.WriteAudit(ctx, store.Audit{Actor: "cli", Action: "access.reset", TargetType: "access", Result: "ok"})
-	return changed, nil
+	return changed || appChanged, nil
 }
 
 // ---- the journal ----
@@ -575,7 +584,7 @@ func (a *Admin) accessGuard(next http.Handler) http.Handler {
 		rules := g.snap.Load().rules
 		var v verdict
 		if isDirect(r) {
-			v = rules.decideDirect(peer)
+			v = g.decideApp(peer)
 		} else {
 			v = rules.decide(peer, xff)
 		}
