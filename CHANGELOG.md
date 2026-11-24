@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0-beta.12
+
+- Fix (Windows): the installer `Linager-windows-x64.msi` of 0.10.0-beta.11 was not built (the components of the package had no GUID); it is built now. Release 0.10.0-beta.11 also has no macOS archive (the build of the macOS application got no runner), so this release is the one that carries everything of 0.10.0-beta.11 for macOS. The server and the agent are unchanged.
+
 ## 0.10.0-beta.11
 
 - New (application): **Settings → Server access** replaces "Admin access" in the application: the white or black list of addresses that may connect to the application port, a test of an address, the journal of the connections of the application. The lists are apart from the admin panel; until they are saved the port follows the admin restriction, so nothing opens after the update. A list that would lock you out is refused. New (server): `GET`/`PUT /api/app-access`, `POST /api/app-access/check`, `GET /api/access/log?port=app`, the audit action `appaccess.update`; `linager access reset` turns both restrictions off. Addresses and networks only (no host names).

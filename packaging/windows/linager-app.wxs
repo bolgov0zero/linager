@@ -27,8 +27,8 @@
     <StandardDirectory Id="ProgramMenuFolder" />
 
     <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
-      <!-- the key of a component of one user is a value of the registry of the user -->
-      <Component Id="AppExe">
+      <!-- the key of a component of one user is a value of the registry of the user, so the GUID is given (not generated from a file) -->
+      <Component Id="AppExe" Guid="A4582801-81CF-48E8-80AC-9664ABC1C174">
         <File Id="LinagerAppExe" Source="$(ExePath)" Name="linager-app.exe" />
         <RegistryValue Root="HKCU" Key="Software\Linager\App" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
         <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
@@ -37,7 +37,7 @@
     </ComponentGroup>
 
     <ComponentGroup Id="AppShortcuts" Directory="ProgramMenuFolder">
-      <Component Id="StartMenuShortcut">
+      <Component Id="StartMenuShortcut" Guid="50E225F9-8D4D-47DF-9160-EDC997D4BC47">
         <Shortcut Id="LinagerShortcut" Name="Linager" Description="Linager server management" Target="[INSTALLFOLDER]linager-app.exe"
                   WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
         <RegistryValue Root="HKCU" Key="Software\Linager\App" Name="Shortcut" Type="integer" Value="1" KeyPath="yes" />
