@@ -13,7 +13,7 @@
 
 1. Menu of the top bar → **Keys**.
 2. **Create a vault:** a passphrase (at least 10 characters, several words are better) twice, "Create and download the file". The browser downloads `linager-keys.lvault`; keep it in a safe place.
-3. **Open a file:** "Choose…", the `.lvault` file, the passphrase, "Open". Decrypting takes from one to a few seconds, on purpose.
+3. **Open a file:** "Choose", the `.lvault` file, the passphrase, "Open". Decrypting takes from one to a few seconds, on purpose.
 4. The window then shows the table of the keys: **Add a key**, **Edit**, **Delete** (confirmed in the row), a search and a filter by type.
 5. **Save the file** encrypts the vault again and downloads a new `.lvault`; replace the old file with it. While there are unsaved changes the button has the accent colour, a badge shows in the window, and the browser asks for confirmation when the tab is closed.
 6. **Close the window** leaves the vault open until the tab is closed. **Close the vault** forgets the decrypted data at once (with unsaved changes it asks what to do).
@@ -35,7 +35,7 @@ The auto-lock (15 minutes of silence by default; 5, 30 or off; the choice is rem
 
 ## The RDP form
 
-In the connection form (the tab "RDP" and the floating window) there is a list **"Key"** above the login. When the vault is closed, the list has the button "Open…": it opens a small window with the file and the passphrase (not the whole window "Keys"), and once the vault is open the list of keys unfolds by itself. Choosing a key **connects at once**: the login, the domain and the password go to the RDP client in the application (CredSSP), the password is not sent to the panel server. If the connection fails, the form comes back with the fields filled. The list opens over the page like the other drop-down lists (as a sheet from the bottom on a phone) and does not make the window taller. The connection is written to the audit with the login, as before.
+In the connection form (the tab "RDP" and the floating window) there is a list **"Key"** above the login. When the vault is closed, the list has the button "Open": it opens a small window with the file and the passphrase (not the whole window "Keys"), and once the vault is open the list of keys unfolds by itself. Choosing a key **connects at once**: the login, the domain and the password go to the RDP client in the application (CredSSP), the password is not sent to the panel server. If the connection fails, the form comes back with the fields filled. The list opens over the page like the other drop-down lists (as a sheet from the bottom on a phone) and does not make the window taller. The connection is written to the audit with the login, as before.
 
 ## Typing on the lock screen, the sign-in screen and into a UAC prompt
 
@@ -45,7 +45,7 @@ In the Assistant (the tab and the floating window) of a Windows computer, while 
 - **Password** types the password and presses Enter: for when the login is already on the sign-in screen;
 - **Sign in** types the login, presses Tab, types the password and presses Enter.
 
-When the vault is closed the list has the button "Open…" (a small window with the file and the passphrase), and the list unfolds after it.
+When the vault is closed the list has the button "Open" (a small window with the file and the passphrase), and the list unfolds after it.
 
 How it works and what to expect:
 

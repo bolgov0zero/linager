@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.3
+
+- Change (application): **the buttons "Files" and "Manager" of the terminal are icons only** in the window of the terminal too, like in the Assistant and in the Console (the names are in the tooltip).
+- **Fix (application): the tab "Users" of the Manager window of a Windows computer** showed "The module is turned off on the agent". The tab listed the SSH logins of Linux (the module `security`), which a Windows agent does not have. On Windows it now lists the **Windows sessions** (the console and the remote desktop: the user, the kind, the state) with "End session", the same as the tab Users of the server page. On Linux nothing changed.
+- Change (application): **the RDP session has the button "Display mode"** (the monitor icon, like in the Assistant). The scale (fit the window, 100%), "Change resolution with the window" and "Full screen" moved from the menu "More" into it; the scale in force is ticked. "More" keeps the keys, the clipboard and "Disconnect".
+- New (application): **the terminal of a Console tab has the button "In a separate window"** on its bar, like the Assistant and RDP; the tab closes and the terminal opens in a window of its own.
+- New (application): **the tabs of the Console are reordered by dragging** (Alt+Left and Alt+Right from the keyboard). The order is remembered. The sessions are not restarted by a move: the panes keep their place in the page and only the strip of the tabs changes. The helper `sortable.ts` of the snippets learned the horizontal order for it.
+- Change (application): **no trailing dots in the names** of menu items, buttons and hints: "Picture quality", "Move to", "Delete", "Edit", "Apply", "Choose a file", "Another file", "Groups", "Password", "Manage snippets", "Into a folder" and the placeholders of the search and of the note (17 texts, in both languages; the docs quote them without dots too). The texts that say that something is going on ("Loading…", "Connecting…") are left as they are. Test: `no-ellipsis.test.mjs`.
+- Change (application): **the kinds of connection have colours** in the Console: the terminal is green, the remote desktop blue, the Assistant orange (three hues far from each other, so that they are not mixed up even on the small icons of the tabs; soft shades in the dark theme, deeper ones in the light, no purple). The icons of the switch and of the tabs use them, the pressed button and the open tab take a touch of their colour.
+
 ## 1.1.2
 
 - **Fix (application): the button "Snippets" of the terminal had no icon** (the room for it was there). The icon `file-code` was named in the code but missing from the icon set of the application. It is added, and a test (`icons.test.mjs`) now checks that every icon named in the sources exists in the set.

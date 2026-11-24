@@ -16,3 +16,12 @@ for (const [file, pane] of [['AssistantWindow.svelte', 'AssistantPane'], ['Deskt
     assert.doesNotMatch(s, /serverId=\{s\.id\}/);
   });
 }
+
+test('the manager shows the Windows sessions on Windows and the SSH ones elsewhere (a Windows agent has no security module)', () => {
+  const s = src('ManagerWindow.svelte');
+  assert.match(s, /isWindows\(s\.os\)\}<WinSessionsTab \{s\} \/>\{:else\}<SessionsTab \{s\} \/>/);
+  const w = src('../server/win/WinSessionsTab.svelte');
+  assert.match(w, /winCall<WinUsersState>\(sid, 'users', 'state'\)/);
+  assert.match(w, /winCall\(sid, 'users', 'logoff'/);
+  assert.doesNotMatch(w, /serverApi2\.security/);
+});

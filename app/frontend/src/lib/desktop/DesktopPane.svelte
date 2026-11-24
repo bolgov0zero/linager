@@ -12,6 +12,8 @@
 
   let phase = $state<DeskPhase>('form');
   let autoResize = $state(true);
+  /** The scale in force (a new connection starts as "fit"). */
+  let scale = $state<'fit' | 'real'>('fit');
   let session = $state<DesktopSessionView | null>(null);
   let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
   let root = $state<HTMLDivElement | null>(null);
@@ -19,7 +21,17 @@
 
   const live = $derived(phase === 'open');
   const statusText = $derived(phase === 'connecting' ? t('desk.connecting') : phase === 'open' ? t('desk.open') : t('desk.closed'));
-  const items = $derived.by<CtxItem[]>(() => {
+  $effect(() => {
+    if (phase !== 'open') scale = 'fit';
+  });
+  // the button "display": the scale of the picture, the resolution that follows the window and the full screen
+  const displayItems = $derived<CtxItem[]>([
+    { key: 'fit', label: `${scale === 'fit' ? '✓ ' : ''}${t('desk.scaleFit')}`, onselect: () => { scale = 'fit'; session?.setScale('fit'); } },
+    { key: 'real', label: `${scale === 'real' ? '✓ ' : ''}${t('desk.scaleReal')}`, onselect: () => { scale = 'real'; session?.setScale('real'); } },
+    { key: 'auto', label: `${autoResize ? '✓ ' : ''}${t('desk.autoResize')}`, onselect: () => (autoResize = !autoResize) },
+    { key: 'full', label: full.on ? t('fs.exit') : t('desk.fullscreen'), separated: true, onselect: () => void full.toggle() },
+  ]);
+  const moreItems = $derived.by<CtxItem[]>(() => {
     const s = session;
     const clip = s?.clipboardAvailable() ?? false;
     return [
@@ -30,14 +42,10 @@
       { key: 'alttab', label: t('desk.altTab'), onselect: () => s?.combo(['AltLeft', 'Tab']) },
       { key: 'send', label: t('desk.clipSend'), separated: true, disabled: !clip, onselect: () => void s?.sendClipboard() },
       { key: 'save', label: t('desk.clipSave'), disabled: !clip, onselect: () => void s?.saveClipboard() },
-      { key: 'fit', label: t('desk.scaleFit'), separated: true, onselect: () => s?.setScale('fit') },
-      { key: 'real', label: t('desk.scaleReal'), onselect: () => s?.setScale('real') },
-      { key: 'auto', label: `${autoResize ? '✓ ' : ''}${t('desk.autoResize')}`, onselect: () => (autoResize = !autoResize) },
-      { key: 'full', label: full.on ? t('fs.exit') : t('desk.fullscreen'), onselect: () => void full.toggle() },
       { key: 'off', label: t('desk.disconnect'), separated: true, onselect: () => s?.disconnect() },
     ];
   });
-  function more(ev: MouseEvent): void {
+  function open(items: CtxItem[], ev: MouseEvent): void {
     const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
     menu = { x: r.left, y: r.bottom + 2, items };
   }
@@ -48,8 +56,9 @@
     <b>{t('desk.header', { name })}</b>{#if online}<span class="dim">· {statusText}</span>{/if}
     <span class="grow"></span>
     {#if online && live}
+      <button class="btn sm icon" type="button" title={t('desk.display')} aria-label={t('desk.display')} onclick={(e) => open(displayItems, e)}><Icon name="monitor" size={14} /></button>
       <button class="btn sm icon" type="button" title={t('desk.cadHint')} aria-label="Ctrl+Alt+Del" onclick={() => session?.ctrlAltDel()}><Icon name="keyboard" size={14} /></button>
-      <button class="btn sm" type="button" onclick={more}>{t('desk.more')}<Icon name="chevron-down" size={13} /></button>
+      <button class="btn sm" type="button" onclick={(e) => open(moreItems, e)}>{t('desk.more')}<Icon name="chevron-down" size={13} /></button>
     {/if}
     <button class="btn sm icon" type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', serverId, name, nativeWindows)}><Icon name="folder" size={14} /></button>
     <button class="btn sm icon" type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', serverId, name, nativeWindows)}><Icon name="activity" size={14} /></button>

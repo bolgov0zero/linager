@@ -83,6 +83,14 @@ export function closeTab(id: number): void {
   save();
 }
 
+/** A tab goes to another place of the strip: `from` and `to` are indexes (to as it is after the move). */
+export function moveTab(from: number, to: number): void {
+  const [tab] = con.tabs.splice(from, 1);
+  if (!tab) return;
+  con.tabs.splice(to, 0, tab);
+  save();
+}
+
 export function activate(id: number): void {
   con.active = id;
   save();

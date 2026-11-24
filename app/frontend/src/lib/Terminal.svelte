@@ -10,7 +10,7 @@
   import Menu from './Menu.svelte';
   import { native } from './native';
 
-  let { id, title, embedded = false, nativeWindows = false, initialUser = '' }: { id: string; title: string; embedded?: boolean; nativeWindows?: boolean; initialUser?: string } = $props();
+  let { id, title, embedded = false, nativeWindows = false, initialUser = '', onwindow }: { id: string; title: string; embedded?: boolean; nativeWindows?: boolean; initialUser?: string; /** The button "in a separate window" (a Console tab gives it, like the Assistant and RDP do). */ onwindow?: () => void } = $props();
 
   // The terminal is always dark, like the mockup.
   const THEME = { background: '#0a0c0f', foreground: '#d7dbe3', cursor: '#3b82f6', selectionBackground: '#2b2f37' };
@@ -110,8 +110,9 @@
     <span class="spacer"></span>
     {#if phase !== 'open'}<span class="muted" style="font-size:12px">{phase === 'connecting' ? t('term.connecting') : t('term.closed')}</span>{/if}
     {#if phase === 'closed'}<button class="btn sm" type="button" onclick={() => (attempt += 1)}>{t('term.reconnect')}</button>{/if}
-    <button class="btn sm" class:icon={embedded} type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', id, title, nativeWindows)}><Icon name="folder" size={14} />{#if !embedded}{t('term.files')}{/if}</button>
-    <button class="btn sm" class:icon={embedded} type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', id, title, nativeWindows)}><Icon name="activity" size={14} />{#if !embedded}{t('term.manager')}{/if}</button>
+    <button class="btn sm icon" type="button" title={t('term.files')} aria-label={t('term.files')} onclick={() => native.openWindow('files', id, title, nativeWindows)}><Icon name="folder" size={14} /></button>
+    <button class="btn sm icon" type="button" title={t('term.manager')} aria-label={t('term.manager')} onclick={() => native.openWindow('manager', id, title, nativeWindows)}><Icon name="activity" size={14} /></button>
+    {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
   </div>
   <div class="term-host" bind:this={host}></div>
   {#if note}<div class="term-note">{note}</div>{/if}

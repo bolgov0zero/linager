@@ -13,7 +13,8 @@
   import DesktopPane from '../desktop/DesktopPane.svelte';
   import { assistantOffered, isWindows, levelOf } from '../status';
   import Terminal from '../Terminal.svelte';
-  import { activate, closeTab, con, openTab, passes, setFilter, setMode, syncNames, toggleGroup, type ConMode } from './store.svelte';
+  import { activate, closeTab, con, moveTab, openTab, passes, setFilter, setMode, syncNames, toggleGroup, type ConMode } from './store.svelte';
+  import { sortable } from '../sortable';
 
   let { nativeWindows }: { nativeWindows: boolean } = $props();
 
@@ -132,10 +133,13 @@
     ] };
   }
   /** The session moves to a window of its own: one session can be open in one place only, so the tab closes. */
-  function inWindow(tab: { id: number; serverId: string; name: string }, kind: 'rdp' | 'asst'): void {
+  function inWindow(tab: { id: number; serverId: string; name: string }, kind: 'terminal' | 'rdp' | 'asst'): void {
     closeTab(tab.id);
     void native.openWindow(kind, tab.serverId, tab.name, nativeWindows);
   }
+  // The panes keep one order, whatever the order of the tabs: moving a pane in the page would restart a session (a custom element of
+  // the remote desktop is closed when it leaves the page).
+  const panels = $derived([...con.tabs].sort((a, b) => a.id - b.id));
   const tabIcon = (m: ConMode): string => MODES.find((x) => x.id === m)!.icon;
 </script>
 
@@ -143,7 +147,7 @@
   <aside class="con-side">
     <div class="con-modes" role="group" aria-label={t('pult.modes')}>
       {#each MODES as m (m.id)}
-        <button type="button" aria-pressed={con.mode === m.id} disabled={!m.ready} title={m.ready ? modeLabel(m.id) : `${modeLabel(m.id)} · ${t('pult.soon')}`} aria-label={modeLabel(m.id)} onclick={() => setMode(m.id)}>
+        <button type="button" data-mode={m.id} aria-pressed={con.mode === m.id} disabled={!m.ready} title={m.ready ? modeLabel(m.id) : `${modeLabel(m.id)} · ${t('pult.soon')}`} aria-label={modeLabel(m.id)} onclick={() => setMode(m.id)}>
           <Icon name={m.icon} size={15} /><em>{counts[m.id]}</em>
         </button>
       {/each}
@@ -182,9 +186,9 @@
   <section class="con-main">
     <div class="con-tabs" role="tablist" aria-label={t('pult.tabs')}>
       {#if overflow}<button class="btn xs" type="button" aria-label={t('pult.tabsLeft')} onclick={() => strip?.scrollBy({ left: -200, behavior: 'smooth' })}><Icon name="chevron-left" size={14} /></button>{/if}
-      <div class="strip" bind:this={strip} onscroll={measure}>
+      <div class="strip" bind:this={strip} onscroll={measure} use:sortable={{ axis: 'x', skip: '.ctab-x', onreorder: moveTab }}>
         {#each con.tabs as tab (tab.id)}
-          <div class="ctab" class:on={tab.id === con.active} data-tab={tab.id} role="tab" aria-selected={tab.id === con.active}>
+          <div class="ctab" class:on={tab.id === con.active} data-tab={tab.id} data-mode={tab.mode} role="tab" aria-selected={tab.id === con.active}>
             <button class="ctab-b" type="button" onclick={() => activate(tab.id)}>
               <span class="dot {byId.get(tab.serverId) ? levelOf(byId.get(tab.serverId)!) : 'off'}"></span><Icon name={tabIcon(tab.mode)} size={13} /><span class="nm">{tab.name}</span>
             </button>
@@ -195,10 +199,10 @@
       {#if overflow}<button class="btn xs" type="button" aria-label={t('pult.tabsRight')} onclick={() => strip?.scrollBy({ left: 200, behavior: 'smooth' })}><Icon name="chevron-right" size={14} /></button>{/if}
     </div>
     <div class="con-panes">
-      {#each con.tabs as tab (tab.id)}
+      {#each panels as tab (tab.id)}
         <div class="con-pane" hidden={tab.id !== con.active}>
           {#if visited[tab.id]}
-            {#if tab.mode === 'term'}<Terminal id={tab.serverId} title={tab.name} embedded {nativeWindows} />
+            {#if tab.mode === 'term'}<Terminal id={tab.serverId} title={tab.name} embedded {nativeWindows} onwindow={() => inWindow(tab, 'terminal')} />
             {:else if tab.mode === 'rdp'}<DesktopPane serverId={tab.serverId} name={tab.name} address={byId.get(tab.serverId)?.address ?? ''} online={byId.get(tab.serverId)?.online ?? false} {nativeWindows} onwindow={() => inWindow(tab, 'rdp')} />
             {:else if tab.mode === 'asst'}<AssistantPane serverId={tab.serverId} name={tab.name} online={byId.get(tab.serverId)?.online ?? false} paused={tab.id !== con.active} {nativeWindows} onwindow={() => inWindow(tab, 'asst')} />
             {:else}<div class="empty big"><Icon name={tabIcon(tab.mode)} size={28} /><h3>{modeLabel(tab.mode)}</h3><p>{t('pult.soon')}</p></div>{/if}

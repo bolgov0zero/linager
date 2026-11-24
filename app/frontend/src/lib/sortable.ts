@@ -1,11 +1,16 @@
 // A list whose rows are reordered by dragging (a Svelte action). The rows are the direct children of the element; the gesture is
 // the same as in Settings → Folders: take a row anywhere except on its buttons, the line shows where it will go, Escape cancels.
-// The keyboard has no buttons to press: Alt+Up and Alt+Down move the focused row (give the rows tabindex="0").
+// The keyboard has no buttons to press: Alt+Up and Alt+Down move the focused row (Alt+Left and Alt+Right in a horizontal list; the
+// focus may be on the row or on something inside it). A drag does not end in a click on what was taken.
 // Nothing is added inside the list (the framework owns it): the ghost and the line live in the body and follow the pointer.
 
 export interface SortableOptions {
   /** The row at index `from` goes to index `to` of the list as it will be after the move. */
   onreorder: (from: number, to: number) => void;
+  /** "y" (the default) for a column of rows, "x" for a row of tabs. */
+  axis?: 'x' | 'y';
+  /** What does not start a drag (the default is every button, link and field); the tabs let the drag start on the tab button itself. */
+  skip?: string;
 }
 
 const SKIP = 'button,a,input,textarea,select,label,[data-nosort]';
@@ -25,7 +30,7 @@ export function sortable(node: HTMLElement, options: SortableOptions): { update:
   const rows = (): HTMLElement[] => [...node.children].filter((e): e is HTMLElement => e instanceof HTMLElement);
 
   function down(e: PointerEvent): void {
-    if (e.button !== 0 || !(e.target instanceof Element) || e.target.closest(SKIP)) return;
+    if (e.button !== 0 || !(e.target instanceof Element) || e.target.closest(opts.skip ?? SKIP)) return;
     const row = rows().find((r) => r.contains(e.target as Node));
     if (!row) return;
     start = { x: e.clientX, y: e.clientY, row };
@@ -48,6 +53,7 @@ export function sortable(node: HTMLElement, options: SortableOptions): { update:
     ghost.className = `${node.className} sort-ghost`;
     ghost.append(copy);
     ghost.style.width = `${r.width}px`;
+    if (opts.axis === 'x') ghost.style.cssText += ';display:flex;overflow:visible'; // the strip of the tabs is a scrolled flex row
     line = document.createElement('div');
     line.className = 'sort-line';
     document.body.append(ghost, line);
@@ -61,13 +67,27 @@ export function sortable(node: HTMLElement, options: SortableOptions): { update:
     }
     if (!drag || !ghost || !line) return;
     const r = drag.row.getBoundingClientRect();
-    ghost.style.left = `${node.getBoundingClientRect().left}px`;
-    ghost.style.top = `${e.clientY - r.height / 2}px`;
-    const others = rows().filter((x) => x !== drag!.row);
-    drag.to = dropIndex(others.map((x) => { const b = x.getBoundingClientRect(); return b.top + b.height / 2; }), e.clientY);
     const nb = node.getBoundingClientRect();
-    const y = drag.to < others.length ? others[drag.to].getBoundingClientRect().top - 3 : (others.at(-1)?.getBoundingClientRect().bottom ?? nb.top) + 3;
-    line.style.cssText = `left:${nb.left}px;width:${nb.width}px;top:${y - 1}px`;
+    if (opts.axis === 'x') {
+      // a row of tabs: near an end of the strip it scrolls
+      if (node.scrollWidth > node.clientWidth) {
+        if (e.clientX < nb.left + 28) node.scrollLeft -= 14;
+        else if (e.clientX > nb.right - 28) node.scrollLeft += 14;
+      }
+      ghost.style.left = `${e.clientX - r.width / 2}px`;
+      ghost.style.top = `${r.top}px`;
+      const others = rows().filter((x) => x !== drag!.row);
+      drag.to = dropIndex(others.map((x) => { const b = x.getBoundingClientRect(); return b.left + b.width / 2; }), e.clientX);
+      const x = drag.to < others.length ? others[drag.to].getBoundingClientRect().left - 3 : (others.at(-1)?.getBoundingClientRect().right ?? nb.left) + 3;
+      line.style.cssText = `left:${x - 1}px;width:2px;top:${r.top}px;height:${r.height}px`;
+    } else {
+      ghost.style.left = `${nb.left}px`;
+      ghost.style.top = `${e.clientY - r.height / 2}px`;
+      const others = rows().filter((x) => x !== drag!.row);
+      drag.to = dropIndex(others.map((x) => { const b = x.getBoundingClientRect(); return b.top + b.height / 2; }), e.clientY);
+      const y = drag.to < others.length ? others[drag.to].getBoundingClientRect().top - 3 : (others.at(-1)?.getBoundingClientRect().bottom ?? nb.top) + 3;
+      line.style.cssText = `left:${nb.left}px;width:${nb.width}px;top:${y - 1}px`;
+    }
     line.classList.toggle('same', drag.to === drag.from);
   }
 
@@ -87,7 +107,12 @@ export function sortable(node: HTMLElement, options: SortableOptions): { update:
     end();
     start = null;
     drag = null;
-    if (d && d.to !== d.from) opts.onreorder(d.from, d.to);
+    if (!d) return;
+    // the button that was taken must not click when it is let go
+    const swallow = (ev: Event): void => ev.stopPropagation();
+    addEventListener('click', swallow, { capture: true, once: true });
+    setTimeout(() => removeEventListener('click', swallow, { capture: true }), 0);
+    if (d.to !== d.from) opts.onreorder(d.from, d.to);
   }
 
   function cancel(): void {
@@ -97,11 +122,12 @@ export function sortable(node: HTMLElement, options: SortableOptions): { update:
   }
 
   function key(e: KeyboardEvent): void {
-    if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || !(e.target instanceof HTMLElement)) return;
+    const keys = opts.axis === 'x' ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown'];
+    if (!e.altKey || !keys.includes(e.key) || !(e.target instanceof Node)) return;
     const list = rows();
-    const from = list.indexOf(e.target);
+    const from = list.findIndex((r) => r.contains(e.target as Node));
     if (from < 0) return;
-    const to = from + (e.key === 'ArrowUp' ? -1 : 1);
+    const to = from + (e.key === keys[0] ? -1 : 1);
     if (to < 0 || to >= list.length) return;
     e.preventDefault();
     opts.onreorder(from, to);

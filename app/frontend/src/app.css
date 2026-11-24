@@ -833,3 +833,12 @@ body.ft-dnd,body.ft-dnd *{cursor:grabbing!important}body.ft-dnd .ft-r.bad,body.f
 .sort-ghost .sort-grip{opacity:1}
 .sort-line{position:fixed;z-index:999;height:2px;border-radius:2px;background:var(--accent);pointer-events:none}.sort-line.same{opacity:.35}
 body.sorting,body.sorting *{cursor:grabbing!important}
+
+/* The three kinds of connection have a colour each (soft, no purple): the terminal is green, the remote desktop blue, the Assistant orange: three hues far from each other, so that the icons are told apart at a glance.
+   The switch of the Console and the tabs of the connections use the same ones. */
+:root,:root[data-theme=dark]{--m-term:#86dc7f;--m-rdp:#6aa8ff;--m-asst:#f7a95c}
+:root[data-theme=light]{--m-term:#2e9e3f;--m-rdp:#2b6fdb;--m-asst:#d4710f}
+[data-mode=term]{--mc:var(--m-term)}[data-mode=rdp]{--mc:var(--m-rdp)}[data-mode=asst]{--mc:var(--m-asst)}
+.con-modes button[data-mode]>svg,.ctab[data-mode] .ctab-b>svg{color:var(--mc)}
+.con-modes button[data-mode][aria-pressed=true]{border-color:color-mix(in srgb,var(--mc) 55%,transparent);background:color-mix(in srgb,var(--mc) 13%,transparent)}
+.ctab[data-mode].on{border-color:color-mix(in srgb,var(--mc) 45%,var(--border-hh))}

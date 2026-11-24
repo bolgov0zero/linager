@@ -6,6 +6,8 @@
   import ProcessesTab from '../server/ProcessesTab.svelte';
   import ServicesTab from '../server/ServicesTab.svelte';
   import SessionsTab from '../server/SessionsTab.svelte';
+  import WinSessionsTab from '../server/win/WinSessionsTab.svelte';
+  import { isWindows } from '../status';
 
   let { id, title }: { id: string; title: string } = $props();
   let s = $state<ServerDetail | null>(null);
@@ -24,6 +26,6 @@
     <button class="btn sm" type="button" aria-pressed={tab === 'users'} onclick={() => (tab = 'users')}><Icon name="users" size={14} />{t('mgr.users')}</button>
   </div>
   <div class="mgr-body">
-    {#if s}{#key tab}{#if tab === 'processes'}<ProcessesTab {s} />{:else if tab === 'services'}<ServicesTab {s} />{:else}<SessionsTab {s} />{/if}{/key}{/if}
+    {#if s}{#key tab}{#if tab === 'processes'}<ProcessesTab {s} />{:else if tab === 'services'}<ServicesTab {s} />{:else if isWindows(s.os)}<WinSessionsTab {s} />{:else}<SessionsTab {s} />{/if}{/key}{/if}
   </div>
 </div>
