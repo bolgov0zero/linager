@@ -176,7 +176,7 @@
         await api.accessResolve(host);
       } catch (e) {
         if (isUnauthorized(e)) onauthlost();
-        else addErr = e instanceof ApiError && e.status === 422 ? t('aa.err.unresolved', { host }) : t('aa.failed');
+        else addErr = e instanceof ApiError && e.status === 422 ? t('aa.err.unresolved', { host }) + dnsWhy(e) : t('aa.failed');
         return;
       } finally {
         hostBusy = false;
@@ -200,6 +200,12 @@
     for (const c of RFC1918) addTo(draft.white, c, t('aa.rfc.note'));
   }
 
+  /** What DNS of the server answered ("lookup ya.ru ...: i/o timeout"), as a tail of a message. */
+  function dnsWhy(e: unknown): string {
+    const why = e instanceof ApiError ? (e.body as { status?: { error?: string } } | undefined)?.status?.error : '';
+    return why ? ` (${why})` : '';
+  }
+
   /** Looks the name up again at once (the server also does it every minute). */
   async function refreshHost(host: string): Promise<void> {
     if (hostBusy) return;
@@ -211,7 +217,7 @@
       showToast(res.status.failing ? t('aa.host.stillDown', { host }) : t('aa.host.refreshed', { host, ips: res.status.ips.join(', ') }));
     } catch (e) {
       if (isUnauthorized(e)) onauthlost();
-      else showToast(t('aa.err.unresolved', { host }));
+      else showToast(t('aa.err.unresolved', { host }) + dnsWhy(e));
     } finally {
       hostBusy = false;
     }
@@ -273,9 +279,9 @@
 
   /** The line under the addresses of a name: when they were checked, or what is wrong. */
   function hostLine(h: AccessHost | undefined): { text: string; tone: 'ok' | 'warn' } {
-    if (!h || !h.checked_at) return { text: t('aa.host.never'), tone: 'warn' };
+    if (!h || !h.checked_at) return { text: t('aa.host.never') + (h?.error ? ` (${h.error})` : ''), tone: 'warn' };
     if (h.expired) return { text: t('aa.host.expired', { ago: ago(h.checked_at) }), tone: 'warn' };
-    if (h.failing) return { text: t('aa.host.failing', { ago: ago(h.checked_at) }), tone: 'warn' };
+    if (h.failing) return { text: t('aa.host.failing', { ago: ago(h.checked_at) }) + (h.error ? ` (${h.error})` : ''), tone: 'warn' };
     if (now - h.checked_at * 1000 < 5000) return { text: t('aa.host.okNow'), tone: 'ok' };
     return { text: t('aa.host.ok', { ago: ago(h.checked_at) }), tone: 'ok' };
   }

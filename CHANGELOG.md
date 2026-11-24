@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0-beta.15
+
+- Change (application, server): when DNS of the server cannot resolve a host name of the list (Settings → Server access), the message and the row of the table say **what DNS answered** (for example "lookup ya.ru: i/o timeout"). The name is resolved by the machine where the Linager server runs, not by the application.
+- Fix (server): **host names of the access lists** (a DDNS name): when the common lookup of the IPv4 and IPv6 addresses fails (a poor DNS proxy of a home router loses one of the two answers), the server asks for each family one after the other and takes the name as good when either gives an address.
+
 ## 0.10.0-beta.14
 
 - Fix (application, server): **Server access: "Apply" was not active** when the inherited list had a host name (a DDNS name): the list of the application port took addresses only. Now it takes **host names** like the admin panel does: the addresses come from DNS (refreshed once a minute together with the names of the admin panel), the table shows what a name points to now and has the button "Refresh", a name that DNS does not know is refused. The server: `GET /api/app-access` and the check return `hosts`; `POST /api/access/resolve` serves both lists.

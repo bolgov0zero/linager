@@ -252,3 +252,40 @@ func TestLookupHostsKeepsLastGoodAnswer(t *testing.T) {
 		t.Error("an unused name must be pruned")
 	}
 }
+
+// pairDNS fails the common lookup (the pair of A and AAAA questions, the way a poor DNS proxy does) and answers a single family.
+type pairDNS struct {
+	mu    sync.Mutex
+	asked []string
+}
+
+func (p *pairDNS) LookupNetIP(_ context.Context, network, host string) ([]netip.Addr, error) {
+	p.mu.Lock()
+	p.asked = append(p.asked, network)
+	p.mu.Unlock()
+	switch network {
+	case "ip4":
+		return []netip.Addr{netip.MustParseAddr("77.88.55.242")}, nil
+	case "ip6":
+		return nil, errors.New("lookup " + host + ": i/o timeout")
+	}
+	return nil, errors.New("lookup " + host + ": i/o timeout")
+}
+
+func TestResolveHostFallsBackToOneFamilyAtATime(t *testing.T) {
+	dns := &pairDNS{}
+	SetHostResolver(dns)
+	defer SetHostResolver(nil)
+	got, err := resolveHost(context.Background(), "ya.ru")
+	if err != nil || len(got) != 1 || got[0].String() != "77.88.55.242" {
+		t.Fatalf("one family is enough: %v %v", got, err)
+	}
+	if strings.Join(dns.asked, ",") != "ip,ip4,ip6" {
+		t.Fatalf("the common lookup first, then each family: %v", dns.asked)
+	}
+	// every question fails: the error of DNS comes back
+	SetHostResolver(&fakeDNS{fail: true})
+	if _, err := resolveHost(context.Background(), "ya.ru"); err == nil || !strings.Contains(err.Error(), "dns down") {
+		t.Fatalf("the error of DNS: %v", err)
+	}
+}

@@ -100,7 +100,7 @@ export interface AccessProblem { code: string; ip?: string; reason?: string; hos
 /** The restriction of the application port: its own lists, apart from the admin panel. */
 export interface AppAccessConfig { mode: AccessMode; white: AccessRule[]; black: AccessRule[] }
 /** What a host name of a list points to now (checked_at: unix time of the last good lookup, 0 when there was none). */
-export interface AccessHost { ips: string[]; checked_at: number; failing: boolean; expired: boolean }
+export interface AccessHost { ips: string[]; checked_at: number; failing: boolean; expired: boolean; error?: string }
 export interface AppAccessState { config: AppAccessConfig; configured: boolean; you?: { ip: string; allowed: boolean; reason: string }; denied_24h: number; hosts: Record<string, AccessHost> }
 export interface AppAccessCheck { problems: AccessProblem[]; you?: { ip: string; allowed: boolean; reason: string }; test?: { ip: string; allowed: boolean; reason: string }; hosts: Record<string, AccessHost> }
 

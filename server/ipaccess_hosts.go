@@ -85,13 +85,37 @@ func normalizeHost(s string) (string, bool) {
 	return s, true
 }
 
+// clipErr is the text of a DNS error, short enough to show.
+func clipErr(err error) string {
+	s := err.Error()
+	if len(s) > 200 {
+		s = s[:200]
+	}
+	return s
+}
+
 // resolveHost looks a name up and returns its usable addresses (sorted, at most maxHostAddrs).
+//
+// The resolver of the program asks for the IPv4 and the IPv6 addresses at the same moment. Some DNS proxies of home
+// routers answer such a pair badly (one answer is lost, the lookup times out), so when the common lookup fails the two
+// families are asked one after the other, and the name is good when either gives an address.
 func resolveHost(ctx context.Context, host string) ([]netip.Addr, error) {
-	ctx, cancel := context.WithTimeout(ctx, hostLookupTimeout)
-	defer cancel()
-	found, err := currentResolver().LookupNetIP(ctx, "ip", host)
-	if err != nil {
-		return nil, err
+	found, err := lookupFamily(ctx, "ip", host)
+	if len(found) == 0 {
+		var first error = err
+		for _, network := range []string{"ip4", "ip6"} {
+			more, e := lookupFamily(ctx, network, host)
+			found = append(found, more...)
+			if first == nil {
+				first = e
+			}
+		}
+		if len(found) == 0 {
+			if first == nil {
+				first = errors.New("no usable addresses")
+			}
+			return nil, first
+		}
 	}
 	seen := map[netip.Addr]bool{}
 	out := make([]netip.Addr, 0, len(found))
@@ -113,12 +137,20 @@ func resolveHost(ctx context.Context, host string) ([]netip.Addr, error) {
 	return out, nil
 }
 
+// lookupFamily is one lookup with its own time limit.
+func lookupFamily(ctx context.Context, network, host string) ([]netip.Addr, error) {
+	ctx, cancel := context.WithTimeout(ctx, hostLookupTimeout)
+	defer cancel()
+	return currentResolver().LookupNetIP(ctx, network, host)
+}
+
 // hostEntry is what is known about one name.
 type hostEntry struct {
 	addrs []netip.Addr
 	at    time.Time // the last good answer
 	tried time.Time // the last attempt
 	fail  bool      // the last attempt failed
+	err   string    // why it failed
 }
 
 func (e *hostEntry) usable(now time.Time) []netip.Addr {
@@ -134,6 +166,8 @@ type HostStatus struct {
 	CheckedAt int64    `json:"checked_at"` // unix time of the last good answer, 0 when there was none
 	Failing   bool     `json:"failing"`    // the last attempt failed (the last known addresses stay in force)
 	Expired   bool     `json:"expired"`    // the last known addresses are too old and no longer in force
+	// Error is what the last failed attempt got from DNS (the resolver of the server machine answers, not the application).
+	Error string `json:"error,omitempty"`
 }
 
 // addrs returns the addresses in force for every known name.
@@ -166,6 +200,7 @@ func (g *AccessGuard) hostStatuses(names []string) map[string]HostStatus {
 				st.CheckedAt = e.at.Unix()
 			}
 			st.Failing = e.fail
+			st.Error = e.err
 			st.Expired = !e.at.IsZero() && len(st.IPs) == 0
 		}
 		out[h] = st
@@ -217,10 +252,10 @@ func (g *AccessGuard) lookupHosts(ctx context.Context, names []string, maxAge ti
 		}
 		e.tried = done
 		if res[i].err != nil {
-			e.fail = true
+			e.fail, e.err = true, clipErr(res[i].err)
 			continue
 		}
-		e.addrs, e.at, e.fail = res[i].addrs, done, false
+		e.addrs, e.at, e.fail, e.err = res[i].addrs, done, false, ""
 	}
 }
 

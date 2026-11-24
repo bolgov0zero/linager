@@ -202,7 +202,7 @@ func (a *Admin) accessResolve(w http.ResponseWriter, r *http.Request, _ *store.U
 	}
 	st := g.hostStatuses([]string{h})[h]
 	if len(st.IPs) == 0 {
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "unresolved", "host": h})
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "unresolved", "host": h, "status": st})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"host": h, "status": st})

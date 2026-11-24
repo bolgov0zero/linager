@@ -58,6 +58,15 @@ func TestAppAccessAPI(t *testing.T) {
 	if code := admin.do("PUT", "/api/app-access", map[string]any{"mode": "black", "black": []map[string]string{{"cidr": "nowhere.example.com"}}}, nil); code != http.StatusUnprocessableEntity {
 		t.Fatalf("a name without an address cannot be applied: %d", code)
 	}
+	// the reason of a failed lookup comes back with the refusal, so that the person sees what DNS of the server said
+	var why struct {
+		Status struct {
+			Error string `json:"error"`
+		} `json:"status"`
+	}
+	if code := admin.do("POST", "/api/access/resolve", map[string]string{"host": "nowhere.example.com"}, &why); code != http.StatusUnprocessableEntity || why.Status.Error == "" {
+		t.Fatalf("resolve of an unknown name: %d %+v", code, why)
+	}
 	// back to the list of the rest of the test
 	if code := admin.do("PUT", "/api/app-access", in, nil); code != 200 {
 		t.Fatalf("restore: %d", code)
