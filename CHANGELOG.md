@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-beta.5
+
+- Fix (application): the Console mode switch shows the icon and the count in one row; the Console search has a cross that clears it; the sections of the top bar are Console, Dashboard (in this order).
+- Fix (application): the dashboard list and cards no longer wrap: the badges of the list have short forms ("reboot", "updates: 3"), the system name is shortened ("Debian 12", "Windows 10 Pro", the full name is in the tooltip), the uptime stays in one line, the card shows the address and the system in one line and the agent version under it.
+- New (application): the cards, the compact cards and the list have buttons for the remote desktop (RDP) and the Assistant (on Windows, the Assistant also on a Linux computer with a graphical console); they open the session in a window of its own. The RDP and Assistant tabs of the Console have a button "In a separate window" (the tab closes: a session can be open in one place only).
+- Change (application): in the Services tab and in the Manager the restart button comes before the stop button.
+
 ## 0.10.0-beta.4
 
 Migration 00020 (`sessions.sliding_secs`). **Update the server** for the longer session.

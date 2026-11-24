@@ -15,7 +15,7 @@
 
   // The Assistant of a computer: the bar (the session, the display, Ctrl+Alt+Del, the menu), the screen and the line under it.
   // Used in a Console tab and on the server page. A hidden pane stops the pictures (paused).
-  let { serverId, name, online, paused = false }: { serverId: string; name: string; online: boolean; paused?: boolean } = $props();
+  let { serverId, name, online, paused = false, onwindow }: { serverId: string; name: string; online: boolean; paused?: boolean; onwindow?: () => void } = $props();
 
   let phase = $state<AssistPhase>('connecting');
   let info = $state<AssistInfo | null>(null);
@@ -118,6 +118,7 @@
         <button class="btn sm" type="button" onclick={(e) => open(moreItems, e)}>{t('assist.more')}<Icon name="chevron-down" size={13} /></button>
       {/if}
     {/if}
+    {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
   </div>
   {#if !online}<p class="dim pad">{t('assist.offline')}</p>
   {:else}

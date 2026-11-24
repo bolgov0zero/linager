@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/status.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { levelOf, meter, tagsOf, summarize, fmtRate, fmtUptime, fmtBytes, sparkPath } from './status.ts';
+import { shortOs, levelOf, meter, tagsOf, summarize, fmtRate, fmtUptime, fmtBytes, sparkPath } from './status.ts';
 
 const card = (over = {}, sample = {}) => ({
   id: 'a', name: 'a', address: '10.0.0.1', os: 'Debian 12', agent_version: '0.10.0', online: true, last_seen_at: null, spark: [], group_id: null,
@@ -59,4 +59,12 @@ test('sizes are written the way the panel writes them', () => {
   assert.equal(fmtBytes(5 * 1024 ** 3), '5.0 GB');
   assert.equal(fmtBytes(250 * 1024 ** 2), '250 MB');
   assert.equal(fmtBytes(undefined), '—');
+});
+
+test('the name of a system is shortened for a table cell', () => {
+  assert.equal(shortOs('Debian GNU/Linux 12 (bookworm)'), 'Debian 12');
+  assert.equal(shortOs('Windows 10 Pro (22H2, build 19045)'), 'Windows 10 Pro');
+  assert.equal(shortOs('Microsoft Windows Server 2022 Standard'), 'Windows Server 2022 Standard');
+  assert.equal(shortOs('Ubuntu 24.04.5 LTS'), 'Ubuntu 24.04.5 LTS');
+  assert.equal(shortOs('(x)'), '(x)');
 });

@@ -4,9 +4,11 @@
   import { getPref, setPref } from './prefs';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
-  import { fmtAgo, fmtUptime, isWindows, levelOf, meter, tagsOf } from './status';
+  import { assistantOffered, fmtAgo, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, tagsOf } from './status';
 
-  let { cards, now, onterminal }: { cards: ServerCard[]; now: number; onterminal: (c: ServerCard) => void } = $props();
+  let { cards, now, onopen }: { cards: ServerCard[]; now: number; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
+  // the badges that have a short form for the narrow cell of the list
+  const SHORT = new Set(['reboot', 'updates', 'images', 'failed']);
   const units = $derived({ d: t('unit.d'), h: t('unit.h'), min: t('unit.min') });
 
   // a click on a header sorts by the column, a second one reverses, a third one returns to the order of the server
@@ -59,7 +61,7 @@
   ];
 </script>
 
-<table class="tbl">
+<table class="tbl rows">
   <thead><tr>
     {#each COLS as c (c.k)}
       <th class="sortable" aria-sort={sort.key === c.k ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
@@ -76,7 +78,7 @@
       <tr class="st-{lv}" onclick={(e) => !(e.target as Element).closest('button') && openServer(c.id)}>
         <td><span class="dot {lv}"></span><b>{c.name}</b> <span class="os" class:os-windows={isWindows(c.os)}>{isWindows(c.os) ? 'WIN' : 'LIN'}</span></td>
         <td class="mono">{c.address}</td>
-        <td>{c.os}</td>
+        <td class="nw" title={c.os}>{shortOs(c.os)}</td>
         {#each [s?.cpu, s?.mem_pct, s?.disk_pct] as v, i (i)}
           <td>
             {#if c.online && v !== undefined}
@@ -84,9 +86,13 @@
             {:else}<span class="dim">—</span>{/if}
           </td>
         {/each}
-        <td>{#each tagsOf(c) as tag (tag.id)}<span class="badge b-{tag.tone}">{t(`tag.${tag.id}`, { n: tag.n ?? 0 })}</span> {/each}</td>
-        <td class="mono dim">{c.online ? (s ? fmtUptime(s.uptime, units) : '—') : fmtAgo(c.last_seen_at, now, units)}</td>
-        <td class="r"><button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!c.online} onclick={() => onterminal(c)}><Icon name="square-terminal" size={14} /></button></td>
+        <td class="nw">{#each tagsOf(c) as tag (tag.id)}<span class="badge b-{tag.tone}" title={t(`tag.${tag.id}`, { n: tag.n ?? 0 })}>{t(SHORT.has(tag.id) ? `tag.s.${tag.id}` : `tag.${tag.id}`, { n: tag.n ?? 0 })}</span> {/each}</td>
+        <td class="mono dim nw">{c.online ? (s ? fmtUptime(s.uptime, units) : '—') : fmtAgo(c.last_seen_at, now, units)}</td>
+        <td class="r"><span class="r-btns">
+          <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!c.online} onclick={() => onopen(c, 'terminal')}><Icon name="square-terminal" size={14} /></button>
+          {#if rdpOffered(c)}<button class="btn icon sm" type="button" title={t('card.rdp')} disabled={!c.online} onclick={() => onopen(c, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
+          {#if assistantOffered(c.os, c.sample)}<button class="btn icon sm" type="button" title={t('card.asst')} disabled={!c.online} onclick={() => onopen(c, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
+        </span></td>
       </tr>
     {/each}
   </tbody>

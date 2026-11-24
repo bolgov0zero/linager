@@ -72,8 +72,8 @@
     };
   });
 
-  function terminal(c: ServerCard): void {
-    void native.openWindow('terminal', c.id, c.name, nativeWindows);
+  function openIn(c: ServerCard, kind: 'terminal' | 'rdp' | 'asst'): void {
+    void native.openWindow(kind, c.id, c.name, nativeWindows);
   }
 
   const totals = $derived(summarize(cards));
@@ -147,10 +147,10 @@
 {:else if shown.length === 0}
   <div class="empty"><Icon name="search" size={26} /><p>{t('dash.nothing')}</p></div>
 {:else if layout === 'rows'}
-  <div class="tbl-wrap fill"><Rows cards={shown} {now} onterminal={terminal} /></div>
+  <div class="tbl-wrap fill"><Rows cards={shown} {now} onopen={openIn} /></div>
 {:else if layout === 'mini'}
-  <div class="dash-scroll"><div class="grid mini-grid">{#each shown as c (c.id)}<Mini card={c} onterminal={terminal} />{/each}</div></div>
+  <div class="dash-scroll"><div class="grid mini-grid">{#each shown as c (c.id)}<Mini card={c} onopen={openIn} />{/each}</div></div>
 {:else}
-  <div class="dash-scroll"><div class="grid">{#each shown as c (c.id)}<Card card={c} {now} onterminal={terminal} />{/each}</div></div>
+  <div class="dash-scroll"><div class="grid">{#each shown as c (c.id)}<Card card={c} {now} onopen={openIn} />{/each}</div></div>
 {/if}
 </div>

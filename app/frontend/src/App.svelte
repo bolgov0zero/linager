@@ -14,6 +14,8 @@
   import ServerPage from './lib/server/ServerPage.svelte';
   import Shell from './lib/Shell.svelte';
   import Terminal from './lib/Terminal.svelte';
+  import AssistantWindow from './lib/win/AssistantWindow.svelte';
+  import DesktopWindow from './lib/win/DesktopWindow.svelte';
   import EditorWindow from './lib/win/EditorWindow.svelte';
   import FilesWindow from './lib/win/FilesWindow.svelte';
   import ManagerWindow from './lib/win/ManagerWindow.svelte';
@@ -94,6 +96,10 @@
   <FilesWindow id={win.id} title={win.title} nativeWindows={st?.native ?? false} start={win.arg} />
 {:else if stage === 'window' && win && win.kind === 'manager'}
   <ManagerWindow id={win.id} title={win.title} />
+{:else if stage === 'window' && win && win.kind === 'rdp'}
+  <DesktopWindow id={win.id} title={win.title} />
+{:else if stage === 'window' && win && win.kind === 'asst'}
+  <AssistantWindow id={win.id} title={win.title} />
 {:else if stage === 'window' && win && win.kind === 'editor'}
   <EditorWindow id={win.id} path={win.arg} />
 {:else if stage === 'main' && st && session}

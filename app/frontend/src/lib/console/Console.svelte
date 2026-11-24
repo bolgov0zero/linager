@@ -6,6 +6,7 @@
   import { t } from '../i18n.svelte';
   import { native } from '../native';
   import { openServer } from '../route.svelte';
+  import SearchField from '../SearchField.svelte';
   import AssistantPane from '../assistant/AssistantPane.svelte';
   import DesktopPane from '../desktop/DesktopPane.svelte';
   import { assistantOffered, isWindows, levelOf } from '../status';
@@ -106,6 +107,11 @@
       { key: 'page', label: t('pult.page'), icon: 'arrow-up', separated: true, onselect: () => openServer(c.id) },
     ] };
   }
+  /** The session moves to a window of its own: one session can be open in one place only, so the tab closes. */
+  function inWindow(tab: { id: number; serverId: string; name: string }, kind: 'rdp' | 'asst'): void {
+    closeTab(tab.id);
+    void native.openWindow(kind, tab.serverId, tab.name, nativeWindows);
+  }
   const tabIcon = (m: ConMode): string => MODES.find((x) => x.id === m)!.icon;
 </script>
 
@@ -118,7 +124,7 @@
         </button>
       {/each}
     </div>
-    <div class="con-search"><span class="field"><Icon name="search" size={14} /><input placeholder={t('pult.search')} bind:value={q} /></span></div>
+    <div class="con-search"><SearchField placeholder={t('pult.search')} bind:value={q} /></div>
     <div class="con-list">
       {#if !loaded}<p class="dim pad">{t('dash.loading')}</p>
       {:else if failed && cards.length === 0}<p class="dim pad">{t('pult.loadFailed')}</p>
@@ -171,8 +177,8 @@
         <div class="con-pane" hidden={tab.id !== con.active}>
           {#if visited[tab.id]}
             {#if tab.mode === 'term'}<Terminal id={tab.serverId} title={tab.name} embedded {nativeWindows} />
-            {:else if tab.mode === 'rdp'}<DesktopPane serverId={tab.serverId} name={tab.name} address={byId.get(tab.serverId)?.address ?? ''} online={byId.get(tab.serverId)?.online ?? false} />
-            {:else if tab.mode === 'asst'}<AssistantPane serverId={tab.serverId} name={tab.name} online={byId.get(tab.serverId)?.online ?? false} paused={tab.id !== con.active} />
+            {:else if tab.mode === 'rdp'}<DesktopPane serverId={tab.serverId} name={tab.name} address={byId.get(tab.serverId)?.address ?? ''} online={byId.get(tab.serverId)?.online ?? false} onwindow={() => inWindow(tab, 'rdp')} />
+            {:else if tab.mode === 'asst'}<AssistantPane serverId={tab.serverId} name={tab.name} online={byId.get(tab.serverId)?.online ?? false} paused={tab.id !== con.active} onwindow={() => inWindow(tab, 'asst')} />
             {:else}<div class="empty big"><Icon name={tabIcon(tab.mode)} size={28} /><h3>{modeLabel(tab.mode)}</h3><p>{t('pult.soon')}</p></div>{/if}
           {/if}
         </div>

@@ -149,6 +149,8 @@ var winSpecs = map[string]winSpec{
 	"files":    {"Files", 900, 560, 560, 320, false},
 	"manager":  {"Manager", 820, 560, 520, 320, false},
 	"editor":   {"Editor", 820, 560, 480, 280, false},
+	"rdp":      {"Remote desktop", 1100, 720, 640, 420, false},
+	"asst":     {"Assistant", 1100, 720, 640, 420, false},
 	"note":     {"Note", 440, 320, 320, 220, true},
 }
 

@@ -72,6 +72,11 @@ export function summarize(cards: ServerCard[]): Totals {
   return t;
 }
 
+/** The name of the system without what does not fit a table cell: "Debian GNU/Linux 12 (bookworm)" -> "Debian 12". */
+export function shortOs(os: string): string {
+  return os.replace(/\s*\([^)]*\)/g, '').replace(/GNU\/Linux\s*/i, '').replace(/^Microsoft\s+/i, '').replace(/\s+/g, ' ').trim() || os;
+}
+
 export const isWindows = (os: string): boolean => os.startsWith('Windows');
 
 const MB = 1024 * 1024;
@@ -125,6 +130,9 @@ export function fmtDuration(seconds: number, u: { d: string; h: string; min: str
 }
 
 /** The Assistant is offered for Windows computers, and for a Linux computer whose agent says it has a graphical console. */
+/** The remote desktop is offered on Windows while the service is not turned off. */
+export const rdpOffered = (c: { os: string; sample?: { desktop_off?: boolean } | null }): boolean => isWindows(c.os) && c.sample?.desktop_off !== true;
+
 export function assistantOffered(os: string, sample: { gui?: boolean } | null | undefined): boolean {
   return isWindows(os) || sample?.gui === true;
 }

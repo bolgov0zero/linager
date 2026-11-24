@@ -3,9 +3,9 @@
   import { t } from './i18n.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
-  import { isWindows, levelOf, meter, tagsOf } from './status';
+  import { assistantOffered, isWindows, levelOf, meter, rdpOffered, tagsOf } from './status';
 
-  let { card, onterminal }: { card: ServerCard; onterminal: (c: ServerCard) => void } = $props();
+  let { card, onopen }: { card: ServerCard; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
 
   const level = $derived(levelOf(card));
   const s = $derived(card.sample);
@@ -41,7 +41,9 @@
   <footer class="mini-f">
     <span class="mono" class:warnt={!!note} class:dim={!note}>{note ? t(`tag.${note.id}`, { n: note.n ?? 0 }) : card.address}</span>
     <div class="acts">
-      <button class="btn icon xs" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onterminal(card)}><Icon name="square-terminal" size={14} /></button>
+      <button class="btn icon xs" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onopen(card, 'terminal')}><Icon name="square-terminal" size={14} /></button>
+      {#if rdpOffered(card)}<button class="btn icon xs" type="button" title={t('card.rdp')} disabled={!card.online} onclick={() => onopen(card, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
+      {#if assistantOffered(card.os, card.sample)}<button class="btn icon xs" type="button" title={t('card.asst')} disabled={!card.online} onclick={() => onopen(card, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
     </div>
   </footer>
 </article>

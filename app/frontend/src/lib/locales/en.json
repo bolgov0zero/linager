@@ -1768,5 +1768,14 @@
   "set.upd.dev": "This is a development build: it does not update itself.",
   "set.upd.headless": "Run without a window: self-update is off.",
   "set.upd.hint": "The application checks the signature of the release and the checksum of the file, and only then replaces itself. An update is installed on your button press.",
-  "set.upd.mark": "An update is available"
+  "set.upd.mark": "An update is available",
+  "tag.s.reboot": "reboot",
+  "tag.s.updates": "updates: {n}",
+  "tag.s.images": "images: {n}",
+  "tag.s.failed": "failed: {n}",
+  "pult.inWindow": "In a separate window",
+  "card.rdp": "Remote desktop",
+  "card.asst": "Assistant",
+  "win.rdp": "RDP",
+  "win.asst": "Assistant"
 }

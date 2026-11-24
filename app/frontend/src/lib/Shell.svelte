@@ -26,8 +26,8 @@
   <header class="topbar">
     <div class="brand"><img class="logo" src="icon.svg" alt="" /><b>Linager</b></div>
     <nav class="seg nav-tabs" aria-label="Sections">
-      <button type="button" class:on={nav.section === 'dash'} aria-current={nav.section === 'dash' ? 'page' : undefined} onclick={() => setSection('dash')}><Icon name="layout-grid" size={15} />{t('nav.dashboard')}</button>
       <button type="button" class:on={nav.section === 'console'} aria-current={nav.section === 'console' ? 'page' : undefined} onclick={() => setSection('console')}><Icon name="square-terminal" size={15} />{t('nav.console')}</button>
+      <button type="button" class:on={nav.section === 'dash'} aria-current={nav.section === 'dash' ? 'page' : undefined} onclick={() => setSection('dash')}><Icon name="layout-grid" size={15} />{t('nav.dashboard')}</button>
     </nav>
     <span class="grow"></span>
     <div class="top-actions">

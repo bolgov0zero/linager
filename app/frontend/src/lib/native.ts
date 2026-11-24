@@ -22,7 +22,7 @@ export interface AppState {
   native: boolean;
 }
 
-export type WindowKind = 'terminal' | 'note' | 'files' | 'manager' | 'editor';
+export type WindowKind = 'terminal' | 'note' | 'files' | 'manager' | 'editor' | 'rdp' | 'asst';
 
 export class NativeError extends Error {
   constructor(

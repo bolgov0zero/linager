@@ -73,8 +73,8 @@
           <td><span class="badge b-mute">{u.enabled}</span></td>
           <td class="r"><span class="r-btns">
             {#if u.active === 'active'}
-              <button class="btn icon sm danger" type="button" title={t('sp.svc.stop')} disabled={!!busy} onclick={() => act(u, 'stop')}><Icon name="square" size={14} /></button>
               <button class="btn icon sm warn" type="button" title={t('sp.svc.restart')} disabled={!!busy} onclick={() => act(u, 'restart')}><Icon name="rotate-ccw" size={14} /></button>
+              <button class="btn icon sm danger" type="button" title={t('sp.svc.stop')} disabled={!!busy} onclick={() => act(u, 'stop')}><Icon name="square" size={14} /></button>
             {:else}
               <button class="btn icon sm" type="button" title={t('sp.svc.start')} disabled={!!busy} onclick={() => act(u, 'start')}><Icon name="play" size={14} /></button>
             {/if}

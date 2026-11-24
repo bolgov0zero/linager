@@ -5,7 +5,7 @@
   import DesktopSessionView, { type DeskPhase } from './DesktopSession.svelte';
 
   // The remote desktop (RDP) of a Windows computer: the bar, then the client. Used in a Console tab and on the server page.
-  let { serverId, name, address, online }: { serverId: string; name: string; address: string; online: boolean } = $props();
+  let { serverId, name, address, online, onwindow }: { serverId: string; name: string; address: string; online: boolean; onwindow?: () => void } = $props();
 
   let phase = $state<DeskPhase>('form');
   let autoResize = $state(true);
@@ -47,6 +47,7 @@
       <button class="btn sm" type="button" title={t('desk.cadHint')} onclick={() => session?.ctrlAltDel()}>Ctrl+Alt+Del</button>
       <button class="btn sm" type="button" onclick={more}>{t('desk.more')}<Icon name="chevron-down" size={13} /></button>
     {/if}
+    {#if onwindow}<button class="btn sm icon" type="button" title={t('pult.inWindow')} aria-label={t('pult.inWindow')} onclick={onwindow}><Icon name="external-link" size={14} /></button>{/if}
   </div>
   {#if !online}<p class="dim pad">{t('desk.offline')}</p>
   {:else}<div class="asst-box"><div class="asst-screen"><DesktopSessionView {serverId} {address} bind:phase bind:autoResize bind:this={session} /></div></div>{/if}

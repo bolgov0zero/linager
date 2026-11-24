@@ -3,9 +3,9 @@
   import { t } from './i18n.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
-  import { fmtAgo, fmtRate, fmtUptime, isWindows, levelOf, meter, sparkPath, tagsOf } from './status';
+  import { assistantOffered, fmtAgo, fmtRate, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, sparkPath, tagsOf } from './status';
 
-  let { card, now, onterminal }: { card: ServerCard; now: number; onterminal: (c: ServerCard) => void } = $props();
+  let { card, now, onopen }: { card: ServerCard; now: number; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
 
   const level = $derived(levelOf(card));
   const s = $derived(card.sample);
@@ -29,7 +29,8 @@
     <h3>{card.name}</h3>
     <span class="os" class:os-windows={isWindows(card.os)}>{isWindows(card.os) ? 'WIN' : 'LIN'}</span>
   </header>
-  <p class="c-sub"><span class="mono">{card.address}</span><i>·</i>{card.os}<i>·</i>{card.agent_version}</p>
+  <p class="c-sub" title={card.os}><span class="mono">{card.address}</span><i>·</i><span class="c-os">{shortOs(card.os)}</span></p>
+  <p class="c-ver">{card.agent_version}</p>
   <div class="badges">
     {#each tagsOf(card) as tag (tag.id)}<span class="badge b-{tag.tone}">{t(`tag.${tag.id}`, { n: tag.n ?? 0 })}</span>{/each}
   </div>
@@ -54,7 +55,9 @@
   <footer class="c-foot">
     <span class="up">{card.online ? t('card.uptime', { v: s ? fmtUptime(s.uptime, units) : '—' }) : t('card.offline', { v: fmtAgo(card.last_seen_at, now, units) })}</span>
     <div class="acts">
-      <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onterminal(card)}><Icon name="square-terminal" size={14} /></button>
+      <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onopen(card, 'terminal')}><Icon name="square-terminal" size={14} /></button>
+      {#if rdpOffered(card)}<button class="btn icon sm" type="button" title={t('card.rdp')} disabled={!card.online} onclick={() => onopen(card, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}
+      {#if assistantOffered(card.os, card.sample)}<button class="btn icon sm" type="button" title={t('card.asst')} disabled={!card.online} onclick={() => onopen(card, 'asst')}><Icon name="app-window" size={14} /></button>{/if}
       <button class="btn icon sm" type="button" title={t('card.page')} disabled><Icon name="external-link" size={14} /></button>
     </div>
   </footer>

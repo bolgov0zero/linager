@@ -719,4 +719,4 @@ func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // windowKinds are the windows the interface may ask for.
-var windowKinds = map[string]bool{"terminal": true, "note": true, "files": true, "manager": true, "editor": true}
+var windowKinds = map[string]bool{"terminal": true, "note": true, "files": true, "manager": true, "editor": true, "rdp": true, "asst": true}
