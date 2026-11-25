@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.8
+
+- Fix (application): **in the tab "Updates" the buttons of the agents wrapped one by one** ("Update all" fell to the next line alone, under the field "Order"). The two buttons are one group now: they stand in the line, or wrap together to the right.
+- Change (application): **the fact "DB backup" is gone from the card of the server** in the tab "Updates": there is no such backup, so the fact was always empty.
+- Fix (application): **the channel of the server updates is named in the language of the interface** ("Стабильный", "Бета"), as in the settings of the application; it showed the raw "stable" and "beta" in the tab "Updates" (the choice and the line "channel: ..." in the header).
+- Fix (application): **the number of a session in the menu "Session" stood too high.** The row took the margin of the global class `.lead`; the number has its own class now and no margin.
+- Note: **the tags on the dashboard come from the server** (the cards carry `tag_items` since 1.1.7). With an application 1.1.7 and a server that is older, the tags are not drawn: update the server (Settings → Updates) first.
+
 ## 1.1.7
 
 - Change (application): **the tab "Updates" of the settings is redone** (the variant "summary and tabs", chosen from mockups at three window sizes). Up top the card of the server: the version, what is available, "Release notes" and "Update to X", and the facts as small chips (checked, migrations, backup, source, channel). Under it the tabs "Agents", "Cache", "History", "Terminal": one section at a time, no long scroll and no folds. "Check" is in the header. In a narrow window (container query) the less important chips fold under "Details" and the table of agents drops the column "Version" (it moves under the name).

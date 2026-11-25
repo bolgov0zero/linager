@@ -64,3 +64,9 @@ test('the menu "Session" shows the number, the user without the domain, the addr
   const menu = src('./ContextMenu.svelte');
   assert.match(menu, /cbadge t-\{it\.badge\.tone\}/);
 });
+
+test('the number of a session in the menu does not take the margin of the global .lead (it stood too high)', () => {
+  assert.match(src('./ContextMenu.svelte'), /class="clead"/);
+  assert.doesNotMatch(src('./ContextMenu.svelte'), /class="lead"/);
+  assert.match(src('../app.css'), /\.ctx \.clead\{[^}]*margin:0/);
+});

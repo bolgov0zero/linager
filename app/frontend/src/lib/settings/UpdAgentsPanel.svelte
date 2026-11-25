@@ -52,9 +52,10 @@
     <span class="dim">{t('st.upd.agents.order')}</span>
     <CustomSelect small value={mode} options={modeOptions} onchange={(v) => (canAct ? (mode = v as RolloutMode) : undefined)} />
     <label class="ck"><input type="checkbox" bind:checked={stopOnError} />{t('st.upd.agents.stopOnError')}</label>
-    <span class="grow"></span>
-    <button class="btn sm" type="button" disabled={!canAct || selectedIds.length === 0} onclick={() => run(selectedIds, selectedIds)}>{t('st.upd.agents.runSelected', { count: selectedIds.length })}</button>
-    <button class="btn sm primary" type="button" disabled={!canAct || applicable.length === 0} onclick={() => run('all')}>{t('st.upd.agents.runAll', { count: applicable.length })}</button>
+    <span class="upd-act">
+      <button class="btn sm" type="button" disabled={!canAct || selectedIds.length === 0} onclick={() => run(selectedIds, selectedIds)}>{t('st.upd.agents.runSelected', { count: selectedIds.length })}</button>
+      <button class="btn sm primary" type="button" disabled={!canAct || applicable.length === 0} onclick={() => run('all')}>{t('st.upd.agents.runAll', { count: applicable.length })}</button>
+    </span>
   </div>
 
   <div class="panel flush" style="margin:0"><table class="tbl compact uag">

@@ -87,7 +87,8 @@
 
   const notes = $derived(srv.notes ?? []);
   const notesVersion = $derived(srv.notes_version ?? available ?? srv.current);
-  const channelOptions = [{ v: 'stable', t: 'stable' }, { v: 'beta', t: 'beta' }];
+  // the same names as in the settings of the application ("Стабильный", "Бета"), not the raw values
+  const channelOptions = $derived([{ v: 'stable', t: t('set.upd.ch.stable') }, { v: 'beta', t: t('set.upd.ch.beta') }]);
 
   function confirmUpdate(): void {
     confirmOpen = false;
@@ -114,7 +115,6 @@
   <div class="hfacts" class:open={detailsOpen}>
     <span class="ufact">{t('st.upd.srv.checked')} <b>{fmtDateTime(srv.checked_at)}</b></span>
     <span class="ufact">{t('st.upd.srv.migrations')} <b>{srv.db_migrations.pending > 0 ? t('st.upd.srv.migrationsPending') : t('st.upd.srv.migrationsOk')}</b></span>
-    <span class="ufact fx-extra">{t('st.upd.srv.backup')} <b>{srv.last_backup ? fmtDateTime(srv.last_backup) : '—'}</b></span>
     <span class="ufact fx-extra">{t('st.upd.srv.source')} <b class="mono">{srv.source}</b></span>
     <span class="ufact sel"><span>{t('st.upd.srv.channel')}</span><CustomSelect small value={info.channel} options={channelOptions} onchange={(v) => (busy || channelBusy ? undefined : onchannel(v as 'stable' | 'beta'))} /></span>
     <button class="linkbtn more" type="button" aria-expanded={detailsOpen} onclick={() => (detailsOpen = !detailsOpen)}>{t('st.upd.details')}</button>

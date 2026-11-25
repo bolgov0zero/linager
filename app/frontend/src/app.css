@@ -893,7 +893,7 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 .asst-view.real{scrollbar-width:none}.asst-view.real::-webkit-scrollbar{display:none}
 
 .ctx .lbl{flex:1;min-width:0;white-space:nowrap}.ctx button.rich{height:auto;min-height:30px;padding-top:3px;padding-bottom:3px}
-.ctx .lead{flex:none;width:14px;text-align:right;font:500 11px var(--mono);color:var(--text3)}
+.ctx .clead{flex:none;width:14px;margin:0;text-align:right;font:500 11px var(--mono);line-height:1;color:var(--text3)}
 .ctx .sub{display:block;margin-top:1px;font:500 10.5px var(--mono);color:var(--text3)}
 .ctx .cbadge{flex:none;display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:500;white-space:nowrap}
 .ctx .cbadge.t-info{color:var(--accent-t);background:var(--accent-soft)}.ctx .cbadge.t-mute{color:var(--text2);background:color-mix(in srgb,var(--text) 8%,transparent)}.ctx .cbadge.t-warn{color:var(--warn-t);background:var(--warn-s)}
@@ -944,3 +944,4 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 .pf-secret{justify-content:space-between;color:var(--text)}.pf-secret b{letter-spacing:.04em;font-weight:500}
 .pf-small{font-size:11.5px}
 .pf-codes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 10px;margin:0;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none;background:var(--input-bg);font-size:12.5px}
+.upd-act{display:flex;gap:8px;margin-left:auto;flex:none}

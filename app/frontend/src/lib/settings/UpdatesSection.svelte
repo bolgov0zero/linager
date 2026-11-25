@@ -159,7 +159,7 @@
 </script>
 
 <div class="set-sec wide updtab">
-  <div class="row"><h3 style="margin:0">{t('st.upd.title')}</h3>{#if info}<span class="dim">{t('st.upd.channel', { channel: info.channel })}</span>{/if}<span class="grow"></span>{#if info}<button class="btn sm" type="button" disabled={serverBusy || checking} onclick={check}>{checking ? t('st.upd.srv.checking') : t('st.upd.srv.check')}</button>{/if}</div>
+  <div class="row"><h3 style="margin:0">{t('st.upd.title')}</h3>{#if info}<span class="dim">{t('st.upd.channel', { channel: t(`set.upd.ch.${info.channel}`) })}</span>{/if}<span class="grow"></span>{#if info}<button class="btn sm" type="button" disabled={serverBusy || checking} onclick={check}>{checking ? t('st.upd.srv.checking') : t('st.upd.srv.check')}</button>{/if}</div>
 
   {#if !info}
     <p class="dim">{loadFailed ? t('st.upd.loadError') : t('st.upd.loading')}</p>

@@ -60,7 +60,7 @@
   {#each items as it (it.key)}
     {#if it.separated}<hr />{/if}
     <button type="button" role={it.selected === undefined ? 'menuitem' : 'menuitemradio'} aria-checked={it.selected} class:danger={it.danger} class:on={it.selected} class:rich={!!it.sub} disabled={it.disabled} onclick={(e) => { e.stopPropagation(); onclose(); it.onselect(); }}>
-      <span class="ci">{#if it.icon}<Icon name={it.icon} size={14} />{/if}</span>{#if it.lead}<span class="lead">{it.lead}</span>{/if}<span class="lbl">{it.label}{#if it.sub}<span class="sub">{it.sub}</span>{/if}</span>{#if it.hint}<span class="hint">{it.hint}</span>{/if}{#if it.badge}<span class="cbadge t-{it.badge.tone}">{it.badge.text}</span>{/if}
+      <span class="ci">{#if it.icon}<Icon name={it.icon} size={14} />{/if}</span>{#if it.lead}<span class="clead">{it.lead}</span>{/if}<span class="lbl">{it.label}{#if it.sub}<span class="sub">{it.sub}</span>{/if}</span>{#if it.hint}<span class="hint">{it.hint}</span>{/if}{#if it.badge}<span class="cbadge t-{it.badge.tone}">{it.badge.text}</span>{/if}
     </button>
   {/each}
 </div>

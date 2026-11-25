@@ -40,3 +40,16 @@ test('the locales have the texts of the tabs', () => {
     for (const k of ['st.upd.srv.availableShort', 'st.upd.details', 'st.upd.tab.cache', 'st.upd.tab.history', 'st.upd.tab.cli']) assert.ok(j[k], `${l} ${k}`);
   }
 });
+
+test('the channel is named in the language of the interface, not by the raw value', () => {
+  assert.match(src('./UpdServerPanel.svelte'), /t: t\('set\.upd\.ch\.stable'\)/);
+  assert.doesNotMatch(src('./UpdServerPanel.svelte'), /t: 'stable'/);
+  assert.match(src('./UpdatesSection.svelte'), /set\.upd\.ch\.\$\{info\.channel\}/);
+});
+
+test('the buttons of the rollout stay together (they wrap as one group) and the summary has no backup fact', () => {
+  const a = src('./UpdAgentsPanel.svelte');
+  assert.match(a, /<span class="upd-act">/);
+  assert.match(src('../../app.css'), /\.upd-act\{[^}]*margin-left:auto/);
+  assert.doesNotMatch(src('./UpdServerPanel.svelte'), /st\.upd\.srv\.backup/); // the server does not make that backup: the fact was always empty
+});
