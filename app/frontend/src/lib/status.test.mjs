@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/status.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shortOs, levelOf, meter, tagsOf, summarize, fmtRate, fmtUptime, fmtBytes, sparkPath } from './status.ts';
+import { shortOs, levelOf, meter, tagsOf, chipsOf, visibleChips, worstTone, summarize, fmtRate, fmtUptime, fmtBytes, sparkPath } from './status.ts';
 
 const card = (over = {}, sample = {}) => ({
   id: 'a', name: 'a', address: '10.0.0.1', os: 'Debian 12', agent_version: '0.10.0', online: true, last_seen_at: null, spark: [], group_id: null,
@@ -67,4 +67,34 @@ test('the name of a system is shortened for a table cell', () => {
   assert.equal(shortOs('Microsoft Windows Server 2022 Standard'), 'Windows Server 2022 Standard');
   assert.equal(shortOs('Ubuntu 24.04.5 LTS'), 'Ubuntu 24.04.5 LTS');
   assert.equal(shortOs('(x)'), '(x)');
+});
+
+test('the chips of the compact card: in the order of their weight, blue for some, amber for many, red for a failure', () => {
+  assert.deepEqual(chipsOf(card()), []); // nothing to show: the card shows the address
+  const all = chipsOf(card({}, { reboot_required: true, updates: 18, image_updates: 7, failed_services: 2 }), 'available');
+  assert.deepEqual(all.map((x) => `${x.id}:${x.tone}${x.n ? ':' + x.n : ''}`), ['failed:crit:2', 'reboot:warn', 'updates:warn:18', 'images:warn:7', 'agentUpdate:warn']);
+  // a few packages and a few images are only "there is something" (blue), ten packages and five images are "a lot" (amber)
+  assert.deepEqual(chipsOf(card({}, { updates: 7, image_updates: 3 })).map((x) => x.tone), ['info', 'info']);
+  assert.deepEqual(chipsOf(card({}, { updates: 10, image_updates: 5 })).map((x) => x.tone), ['warn', 'warn']);
+  // Docker updates alone are shown too
+  assert.deepEqual(chipsOf(card({}, { image_updates: 3 })).map((x) => x.id), ['images']);
+  // an agent that is no longer supported is a failure
+  assert.deepEqual(chipsOf(card(), 'unsupported').map((x) => `${x.id}:${x.tone}`), ['agentOld:crit']);
+});
+
+test('a server that does not answer shows that, and the updates it knew of, in grey', () => {
+  const off = chipsOf(card({ online: false }, { updates: 21, image_updates: 4, reboot_required: true }));
+  assert.deepEqual(off.map((x) => `${x.id}:${x.tone}`), ['offline:mute', 'updates:mute']);
+  assert.deepEqual(chipsOf(card({ online: false }, { updates: 0 })).map((x) => x.id), ['offline']);
+});
+
+test('three chips fit, the rest fold into "+N" with the worst tone', () => {
+  const all = chipsOf(card({}, { reboot_required: true, updates: 18, image_updates: 7 }), 'available'); // reboot, updates, images, agent
+  const v = visibleChips(all);
+  assert.deepEqual(v.shown.map((x) => x.id), ['reboot', 'updates', 'images']);
+  assert.deepEqual(v.rest.map((x) => x.id), ['agentUpdate']);
+  assert.equal(worstTone(v.rest), 'warn');
+  assert.deepEqual(visibleChips(all.slice(0, 3)).rest, []);
+  assert.equal(worstTone([{ id: 'updates', tone: 'info' }, { id: 'failed', tone: 'crit' }]), 'crit');
+  assert.equal(worstTone([{ id: 'updates', tone: 'info' }]), 'info');
 });

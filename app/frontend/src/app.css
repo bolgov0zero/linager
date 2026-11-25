@@ -14,6 +14,7 @@
   --bg:#f6f7f9;--bg2:#eff1f4;--surface:#fff;--hover:rgba(15,20,30,.05);--border:#e4e7ec;--border-h:#d5d9e0;--border-hh:#bfc5cf;
   --text:#14171c;--text2:#4f5663;--text3:#8a919d;--accent:#2563eb;--accent-t:#1d4fd8;--accent-soft:rgba(37,99,235,.09);--seg-on:#fff;
   --ok:#139a64;--warn:#c9800a;--crit:#d93f3d;--ok-s:rgba(19,154,100,.1);--warn-s:rgba(201,128,10,.12);--crit-s:rgba(217,63,61,.1);
+  --ok-t:#0e7a4f;--warn-t:#8f5600;--crit-t:#b42b29; /* the text colours of the badges: deep enough to read on white (they were left to the dark theme's pale ones) */
   --track:#e8ebf0;--off:#b3b9c4;--scroll:#d2d6de;--input-bg:#fff;--th-bg:#f9fafb;
   --shadow:0 1px 2px rgba(20,25,35,.04);--shadow-s:0 1px 2px rgba(20,25,35,.12);--shadow-pop:0 18px 44px rgba(20,25,40,.2),0 0 0 1px rgba(0,0,0,.05);
   --top-bg:rgba(246,247,249,.9);--panel-bg:#fbfbfc;--win-h-bg:#f3f4f7;--pop-bg:#fff}
@@ -150,6 +151,13 @@ kbd{font-size:10.5px;padding:0 5px;border:1px solid var(--border-h);border-radiu
 .mini-f{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:22px}
 .mini-f .mono{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.warnt{color:var(--warn-t)}
 .mini-f .acts{gap:0;margin-right:-4px}
+/* The chips of the compact card (updates, Docker images, reboot, failures): small, one row, they fold into "+N" */
+.mchips{display:flex;align-items:center;gap:3px;min-width:0;overflow:hidden}.mchips .mono{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mchip{flex:none;display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 4px;border-radius:5px;font:500 11px var(--mono);white-space:nowrap}
+.mchip.txt{font-family:var(--sans);font-size:11.5px}
+.mchip.t-info{color:var(--accent-t);background:var(--accent-soft)}.mchip.t-warn{color:var(--warn-t);background:var(--warn-s)}.mchip.t-crit{color:var(--crit-t);background:var(--crit-s)}
+.mchip.t-mute{color:var(--text2);background:color-mix(in srgb,var(--text) 7%,transparent)}
+.mchip.more{background:color-mix(in srgb,var(--text) 7%,transparent)}
 
 /* tables */
 .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}

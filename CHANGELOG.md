@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+- New (application): **the compact cards show the updates**, Docker images included. Where the footer showed one note or the address, it now has small chips: failed services (red), a reboot is needed (amber), updates of the system and of Docker images (blue; amber from 10 packages or 5 images), an update of the agent (amber). At most three chips fit next to the buttons (measured at the smallest width of a card, 212 px), the rest fold into "+N" with a tooltip. A server that does not answer shows "offline" and the updates it knew of in grey. With nothing to show the address stays. The variant was chosen from three mockups (icons instead of the address). Tests in `status.test.mjs`.
+- Fix (application): **the light theme had no text colours for the amber, red and green badges** (they took the pale ones of the dark theme and were hard to read on white). They are defined now, so every badge is readable in the light theme.
+
 ## 1.1.3
 
 - Change (application): **the buttons "Files" and "Manager" of the terminal are icons only** in the window of the terminal too, like in the Assistant and in the Console (the names are in the tooltip).

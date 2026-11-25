@@ -2935,5 +2935,6 @@
   "dash.menu.folderTitle": "Folder for \"{name}\"",
   "st.snippets.drag": "Drag the row to change the order (or Alt+Up/Down)",
   "mgr.win.hint": "Signing a session out closes the programs of the user, unsaved work is lost. The user can sign in again.",
-  "desk.display": "Display mode"
+  "desk.display": "Display mode",
+  "tag.s.offline": "offline"
 }

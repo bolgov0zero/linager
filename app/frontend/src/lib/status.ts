@@ -46,6 +46,46 @@ export function tagsOf(c: ServerCard, agent: AgentFlag = null): Tag[] {
   return tags;
 }
 
+/**
+ * What the compact card shows in its footer instead of the address (the variant "A, icons instead of the address"): one chip per
+ * thing that needs a look, in the order of their weight. The colour says how much: info (blue) there is something, warn (amber) a lot
+ * (10 packages, 5 images) or it needs an action, crit (red) a failure, mute (grey) the server does not answer.
+ */
+export interface Chip {
+  id: 'offline' | 'failed' | 'reboot' | 'updates' | 'images' | 'agentUpdate' | 'agentOld';
+  n?: number;
+  tone: 'info' | 'warn' | 'crit' | 'mute';
+}
+
+export function chipsOf(c: ServerCard, agent: AgentFlag = null): Chip[] {
+  const s = c.sample;
+  if (!c.online) {
+    const out: Chip[] = [{ id: 'offline', tone: 'mute' }];
+    if (s && s.updates > 0) out.push({ id: 'updates', n: s.updates, tone: 'mute' });
+    return out;
+  }
+  const out: Chip[] = [];
+  if (s) {
+    if (s.failed_services > 0) out.push({ id: 'failed', n: s.failed_services, tone: 'crit' });
+    if (s.reboot_required) out.push({ id: 'reboot', tone: 'warn' });
+    if (s.updates > 0) out.push({ id: 'updates', n: s.updates, tone: s.updates >= 10 ? 'warn' : 'info' });
+    if ((s.image_updates ?? 0) > 0) out.push({ id: 'images', n: s.image_updates, tone: (s.image_updates ?? 0) >= 5 ? 'warn' : 'info' });
+  }
+  if (agent) out.push({ id: agent === 'unsupported' ? 'agentOld' : 'agentUpdate', tone: agent === 'unsupported' ? 'crit' : 'warn' });
+  return out;
+}
+
+/** The chips that fit (three of them in a footer of 118 px) and the rest, which the card folds into "+N". */
+export function visibleChips(chips: Chip[], max = 3): { shown: Chip[]; rest: Chip[] } {
+  if (chips.length <= max) return { shown: chips, rest: [] };
+  return { shown: chips.slice(0, max), rest: chips.slice(max) };
+}
+
+/** The tone of the folded chip: the worst of what it holds. */
+export function worstTone(chips: Chip[]): Chip['tone'] {
+  return chips.some((x) => x.tone === 'crit') ? 'crit' : chips.some((x) => x.tone === 'warn') ? 'warn' : chips.some((x) => x.tone === 'info') ? 'info' : 'mute';
+}
+
 export interface Totals {
   total: number;
   online: number;
