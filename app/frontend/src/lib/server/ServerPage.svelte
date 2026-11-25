@@ -156,7 +156,7 @@
                 <div class="si-row">
                   <button class="si" type="button" aria-current={current.key === it.key} disabled={!it.ready} title={it.ready ? it.label : `${it.label} · ${t('nav.soon')}`} onclick={() => pick(it)}>
                     <Icon name={it.icon} size={15} /><span>{it.label}</span>
-                    {#if it.key === 'updates' && s.sample && s.sample.updates > 0}<em class="cnt">{s.sample.updates}</em>{/if}
+                    {#if it.key === 'updates' && s.sample && s.sample.updates > 0}<em class="cnt" title={t('srv.nav.badgeUpdates', { n: s.sample.updates })}>{s.sample.updates}</em>{/if}
                     {#if it.key === 'services' && s.sample && s.sample.failed_services > 0}<em class="cnt crit" title={t('srv.nav.badgeFailed', { n: s.sample.failed_services })}>{s.sample.failed_services}</em>{/if}
                     {#if it.key === 'docker' && s.sample && (s.sample.image_updates ?? 0) > 0}<em class="cnt" title={t('srv.nav.badgeImages', { n: s.sample.image_updates ?? 0 })}>{s.sample.image_updates}</em>{/if}
                   </button>

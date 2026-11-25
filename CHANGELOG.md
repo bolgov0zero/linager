@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.11
+
+- New (application): **a folded sidebar of a server page marks with dots** the entries that need a look: updates of packages and Docker images (amber) and failed services (red), the colour of the counters that the open sidebar shows. A hover tells what it is ("Updates available: 12"). The counter of the updates has the same hint now.
+- New (application): **a button "Copy" next to the name of the server in the dialog of a reboot**, so the name that must be typed to confirm can be copied. It is a small component (`CopyButton`) for other places too.
+
 ## 1.1.10
 
 - New (application): **the Keys save by themselves.** Every change of a key is written into the open file half a second later, with no dialog and no "Save" button (the window says "saving…" and "saved"). The application writes through a temporary file and keeps the previous content beside the file as `<file>.bak`, and refuses to overwrite a file that was changed on the disk since it was read (it asks: overwrite, or save as another file). When a write fails the window says so and shows "Save the file". The auto-lock writes what is not written yet before it closes. The new endpoint is `PUT /app/vault/write`; the answers of open, last and save carry the fingerprint `sum` of the file. A browser in development keeps the button. Tests: `TestVaultWriteInPlace`, `autosave.test.mjs`.

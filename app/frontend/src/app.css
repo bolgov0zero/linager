@@ -303,7 +303,7 @@ input{cursor:text}
 .si-w{display:grid;place-items:center;width:24px;height:24px;flex:none;border:1px solid var(--border-h);border-radius:5px;background:none;color:var(--text3)}
 .si-w:hover{background:var(--hover);color:var(--text)}.si-w:disabled{opacity:.35}
 .sp-foot{display:flex;align-items:center;justify-content:space-between;padding:5px 6px 5px 12px;border-top:1px solid var(--border);color:var(--text3);font-size:11.5px}
-.sp.collapsed .sp-id{padding:8px 6px}.sp.collapsed .sp-id .back span,.sp.collapsed .sp-name b,.sp.collapsed .sp-name .os,.sp.collapsed .sp-ip,.sp.collapsed .si span,.sp.collapsed .si .cnt,.sp.collapsed .si-w,.sp.collapsed .sp-foot .mono,.sp.collapsed .sg-h{display:none}
+.sp.collapsed .sp-id{padding:8px 6px}.sp.collapsed .sp-id .back span,.sp.collapsed .sp-name b,.sp.collapsed .sp-name .os,.sp.collapsed .sp-ip,.sp.collapsed .si span,.sp.collapsed .si-w,.sp.collapsed .sp-foot .mono,.sp.collapsed .sg-h{display:none}
 .sp.collapsed .sp-id .back{justify-self:center;margin:0}.sp.collapsed .sp-name{justify-content:center}.sp.collapsed .si{justify-content:center;padding:0}.sp.collapsed .sp-foot{justify-content:center;padding:5px}.sp.collapsed .sg+.sg{margin-top:2px}
 .sp-content{flex:1;min-width:0;overflow:auto;padding:14px 18px 22px;display:flex;flex-direction:column;gap:12px}
 .sp-ph{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap}
@@ -953,3 +953,8 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 .asv-nav .asv-l{display:inline-flex;align-items:center;gap:9px}.asv-nav .asv-l .ic{color:var(--text3);flex:none}.asv-nav button[aria-current=true] .asv-l .ic{color:var(--accent-t)}
 .pop button .opt{display:inline-flex;align-items:center;gap:8px;min-width:0}.pop button .opt .ic{color:var(--text3);flex:none}
 .pop button[aria-selected=true]{background:var(--accent-soft)}.pop button[aria-selected=true] .opt .ic{color:var(--accent-t)}
+.copyrow{display:flex;align-items:center;gap:8px}
+
+/* a folded sidebar has no room for the counters: they become dots on the icon, of the colour of the counter (amber: updates and images, red: failed services) */
+.sp.collapsed .si{position:relative}
+.sp.collapsed .si .cnt{position:absolute;top:4px;right:10px;width:8px;height:8px;min-width:0;padding:0;border-radius:50%;font-size:0;line-height:0;overflow:hidden;box-shadow:0 0 0 2px var(--surface)}

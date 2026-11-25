@@ -1,5 +1,6 @@
 <script lang="ts">
   import { serverApi } from './api';
+  import CopyButton from './CopyButton.svelte';
   import { errorText } from './errors';
   import { t } from './i18n.svelte';
   import Modal from './Modal.svelte';
@@ -32,7 +33,7 @@
 <Modal title={t('reboot.title')} {onclose}>
   <form class="mdl-stack" onsubmit={(e) => { e.preventDefault(); void reboot(); }}>
     <p>{t('reboot.text')}</p>
-    <p class="dim">{t('reboot.server', { name: server.name })}</p>
+    <p class="dim copyrow">{t('reboot.server', { name: server.name })}<CopyButton text={server.name} /></p>
     <label class="fl"><span>{t('reboot.typeName', { name: server.name })}</span><span class="field"><input autocomplete="off" spellcheck="false" bind:value={typed} /></span></label>
     {#if error}<div class="err" role="alert">{error}</div>{/if}
     <div class="row end">
