@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.9
+
+- Fix (application): **the letter of a tag badge was a pixel too high** in the badges of the cards and of the rows: the font keeps more room under the baseline than above the capitals, so the letter is centred on its ink now.
+
 ## 1.1.8
 
 - Fix (application): **in the tab "Updates" the buttons of the agents wrapped one by one** ("Update all" fell to the next line alone, under the field "Order"). The two buttons are one group now: they stand in the line, or wrap together to the right.

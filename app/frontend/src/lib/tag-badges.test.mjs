@@ -72,3 +72,7 @@ test('the entry that opens the snippet settings is set apart by a line and is ca
   assert.equal(JSON.parse(src('./locales/ru.json'))['term.snippets.manage'], 'Настройка');
   assert.equal(JSON.parse(src('./locales/en.json'))['term.snippets.manage'], 'Settings');
 });
+
+test('the letter of a tag badge is centred on the ink of the capital (the font has more room below the baseline)', () => {
+  assert.match(src('../app.css'), /\.tb-l\{[^}]*padding-top:2px/);
+});
