@@ -30,3 +30,10 @@ agent.yaml
 !/app/frontend/dist/.gitkeep
 /app/frontend/node_modules/
 /app/bin/
+
+# iOS client (ios/): the project is generated from ios/project.yml, the builds are local
+/ios/Linager.xcodeproj/
+/ios/App/Info.plist
+/ios/build/
+/ios/.build/
+/ios/.swiftpm/

@@ -1,0 +1,10 @@
+{"items":[
+ {"id":"srv-a","name":"web-01","address":"10.0.1.21","os":"Debian GNU/Linux 12 (bookworm)","agent_version":"0.9.1","online":true,"last_seen_at":"2026-11-25T10:15:30.123456789Z",
+  "sample":{"ts":1795600000,"cpu":41.5,"mem_used":2147483648,"mem_total":4294967296,"mem_pct":53,"swap_used":0,"swap_total":0,"disks":null,"disk_pct":41,"net":null,"rx_bps":946176,"tx_bps":417792,"load":[0.4,0.3,0.2],"uptime":3500000,"boot_time":1792000000,"failed_services":0,"reboot_required":false,"updates":3,"security_updates":1,"image_updates":-1,"procs":120},
+  "spark":[10,20,41.5],"group_id":2,"tag_items":[{"id":1,"name":"web","color":"blue"},{"id":2,"name":"prod","color":"green"}]},
+ {"id":"srv-b","name":"db-replica","address":"10.0.1.15","os":"Debian GNU/Linux 12 (bookworm)","agent_version":"0.8.4","online":true,"last_seen_at":"2026-11-25T10:15:31Z",
+  "sample":{"ts":1795600001,"cpu":25,"mem_pct":72,"disk_pct":63,"rx_bps":1,"tx_bps":2,"uptime":100,"failed_services":1,"reboot_required":true,"updates":12,"image_updates":6},
+  "spark":[],"group_id":3,"tag_items":null},
+ {"id":"srv-c","name":"mail-01","address":"10.0.4.2","os":"Debian GNU/Linux 12 (bookworm)","agent_version":"0.9.1","online":false,"last_seen_at":"2026-11-25T09:00:00Z","sample":null,"spark":[],"group_id":null},
+ {"id":"srv-d","name":"office-pc","address":"10.0.1.19","os":"Microsoft Windows 11 Pro","agent_version":"0.9.1","online":true,"last_seen_at":null,"sample":{"cpu":93,"mem_pct":10,"disk_pct":10,"updates":-1,"image_updates":0},"spark":[1,2],"group_id":1,"tag_items":[]}
+]}

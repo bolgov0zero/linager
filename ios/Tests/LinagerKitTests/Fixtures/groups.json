@@ -1,0 +1,1 @@
+[{"id":1,"name":"Офис","parent_id":null},{"id":2,"name":"Продакшен","parent_id":null},{"id":3,"name":"Базы данных","parent_id":2},{"id":4,"name":"Пустая","parent_id":null}]

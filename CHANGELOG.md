@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- New (iOS): **a native iPhone application with the dashboard** (`ios/`, SwiftUI, iOS 27, portrait; read-only). Connect with the certificate pinned on the first connection, sign in with TOTP, the dashboard with the summary tiles, folders, filters, search, rows and cards, the compact state badges and the letter tags as in the desktop application, live data, the last data without a connection, a Face ID lock. It is built without a signature (`make ios-ipa`, `ios/build/Linager.ipa`) and installed with a sideloading tool; nothing is published. Tests: `make ios-test` (56 tests of `LinagerKit`, among them a real TLS connection). See [docs/en/ios.md](docs/en/ios.md).
+- New (server): **the second certificate fingerprint.** The server has an Ed25519 and an ECDSA certificate and a client gets the one it can verify; an iPhone (Apple's TLS) and Windows PowerShell get the ECDSA one, so their fingerprint was not the one the server showed. `linager server app-port` prints the line `Fingerprint for iPhone and iPad` and `GET /api/connection` returns `fingerprint_alt`. Tests: `TestKeysFingerprints`, `TestConnectionPortsAndMove` (the new field; needs PostgreSQL).
+
 ## 1.1.11
 
 - New (application): **a folded sidebar of a server page marks with dots** the entries that need a look: updates of packages and Docker images (amber) and failed services (red), the colour of the counters that the open sidebar shows. A hover tells what it is ("Updates available: 12"). The counter of the updates has the same hint now.

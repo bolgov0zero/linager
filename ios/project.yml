@@ -1,0 +1,62 @@
+# The project of the application. The .xcodeproj is generated from this file (`xcodegen generate`, done by `make ios-ipa`) and is not kept.
+name: Linager
+options:
+  bundleIdPrefix: app.linager
+  deploymentTarget:
+    iOS: "27.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+packages:
+  LinagerKit:
+    path: .
+targets:
+  Linager:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: LinagerKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.linager.ios
+        PRODUCT_NAME: Linager
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        STRING_CATALOG_GENERATE_SYMBOLS: NO
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Linager
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, ru]
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        ITSAppUsesNonExemptEncryption: false
+        # The application talks only to the server the person names and trusts one certificate there, the pinned one (Pinning.swift), so
+        # the checks of App Transport Security add nothing; they refuse the self-signed certificate of a Linager server.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSFaceIDUsageDescription: Unlock Linager
+        NSLocalNetworkUsageDescription: Linager connects to servers in your local network.
+schemes:
+  Linager:
+    build:
+      targets:
+        Linager: all

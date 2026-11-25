@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linager для iOS: макет</title>
+<style>
+/* Mockup of the native iOS client (SwiftUI). Demo data only. Fonts: the system ones (SF Pro on Apple devices).
+   Icons here are stand-ins drawn in SVG; the app uses SF Symbols (names are in the table at the bottom). */
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; margin: 0; }
+body { font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; background: #e9eaee; color: #1c1c1e; padding: 32px 28px 80px; }
+h1 { font-size: 28px; letter-spacing: -.3px; }
+h2 { font-size: 20px; margin: 44px 0 4px; }
+.lead { max-width: 860px; color: #555; margin-top: 8px; }
+.lead b { color: #1c1c1e; }
+.gal { display: grid; grid-template-columns: repeat(auto-fill, 413px); gap: 28px 30px; margin-top: 18px; }
+figure { width: 413px; }
+figcaption { font-size: 13px; color: #555; margin-top: 10px; padding: 0 6px; line-height: 1.4; }
+figcaption b { color: #1c1c1e; display: block; font-size: 14px; }
+
+/* ---------- device ---------- */
+.phone { width: 413px; height: 872px; padding: 10px; border-radius: 66px; background: #111; box-shadow: 0 0 0 2px #3a3a3c inset, 0 18px 40px rgba(0,0,0,.25); position: relative;
+  --bg: #f2f2f7; --cell: #fff; --sheet: #f2f2f7; --sep: rgba(60,60,67,.18); --l1: #000; --l2: rgba(60,60,67,.6); --l3: rgba(60,60,67,.3); --fill: rgba(120,120,128,.12); --fill2: rgba(120,120,128,.2);
+  --blue: #007aff; --green: #34c759; --orange: #ff9500; --red: #ff3b30; --teal: #30b0c7; --pink: #ff2d55; --gray: #8e8e93; --glass: rgba(255,255,255,.72); --menu: rgba(250,250,252,.82); }
+.phone.dark { --bg: #000; --cell: #1c1c1e; --sheet: #1c1c1e; --sep: rgba(84,84,88,.55); --l1: #fff; --l2: rgba(235,235,245,.6); --l3: rgba(235,235,245,.3); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.36);
+  --blue: #0a84ff; --green: #30d158; --orange: #ff9f0a; --red: #ff453a; --teal: #40c8e0; --pink: #ff375f; --gray: #98989d; --glass: rgba(60,60,64,.7); --menu: rgba(44,44,46,.82); }
+.scr { width: 393px; height: 852px; border-radius: 56px; overflow: hidden; position: relative; background: var(--bg); color: var(--l1); font: 17px/22px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.4px; }
+.island { position: absolute; top: 11px; left: 50%; width: 124px; height: 36px; margin-left: -62px; background: #000; border-radius: 20px; z-index: 50; }
+.home { position: absolute; bottom: 8px; left: 50%; width: 138px; height: 5px; margin-left: -69px; background: var(--l1); border-radius: 3px; z-index: 60; }
+.sb { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; justify-content: space-between; align-items: center; padding: 6px 34px 0 52px; z-index: 40; font-weight: 600; font-size: 17px; }
+.sb .r { display: flex; gap: 6px; align-items: center; }
+.ic { flex: none; vertical-align: middle; }
+
+/* ---------- navigation ---------- */
+.nav { position: absolute; top: 54px; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 20; }
+.glass { display: flex; align-items: center; height: 44px; border-radius: 22px; background: var(--glass); box-shadow: 0 0 0 .5px var(--sep), 0 2px 10px rgba(0,0,0,.08); padding: 0 4px; color: var(--l1); }
+.glass .b { width: 44px; height: 44px; display: grid; place-items: center; }
+.glass.t { padding: 0 14px 0 8px; gap: 2px; color: var(--blue); }
+.glass.t span { font-size: 17px; }
+.nt { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; font-size: 17px; }
+.lt { position: absolute; top: 98px; left: 16px; right: 16px; font-weight: 700; font-size: 34px; line-height: 41px; letter-spacing: .4px; }
+.lt small { display: block; font-size: 15px; font-weight: 400; color: var(--l2); letter-spacing: -.2px; line-height: 20px; margin-top: 2px; }
+.body { position: absolute; top: 148px; left: 0; right: 0; bottom: 0; overflow: hidden; padding: 0 16px; }
+.body.nolt { top: 98px; }
+
+/* ---------- lists ---------- */
+.grp { background: var(--cell); border-radius: 22px; overflow: hidden; margin-bottom: 20px; }
+.cell { display: flex; align-items: center; gap: 12px; padding: 11px 16px; min-height: 44px; position: relative; }
+.cell + .cell::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
+.cell .k { flex: none; }
+.cell .v { margin-left: auto; color: var(--l2); text-align: right; min-width: 0; }
+.cell .v.mono, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 15px; letter-spacing: 0; }
+.gh { font-size: 13px; color: var(--l2); padding: 0 16px 7px 20px; letter-spacing: -.1px; text-transform: none; }
+.gf { font-size: 13px; line-height: 18px; color: var(--l2); padding: 0 20px; margin: -12px 0 20px; letter-spacing: -.1px; }
+.ph { color: var(--l3); }
+.tint { color: var(--blue); }
+.btn { display: grid; place-items: center; height: 50px; border-radius: 25px; background: var(--blue); color: #fff; font-weight: 600; margin: 8px 0; }
+.btn.g { background: var(--fill); color: var(--blue); }
+.btn.dst { background: var(--cell); color: var(--red); font-weight: 400; border-radius: 22px; margin: 0; height: 50px; }
+.ok { color: var(--green); } .wn { color: var(--orange); } .cr { color: var(--red); }
+
+/* ---------- dashboard ---------- */
+.sum { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.tile { background: var(--cell); border-radius: 20px; padding: 11px 14px 12px; }
+.tile .h { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--l2); letter-spacing: -.1px; }
+.tile .n { font: 700 28px/34px ui-rounded, -apple-system, "SF Pro Rounded", system-ui, sans-serif; letter-spacing: .2px; margin-top: 1px; }
+.tile .n small { font-size: 17px; color: var(--l2); font-weight: 600; }
+.tile .s { font-size: 12px; line-height: 16px; color: var(--l2); letter-spacing: 0; }
+.seg { display: flex; background: var(--fill); border-radius: 18px; padding: 2px; height: 36px; margin-bottom: 16px; font-size: 14px; font-weight: 500; letter-spacing: -.2px; }
+.seg span { flex: 1; display: grid; place-items: center; border-radius: 16px; }
+.seg span.on { background: var(--cell); box-shadow: 0 1px 4px rgba(0,0,0,.14); font-weight: 600; }
+.phone.dark .seg span.on { background: #636366; }
+.sh { display: flex; align-items: center; gap: 6px; padding: 0 12px 7px 14px; font-size: 15px; font-weight: 600; color: var(--l2); letter-spacing: -.2px; }
+.sh .cnt { font-weight: 400; color: var(--l3); }
+.sh .sp { flex: 1; }
+.row { padding: 12px 16px 12px; position: relative; }
+.row + .row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
+.r1 { display: flex; align-items: center; gap: 8px; }
+.r1 .nm { font-weight: 600; font-size: 17px; }
+.r1 .sp { flex: 1; }
+.r2 { font-size: 13px; line-height: 18px; color: var(--l2); margin: 1px 0 9px 18px; letter-spacing: -.1px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--green); } .dot.warn { background: var(--orange); } .dot.crit { background: var(--red); } .dot.off { background: var(--gray); }
+.ms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-left: 18px; }
+.m .mt { display: flex; justify-content: space-between; font-size: 12px; line-height: 15px; color: var(--l2); letter-spacing: -.1px; }
+.m .mt b { color: var(--l1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar { height: 5px; border-radius: 3px; background: var(--fill2); margin-top: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+.bar i.orange { background: var(--orange); } .bar i.red { background: var(--red); } .bar i.green { background: var(--green); }
+.chips { display: flex; align-items: center; gap: 3px; flex: none; }
+/* The compact badges of the desktop app (mchip): an icon and a number, no words; only "offline" has a word. The tone says how much:
+   info something is there, warn a lot or it needs an action, crit a failure, mute no answer. */
+.mc { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 5px; border-radius: 5px; font: 500 11px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; white-space: nowrap; }
+.mc.txt { font: 500 11.5px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.1px; padding: 0 6px; }
+.mc.info { color: var(--blue); background: color-mix(in srgb, var(--blue) 15%, transparent); }
+.mc.warn { color: var(--orange); background: color-mix(in srgb, var(--orange) 17%, transparent); }
+.mc.crit { color: var(--red); background: color-mix(in srgb, var(--red) 15%, transparent); }
+.mc.ok { color: var(--green); background: color-mix(in srgb, var(--green) 15%, transparent); }
+.mc.mute, .mc.more { color: var(--l2); background: var(--fill); }
+/* The letter badge of a tag (tbs/tb): the first letter on the colour of the tag. */
+.tb { flex: none; width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; font: 600 11px/1 -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: 0;
+  border: 1px solid color-mix(in srgb, var(--tg) 38%, transparent); background: color-mix(in srgb, var(--tg) 18%, var(--cell)); color: color-mix(in srgb, var(--tg) 55%, var(--l1)); }
+.tb.more { --tg: var(--gray); font: 500 10.5px ui-monospace, "SF Mono", Menlo, monospace; }
+.tbs { display: inline-flex; gap: 3px; }
+.tc-blue { --tg: #3b6fe6; } .tc-green { --tg: #3fa356; } .tc-teal { --tg: #0e9aa7; } .tc-orange { --tg: #f0803c; } .tc-pink { --tg: #e0568f; } .tc-gray { --tg: #8a919d; }
+.row .r1 .chips { margin-right: 2px; }
+.row .r1 .tbs { margin-right: 2px; }
+.foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; min-height: 20px; }
+.offl { margin-left: 18px; font-size: 13px; color: var(--l2); display: flex; align-items: center; gap: 6px; }
+.row.off .nm { color: var(--l2); }
+.chev { color: var(--l3); }
+/* cards */
+.card { background: var(--cell); border-radius: 22px; padding: 14px 16px 14px; margin-bottom: 12px; }
+.card .top { display: flex; align-items: center; gap: 8px; }
+.card .st { font-size: 13px; color: var(--l2); margin-left: auto; }
+.card .sub { font-size: 13px; color: var(--l2); margin: 1px 0 10px 18px; line-height: 18px; }
+.card .cpu { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.card .cpu .bg { font: 700 34px/38px ui-rounded, -apple-system, system-ui, sans-serif; letter-spacing: .3px; }
+.card .cpu .bg small { display: block; font: 500 12px/14px -apple-system, system-ui, sans-serif; color: var(--l2); letter-spacing: 0; }
+.card svg.sp { flex: 1; height: 44px; }
+.card .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+.card .net { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--l2); font-variant-numeric: tabular-nums; letter-spacing: -.1px; }
+.card .net span { display: inline-flex; align-items: center; gap: 3px; }
+.card .chips { margin-left: 0; }
+.skel { background: var(--fill2); border-radius: 6px; color: transparent !important; }
+.row.skel { background: none; }
+.row.skel .nm, .row.skel .r2, .row.skel .m { background: var(--fill2); border-radius: 6px; color: transparent !important; }
+.row.skel .m * { color: transparent !important; } .row.skel .bar { background: transparent; } .row.skel .bar i { background: transparent; }
+.row.skel .mc, .row.skel .tb { background: var(--fill2); color: transparent; border-color: transparent; } .row.skel .mc svg { display: none; } .row.skel .r2 { width: 150px; } .row.skel .dot { background: var(--fill2); } .row.skel .chev { opacity: 0; }
+.banner { display: flex; align-items: center; gap: 10px; background: color-mix(in srgb, var(--orange) 16%, var(--cell)); border-radius: 18px; padding: 10px 14px; font-size: 14px; line-height: 19px; margin-bottom: 14px; letter-spacing: -.2px; }
+.banner b { display: block; font-weight: 600; }
+.banner small { font-size: 13px; color: var(--l2); letter-spacing: -.1px; }
+/* search */
+.sf { display: flex; align-items: center; gap: 6px; background: var(--fill); border-radius: 12px; height: 36px; padding: 0 8px; color: var(--l2); flex: 1; }
+.sf .t { color: var(--l1); } .sf .caret { width: 2px; height: 20px; background: var(--blue); margin-left: -4px; }
+/* overlays */
+.dim { position: absolute; inset: 0; background: rgba(0,0,0,.36); z-index: 30; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--sheet); border-radius: 38px 38px 0 0; z-index: 35; padding: 14px 20px 34px; }
+.sheet.full { top: 62px; border-radius: 38px 38px 0 0; overflow: hidden; }
+.sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--l3); margin: -4px auto 14px; }
+.sheet h3 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .3px; }
+.sheet p { color: var(--l2); font-size: 15px; line-height: 20px; margin-top: 6px; letter-spacing: -.2px; }
+.fp { background: var(--cell); border-radius: 16px; padding: 12px 16px; margin: 16px 0 6px; display: grid; gap: 3px; }
+.fp div { font: 15px/20px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; }
+.fp small { font: 12px/16px -apple-system, system-ui, sans-serif; color: var(--l2); letter-spacing: 0; }
+.menu { position: absolute; top: 106px; right: 16px; width: 262px; background: var(--menu); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); border-radius: 18px; z-index: 36; box-shadow: 0 10px 40px rgba(0,0,0,.28); overflow: hidden; }
+.menu .mi { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 44px; font-size: 17px; }
+.menu .mi + .mi { border-top: .5px solid var(--sep); }
+.menu .mi .l { display: flex; align-items: center; gap: 10px; }
+.menu .mi .l i { width: 18px; display: inline-block; font-style: normal; }
+.menu .gap { height: 8px; background: var(--fill); border-top: 0 !important; }
+.menu .mh { font-size: 13px; color: var(--l2); padding: 8px 16px 2px; border-top: .5px solid var(--sep); }
+.alert { position: absolute; left: 50%; top: 50%; width: 270px; margin: -120px 0 0 -135px; background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-radius: 26px; z-index: 36; text-align: center; overflow: hidden; }
+.alert .t { padding: 20px 18px 16px; } .alert h4 { font-size: 17px; line-height: 22px; font-weight: 600; } .alert p { font-size: 13px; line-height: 18px; margin-top: 4px; letter-spacing: -.1px; }
+.alert .bt { display: grid; place-items: center; height: 44px; border-top: .5px solid var(--sep); color: var(--blue); font-size: 17px; }
+.alert .bt.b { font-weight: 600; } .alert .bt.d { color: var(--red); }
+.empty { text-align: center; padding-top: 150px; }
+.empty .big { width: 74px; height: 74px; margin: 0 auto 14px; color: var(--l3); }
+.empty h3 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .3px; }
+.empty p { color: var(--l2); font-size: 15px; line-height: 20px; margin: 6px 30px 0; letter-spacing: -.2px; }
+.empty .code { display: inline-block; margin-top: 14px; padding: 8px 12px; background: var(--fill); border-radius: 10px; font: 14px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; }
+/* one-time code */
+.otp { display: flex; gap: 8px; justify-content: center; margin: 24px 0 8px; }
+.otp b { width: 48px; height: 58px; border-radius: 14px; background: var(--cell); display: grid; place-items: center; font: 600 28px ui-rounded, -apple-system, system-ui, sans-serif; letter-spacing: 0; }
+.otp b.cur { box-shadow: 0 0 0 2px var(--blue) inset; }
+.pad { position: absolute; left: 0; right: 0; bottom: 0; height: 300px; background: color-mix(in srgb, var(--l1) 6%, var(--bg)); padding: 8px 6px 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; z-index: 10; }
+.pad span { display: grid; place-items: center; background: var(--cell); border-radius: 6px; font-size: 25px; line-height: 26px; box-shadow: 0 1px 0 rgba(0,0,0,.2); letter-spacing: 0; text-align: center; }
+.phone:not(.dark) .pad span { background: #fff; }
+.phone.dark .pad span { background: #6a6a6c; }
+.pad span small { display: block; font-size: 9px; letter-spacing: 2px; line-height: 10px; font-weight: 600; }
+.pad span.k { background: transparent !important; box-shadow: none; }
+.logo { width: 88px; height: 88px; border-radius: 20px; margin: 0 auto 14px; display: block; box-shadow: 0 6px 18px rgba(0,0,0,.2); image-rendering: pixelated; }
+.hero { text-align: center; padding-top: 60px; margin-bottom: 26px; }
+.hero h1 { font-size: 34px; line-height: 41px; letter-spacing: .4px; }
+.hero p { color: var(--l2); margin-top: 4px; font-size: 17px; letter-spacing: -.3px; }
+.sw { width: 51px; height: 31px; border-radius: 16px; background: var(--green); position: relative; flex: none; margin-left: auto; }
+.sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.25); }
+.ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; }
+.big-st { display: flex; align-items: center; gap: 10px; }
+.opt { font-size: 11px; font-weight: 600; background: #ff9500; color: #fff; display: inline-block; border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+
+/* ---------- notes ---------- */
+table { border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; margin-top: 12px; }
+th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid #e5e5ea; vertical-align: top; }
+th { background: #f5f5f7; font-weight: 600; }
+td code { font: 13px ui-monospace, "SF Mono", Menlo, monospace; background: #f2f2f7; padding: 1px 5px; border-radius: 5px; }
+ul.n { margin: 8px 0 0 20px; max-width: 860px; } ul.n li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>Linager для iOS: макет</h1>
+<p class="lead">Нативное приложение на <b>SwiftUI</b>, не обёртка над вебом. Экраны: подключение, вход, <b>дашборд</b>, учётная запись. Стандартные элементы Apple: <b>NavigationStack</b> с большим заголовком, <b>List</b> в стиле inset grouped, <b>searchable</b>, <b>Menu</b>, <b>Picker</b> (segmented), <b>sheet</b> с детентами, <b>alert</b>, <b>ContentUnavailableView</b>, <b>Gauge</b>/<b>ProgressView</b>, <b>Swift Charts</b>. Шрифт системный (SF Pro), значки SF Symbols, цвета системные (светлая и тёмная тема автоматически), Dynamic Type. Макет показывает вид iOS 26 (стекло на кнопках панели); на iOS 17 и 18 те же элементы рисуются классически без правок кода. Значки здесь заменители, в приложении настоящие SF Symbols.</p>
+
+<div id="out"></div>
+
+<h2>Бейджи состояний</h2>
+<p class="lead">Только компактные, как в приложении для компьютера (<code>mchip</code>): значок и число, без слов; слово есть только у «Нет связи». Цвет говорит, насколько это важно. Если бейджей больше четырёх, остальные сворачиваются в «+N». Теги это буквенные квадраты (первая буква на цвете тега), как <code>TagBadges</code>; полное имя показывает долгое нажатие на строку. Подробный текстовый бейдж («обновлений: 3», «нужна перезагрузка») на iOS не используется нигде.</p>
+<div id="legend"></div>
+
+<h2>Соответствие SwiftUI</h2>
+<table>
+<tr><th>Элемент макета</th><th>Что в коде</th></tr>
+<tr><td>Большой заголовок, кнопки справа</td><td><code>NavigationStack</code>, <code>.navigationTitle</code>, <code>.toolbar</code></td></tr>
+<tr><td>Папки со сворачиванием</td><td><code>List</code> + <code>Section(isExpanded:)</code>, стиль <code>.insetGrouped</code></td></tr>
+<tr><td>Бейдж состояния</td><td><code>Label</code> со <code>.labelStyle(.titleAndIcon)</code> в капсуле 18 pt (радиус 5), <code>Image(systemName:)</code> + <code>Text(n)</code> в моноширинном шрифте; подпись для VoiceOver через <code>.accessibilityLabel</code></td></tr>
+<tr><td>Строка сервера</td><td>строка <code>List</code> без перехода, полоски метрик нарисованы капсулами (<code>Capsule</code>)</td></tr>
+<tr><td>Все / Проблемные / Offline</td><td><code>Picker</code> со стилем <code>.segmented</code></td></tr>
+<tr><td>Поиск по имени или IP</td><td><code>.searchable</code></td></tr>
+<tr><td>Меню «вид, папка, порядок»</td><td><code>Menu</code> с <code>Picker</code> внутри</td></tr>
+<tr><td>Долгое нажатие на строку</td><td><code>.contextMenu</code>: скопировать имя и адрес</td></tr>
+<tr><td>Обновление жестом</td><td><code>.refreshable</code></td></tr>
+<tr><td>Загрузка</td><td><code>.redacted(reason: .placeholder)</code></td></tr>
+<tr><td>Нет серверов, ошибка</td><td><code>ContentUnavailableView</code></td></tr>
+<tr><td>График CPU на карточке</td><td><code>Swift Charts</code> (<code>LineMark</code> + <code>AreaMark</code>)</td></tr>
+<tr><td>Доверие сертификату</td><td><code>.sheet</code> с <code>.presentationDetents([.medium])</code></td></tr>
+<tr><td>Код из 6 цифр</td><td><code>TextField</code> с <code>.textContentType(.oneTimeCode)</code>, <code>.keyboardType(.numberPad)</code></td></tr>
+<tr><td>Логин, пароль</td><td><code>.textContentType(.username / .password)</code>: связка ключей iCloud предложит пароль</td></tr>
+<tr><td>Сессия, отпечаток</td><td>Keychain (<code>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</code>), блокировка по <code>LocalAuthentication</code></td></tr>
+<tr><td>Живые данные</td><td><code>URLSession.bytes</code> по <code>api/live</code>, при возврате из фона перезапрос</td></tr>
+</table>
+<h2>Допущения, которые нужно подтвердить</h2>
+<ul class="n">
+<li>Минимальная версия iOS 27, только iPhone в портрете.</li>
+<li>Только iPhone в портрете. iPad и альбомная ориентация позже: <code>NavigationSplitView</code> даст трёхколоночный вид почти бесплатно.</li>
+<li>Шрифты Medeo и значки Lucide не используются: канон Apple это SF Pro и SF Symbols. Акцентный цвет системный синий (в логотипе тоже синий <code>#7d9cff</code>).</li>
+<li>Бейдж высотой 18 pt с 11 pt текстом мелкий: он масштабируется с Dynamic Type, но на крупных размерах строка перестроится, а подпись бейджа читает VoiceOver. Если на устройстве читать трудно, можно поднять до 20 pt, не меняя вида.</li>
+<li>Пороги цвета полосок как в десктопном приложении: оранжевый от 75%, красный от 90%; уровень сервера (плитка «Внимание», фильтр «Проблемные») считается теми же порогами, что в <code>status.ts</code>.</li>
+<li>Страницы сервера нет: строка дашборда не ведёт никуда, у неё есть долгое нажатие (копирование и расшифровка бейджей). Страница сервера будет отдельным этапом.</li>
+<li>Редактирование дашборда, папок, тегов, пользователей и все модули сервера в приложение не входят.</li>
+</ul>
+
+<script>
+const P = {
+ server: '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/>',
+ more: '<circle cx="12" cy="12" r="9.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.6"/>',
+ person: '<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.5c1.2-2.4 3.2-3.5 5.5-3.5s4.3 1.1 5.5 3.5"/>',
+ search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>',
+ chev: '<path d="M9 5l7 7-7 7"/>', chevd: '<path d="M5 9l7 7 7-7"/>', chevl: '<path d="M15 5l-7 7 7 7"/>',
+ folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+ wifioff: '<path d="M2 8.8a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0"/><path d="M12 19.5h.01" stroke-width="2.6"/><path d="M3 3l18 18"/>',
+ shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+ warn: '<path d="M12 3.5l10 17.5H2z"/><path d="M12 10v5M12 18h.01"/>',
+ down: '<circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v8M8.5 12.5l3.5 3.5 3.5-3.5"/>',
+ reboot: '<path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/>',
+ cpu: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+ check: '<path d="M5 12.5l4.5 4.5L19 7"/>', xmark: '<path d="M6 6l12 12M18 6L6 18"/>',
+ copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+ net: '<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c3 3 3 16 0 19M12 2.5c-3 3-3 16 0 19"/>',
+ out: '<path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9"/>',
+ grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+ list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+ sort: '<path d="M7 20V4M3.5 7.5L7 4l3.5 3.5M17 4v16M13.5 16.5L17 20l3.5-3.5"/>',
+ lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+ faceid: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 9v2M15 9v2M12 9v4h-1M9 16c1.5 1.5 4.5 1.5 6 0"/>',
+ up: '<path d="M12 19V5M6 11l6-6 6 6"/>', dn: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+ tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><path d="M8 8h.01" stroke-width="2.6"/>',
+ globe: '<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c3 3 3 16 0 19M12 2.5c-3 3-3 16 0 19"/>',
+ gauge: '<path d="M4 17a9 9 0 1 1 16 0"/><path d="M12 14l4-5"/>',
+ key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+ power: '<path d="M12 3v9M6.3 6.8a8 8 0 1 0 11.4 0"/>',
+ box: '<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
+ spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/>',
+ upc: '<circle cx="12" cy="12" r="9.5"/><path d="M12 16.5v-8M8.5 11.5l3.5-3.5 3.5 3.5"/>',
+ trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'
+};
+const I = (n, s = 22, sw = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+
+const sb = `<div class="island"></div><div class="sb"><span>9:41</span><span class="r">
+<svg width="19" height="12" viewBox="0 0 19 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+<svg width="17" height="12" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 4.2a10 10 0 0 1 15 0M3.5 7a6.5 6.5 0 0 1 10 0"/><circle cx="8.5" cy="10.3" r="1" fill="currentColor" stroke="none"/></svg>
+<svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="22" height="12" rx="3.8" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="19" height="9" rx="2.5" fill="currentColor"/><path d="M24 4.5v4c.9-.3 1.5-1.2 1.5-2s-.6-1.7-1.5-2z" fill="currentColor" opacity=".45"/></svg>
+</span></div>`;
+
+const SV = [
+ { n: 'web-01', ip: '10.0.1.21', os: 'Debian 12', f: 0, cpu: 41, ram: 53, disk: 41, st: 'ok', c: [['updates','info',3]], t: [['blue', 'web'], ['green', 'prod']], up: '40д 4ч', rx: '924 КБ/с', tx: '408 КБ/с', seed: 3 },
+ { n: 'web-02', ip: '10.0.1.22', os: 'Debian 12', f: 0, cpu: 32, ram: 50, disk: 44, st: 'warn', c: [['reboot','warn'],['updates','warn',12]], t: [['blue', 'web'], ['green', 'prod']], up: '112д 2ч', rx: '597 КБ/с', tx: '393 КБ/с', seed: 5 },
+ { n: 'proxy-01', ip: '10.0.1.20', os: 'Debian 12', f: 0, cpu: 14, ram: 25, disk: 29, st: 'ok', c: [], t: [['green', 'prod']], up: '40д 4ч', rx: '312 КБ/с', tx: '290 КБ/с', seed: 8 },
+ { n: 'db-primary', ip: '10.0.1.14', os: 'Debian 12', f: 1, cpu: 51, ram: 79, disk: 63, st: 'ok', c: [['images','warn',6]], t: [['teal', 'db'], ['green', 'prod']], up: '67д 19ч', rx: '624 КБ/с', tx: '2,4 МБ/с', seed: 11 },
+ { n: 'db-replica', ip: '10.0.1.15', os: 'Debian 12', f: 1, cpu: 25, ram: 72, disk: 63, st: 'crit', c: [['failed','crit',1],['updates','info',5]], t: [['teal', 'db']], up: '67д 19ч', rx: '1,8 МБ/с', tx: '116 КБ/с', seed: 14 },
+ { n: 'mail-01', ip: '10.0.4.2', os: 'Debian 12', f: 2, st: 'off', c: [['offline','mute'],['updates','mute',2]], t: [['orange', 'mail']], seed: 2 },
+ { n: 'build-runner', ip: '10.0.1.12', os: 'Debian 12', f: 2, cpu: 93, ram: 86, disk: 72, st: 'crit', c: [['updates','info',8]], t: [['pink', 'ci']], up: '9д 1ч', rx: '4,4 МБ/с', tx: '713 КБ/с', seed: 17 },
+ { n: 'backup-nas', ip: '10.0.1.11', os: 'Debian 11', f: 2, cpu: 4, ram: 31, disk: 91, st: 'crit', c: [['updates','info',1],['agentUpdate','warn']], t: [['gray', 'backup']], up: '330д 7ч', rx: '61 КБ/с', tx: '2,7 МБ/с', seed: 20 },
+ { n: 'office-pc', ip: '10.0.1.19', os: 'Windows 11 Pro', f: 3, cpu: 22, ram: 58, disk: 49, st: 'ok', c: [], t: [], up: '4д 6ч', rx: '40 КБ/с', tx: '12 КБ/с', seed: 23 },
+];
+const FOLDERS = ['Продакшен', 'Продакшен › Базы данных', 'Инфраструктура', 'Без папки'];
+
+const lvl = v => v >= 90 ? 'red' : v >= 75 ? 'orange' : '';
+const bar = (l, v) => `<div class="m"><div class="mt"><span>${l}</span><b>${v}%</b></div><div class="bar"><i class="${lvl(v)}" style="width:${v}%"></i></div></div>`;
+const CI = { failed: 'warn', reboot: 'power', updates: 'upc', images: 'box', agentUpdate: 'spark', agentOld: 'warn', offline: '' };
+const CT = { failed: 'Упавшие службы', reboot: 'Нужна перезагрузка', updates: 'Обновления', images: 'Обновления образов Docker', agentUpdate: 'Есть новый агент', agentOld: 'Агент устарел', offline: 'Нет связи' };
+const mc = ([id, tone, n]) => id === 'offline' ? `<span class="mc txt ${tone}">Нет связи</span>` : `<span class="mc ${tone}">${I(CI[id], 11, 2.2)}${n ? n : ''}</span>`;
+const chipsHtml = (s, max = 4) => { const c = s.c || []; if (!c.length) return ''; const sh = c.slice(0, max), rest = c.slice(max); return `<span class="chips">${sh.map(mc).join('')}${rest.length ? `<span class="mc more">+${rest.length}</span>` : ''}</span>`; };
+const tagsHtml = (s, max = 2) => { const t = s.t || []; if (!t.length) return ''; const sh = t.slice(0, max), rest = t.slice(max); return `<span class="tbs">${sh.map(([c, n]) => `<span class="tb tc-${c}">${n[0].toUpperCase()}</span>`).join('')}${rest.length ? `<span class="tb more">+${rest.length}</span>` : ''}</span>`; };
+const row = (s, o = {}) => {
+  const off = s.st === 'off';
+  return `<div class="row ${off ? 'off' : ''} ${o.skel ? 'skel' : ''}">
+  <div class="r1"><span class="dot ${s.st}"></span><span class="nm">${s.n}</span><span class="sp"></span>${chipsHtml(s)}${tagsHtml(s)}</div>
+  <div class="r2" ${off ? 'style="margin-bottom:0"' : ''}>${s.ip} · ${s.os}${off ? ' · нет связи 12 мин' : ''}</div>
+  ${off ? '' : `<div class="ms">${bar('CPU', s.cpu)}${bar('ОЗУ', s.ram)}${bar('Диск', s.disk)}</div>`}</div>`;
+};
+const sec = (title, list, o = {}) => `<div class="sh">${I('folder', 15, 2)}${title}<span class="cnt">${list.length}</span><span class="sp"></span>${I(o.closed ? 'chev' : 'chevd', 13, 2.6)}</div>` +
+  (o.closed ? '<div style="height:14px"></div>' : `<div class="grp">${list.map(s => row(s, o)).join('')}</div>`);
+const byF = f => SV.filter(s => s.f === f);
+const tiles = `<div class="sum">
+ <div class="tile"><div class="h"><span class="ok">${I('shield', 16, 2)}</span>Онлайн</div><div class="n">8<small> из 9</small></div><div class="s">нет связи: 1</div></div>
+ <div class="tile"><div class="h"><span class="wn">${I('warn', 16, 2)}</span>Внимание</div><div class="n">4</div><div class="s">критичных: 3</div></div>
+ <div class="tile"><div class="h"><span class="tint">${I('upc', 16, 2)}</span>Обновления</div><div class="n">29</div><div class="s">ждут перезагрузки: 1</div></div>
+ <div class="tile"><div class="h"><span class="tint">${I('cpu', 16, 2)}</span>CPU средн.</div><div class="n">35<small>%</small></div><div class="s">по серверам online</div></div></div>`;
+const seg = i => `<div class="seg">${['Все', 'Проблемные', 'Offline'].map((t, k) => `<span class="${k === i ? 'on' : ''}">${t}</span>`).join('')}</div>`;
+const navBtns = `<div class="glass"><span class="b">${I('more', 24, 1.7)}</span><span class="b">${I('person', 24, 1.7)}</span></div>`;
+const nav = (right = navBtns, left = '') => `<div class="nav"><div>${left}</div>${right}</div>`;
+const back = t => `<div class="glass t">${I('chevl', 22, 2.3)}<span>${t}</span></div>`;
+const home = '<div class="home"></div>';
+
+function spark(seed, w = 190, h = 44, hot = false) {
+  let x = seed * 9301 + 49297, v = 40, pts = [];
+  for (let i = 0; i < 28; i++) { x = (x * 9301 + 49297) % 233280; v = Math.max(8, Math.min(92, v + (x / 233280 - .5) * 34)); pts.push(v); }
+  const xy = pts.map((p, i) => [i * w / 27, h - 3 - p / 100 * (h - 6)]);
+  const d = xy.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+  const c = hot ? 'var(--red)' : 'var(--blue)';
+  return `<svg class="sp" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d}L${w} ${h}L0 ${h}Z" fill="${c}" opacity=".16"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+const stText = s => ({ ok: 'в порядке', warn: 'внимание', crit: 'критично', off: 'нет связи' })[s.st];
+const card = s => s.st === 'off'
+  ? `<div class="card"><div class="top"><span class="dot off"></span><span class="nm" style="font-weight:600;color:var(--l2)">${s.n}</span><span class="st">${stText(s)}</span></div><div class="sub">${s.ip} · ${s.os} · нет связи 12 мин</div><div class="foot" style="margin-top:2px">${chipsHtml(s)}${tagsHtml(s, 3)}</div></div>`
+  : `<div class="card"><div class="top"><span class="dot ${s.st}"></span><span class="nm" style="font-weight:600">${s.n}</span><span class="st">${stText(s)}</span></div><div class="sub">${s.ip} · ${s.os} · ${s.up}</div>
+  <div class="cpu"><div class="bg">${s.cpu}%<small>CPU, последние 2 минуты</small></div>${spark(s.seed, 190, 44, s.cpu >= 90)}</div>
+  <div class="two">${bar('ОЗУ', s.ram)}${bar('Диск', s.disk)}</div>
+  <div class="net"><span>${I('dn', 12, 2.4)}${s.rx}</span><span>${I('up', 12, 2.4)}${s.tx}</span></div>
+  <div class="foot">${chipsHtml(s) || '<span></span>'}${tagsHtml(s, 3)}</div></div>`;
+
+const dash = (o = {}) => `${o.sb ?? sb}${nav()}<div class="lt">Дашборд</div><div class="body">${o.banner || ''}${tiles}${seg(o.seg || 0)}
+ ${[0, 1, 2, 3].map(f => sec(FOLDERS[f], byF(f), { closed: f === 2 && o.fold })).join('')}</div>${home}`;
+
+const frames = [];
+const add = (group, cap, title, html, dark = false) => frames.push({ group, cap, title, html, dark });
+
+/* ---- connect ---- */
+const connect = `${sb}<div class="body nolt" style="top:0"><div class="hero"><img class="logo" src="../../../web/public/icon.svg" alt=""><h1>Linager</h1><p>Подключение к вашему серверу</p></div>
+ <div class="grp"><div class="cell"><span class="k">Адрес</span><span class="v tint" style="margin-left:auto;color:var(--l1)">linager.example.com</span></div><div class="cell"><span class="k">Порт</span><span class="v" style="color:var(--l1)">8443</span></div></div>
+ <div class="gf">Порт приложения. Его показывает «Настройки» → «Подключение» на сервере или команда <span class="mono" style="font-size:12px">linager server app-port</span>.</div>
+ <div class="btn">Подключиться</div></div>${home}`;
+add('Подключение', 'Первый запуск: адрес и порт. Поля с клавиатурой URL, автозаполнение отключено.', 'Подключение', connect);
+add('Подключение', 'Сервер ещё не известен: отпечаток сертификата закрепляется при первом подключении, как в SSH. Формат «SHA256:…» как у сервера. iPhone получает ECDSA-сертификат, поэтому сверять надо со строкой «Fingerprint for iPhone and iPad». Системный sheet, средний детент.', 'Доверие сертификату', connect + `<div class="dim"></div><div class="sheet"><div class="grab"></div><h3>Доверять этому серверу?</h3>
+ <p>Приложение запомнит этот сертификат. Сверьте отпечаток со строкой «Fingerprint for iPhone and iPad» команды <span class="mono" style="font-size:13px">linager server app-port</span>: у iPhone свой сертификат (ECDSA), и другая строка не совпадёт.</p>
+ <div class="fp"><small>SHA-256</small><div>SHA256:T13Kh8kmGFGchro80</div><div>/axvYGw5AOfJ/Bt0NRxJFmVl</div><div>WE</div></div></div>
+ <div class="btn g" style="height:44px;margin:10px 0 0">${I('copy', 18)}&nbsp;Скопировать</div>
+ <div class="btn" style="margin-top:10px">Доверять и продолжить</div><div class="btn g" style="background:none;margin:0">Отмена</div></div>`);
+add('Подключение', 'Вход. Строка с замком: соединение закреплено за отпечатком. Логин и пароль предлагает связка ключей iCloud.', 'Вход', `${sb}${nav('', back('Сервер'))}<div class="lt">Вход<small>${I('shield', 14, 2)} linager.example.com · отпечаток закреплён</small></div>
+ <div class="body" style="top:166px"><div class="grp"><div class="cell"><span class="k" style="width:80px">Логин</span><span>admin</span></div><div class="cell"><span class="k" style="width:80px">Пароль</span><span>••••••••••••</span></div></div>
+ <div class="btn">Войти</div></div>${home}`);
+add('Подключение', 'Второй шаг, если у пользователя включён TOTP. Поле oneTimeCode: iOS подставит код из Passwords. Ниже резервный код.', 'Код подтверждения', `${sb}${nav('', back('Вход'))}<div class="lt">Код подтверждения<small>Шесть цифр из приложения-аутентификатора</small></div>
+ <div class="body" style="top:166px"><div class="otp"><b>4</b><b>8</b><b>2</b><b class="cur"><i style="width:2px;height:28px;background:var(--blue);display:block"></i></b><b></b><b></b></div>
+ <div style="text-align:center;color:var(--blue);margin-top:18px">Использовать резервный код</div></div>
+ <div class="pad">${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k, i) => `<span>${k}${['', 'ABC', 'DEF', 'GHI', 'JKL', 'MNO', 'PQRS', 'TUV', 'WXYZ'][i] ? `<small>${['', 'ABC', 'DEF', 'GHI', 'JKL', 'MNO', 'PQRS', 'TUV', 'WXYZ'][i]}</small>` : ''}</span>`).join('')}<span class="k"></span><span>0</span><span class="k">${I('chevl', 24, 2)}</span></div>${home}`);
+
+/* ---- dashboard ---- */
+add('Дашборд', '<b>Дашборд, строки.</b> Большой заголовок, четыре плитки сводки, сегмент «Все / Проблемные / Offline», папки секциями (подпапка называется путём). Кнопки справа: меню вида и учётная запись.', 'Дашборд, светлая тема', dash());
+add('Дашборд', '<b>Та же страница, тёмная тема.</b> Цвета системные, чёрный фон, светящиеся полоски. Папка «Инфраструктура» свёрнута (Section с isExpanded).', 'Дашборд, тёмная тема', dash({ fold: true }), true);
+add('Дашборд', '<b>Карточки.</b> Второй вид из меню: крупный CPU и график за последние минуты (Swift Charts), сеть и аптайм. Для тех, кто смотрит дашборд как панель.', 'Дашборд, карточки', `${sb}${nav()}<div class="lt">Дашборд</div><div class="body">${tiles}${seg(0)}${SV.filter(s => [0, 6, 5].includes(SV.indexOf(s))).sort((a, b) => 0).map(card).join('')}</div>${home}`);
+add('Дашборд', '<b>Меню.</b> Нажатие на кнопку с многоточием: вид, папка, порядок, обновить. Обычное системное Menu с галочкой у выбранного.', 'Меню вида', dash() + `<div class="dim" style="background:rgba(0,0,0,.18)"></div><div class="menu">
+ <div class="mh">Вид</div><div class="mi"><span class="l"><i>${I('check', 16, 2.4)}</i>Строки</span>${I('list', 20)}</div><div class="mi"><span class="l"><i></i>Карточки</span>${I('grid', 20)}</div>
+ <div class="mh">Порядок</div><div class="mi"><span class="l"><i>${I('check', 16, 2.4)}</i>Как на дашборде</span>${I('sort', 20)}</div><div class="mi"><span class="l"><i></i>По состоянию</span>${I('warn', 20)}</div><div class="mi"><span class="l"><i></i>По имени</span>${I('sort', 20)}</div>
+ <div class="gap mi" style="height:8px"></div><div class="mi"><span class="l">Папка: все</span>${I('chev', 16, 2.4)}</div><div class="mi"><span class="l">Обновить</span>${I('reboot', 20)}</div></div>`);
+add('Дашборд', '<b>Фильтр «Проблемные».</b> Сегмент оставляет серверы в состоянии «внимание» и «критично», пустые папки скрываются. Плитки остаются общими.', 'Проблемные', `${sb}${nav()}<div class="lt">Дашборд</div><div class="body">${tiles}${seg(1)}${sec('Продакшен', [SV[1]])}${sec('Продакшен › Базы данных', [SV[4]])}${sec('Инфраструктура', [SV[6], SV[7]])}</div>${home}`, true);
+add('Дашборд', '<b>Поиск</b> по имени или IP (searchable). Плитки и сегмент скрываются, пока идёт поиск; папки не показываются, результат плоский.', 'Поиск', `${sb}<div class="nav" style="top:54px"><div class="sf">${I('search', 17, 2)}<span class="t">10.0.1.2</span><span class="caret"></span></div><span class="tint" style="margin-left:12px">Отмена</span></div>
+ <div class="body nolt" style="top:112px"><div class="gh" style="padding-top:6px">Найдено: 2</div><div class="grp">${[SV[0], SV[1]].map(s => row(s)).join('')}</div></div>${home}`);
+add('Состояния', '<b>Загрузка.</b> Каркас строк (redacted placeholder), без крутилок. Плитки и сегмент уже на месте.', 'Загрузка', `${sb}${nav()}<div class="lt">Дашборд</div><div class="body">${tiles.replace(/<div class="n">.*?<\/div>/g, '<div class="n skel">00</div>')}${seg(0)}<div class="sh">${I('folder', 15, 2)}<span class="skel">Продакшен</span></div><div class="grp">${SV.slice(0, 3).map(s => row(s, { skel: true })).join('')}</div></div>${home}`);
+add('Состояния', '<b>Нет связи с сервером.</b> Показаны последние данные из кэша, баннер сверху, строки не пропадают. Обновление жестом вниз (refreshable). Сервер Linager недоступен, не серверы под ним.', 'Нет связи', dash({ banner: `<div class="banner"><span class="wn">${I('wifioff', 22, 2)}</span><div><b>Нет связи с сервером Linager</b><small>Данные от 14:02. Пытаюсь переподключиться…</small></div></div>` }));
+add('Состояния', '<b>Сертификат изменился.</b> Закреплённый отпечаток не совпал. Это либо перевыпуск сертификата, либо подмена. Системный alert; «Показать отпечаток» открывает экран сверки, «Забыть сервер» стирает закрепление.', 'Отпечаток не совпал', dash() + `<div class="dim"></div><div class="alert"><div class="t"><h4>Сертификат сервера изменился</h4><p>Отпечаток не совпадает с закреплённым. Если вы не перевыпускали сертификат на сервере, не продолжайте.</p></div><div class="bt b">Показать отпечаток</div><div class="bt">Отмена</div><div class="bt d">Забыть сервер</div></div>`, true);
+add('Состояния', '<b>Серверов нет.</b> ContentUnavailableView с подсказкой, как подключить первый (команда установки агента показывается в приложении для компьютера).', 'Пустой дашборд', `${sb}${nav()}<div class="lt">Дашборд</div><div class="body"><div class="empty"><div class="big">${I('server', 74, 1.2)}</div><h3>Серверов пока нет</h3><p>Подключите первый сервер агентом. Команда установки показана в приложении Linager для компьютера.</p></div></div>${home}`);
+add('Состояния', '<b>Долгое нажатие</b> на строку: системное контекстное меню. Копирование имени и адреса, расшифровка бейджей словами и полные имена тегов. Действий над сервером нет.', 'Контекстное меню', dash() + `<div class="dim" style="background:rgba(0,0,0,.2)"></div>
+ <div style="position:absolute;left:16px;right:16px;top:453px;z-index:37;transform:scale(1.02);border-radius:22px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.3);background:var(--cell)">${row(SV[1])}</div>
+ <div class="menu" style="top:597px;right:auto;left:16px;width:290px"><div class="mi"><span class="l">Скопировать имя</span>${I('copy', 20)}</div><div class="mi"><span class="l">Скопировать адрес</span>${I('net', 20)}</div>
+ <div class="mh">Состояние</div><div class="mi"><span class="l">Нужна перезагрузка</span>${I('power', 20)}</div><div class="mi"><span class="l">Обновлений: 12</span>${I('upc', 20)}</div>
+ <div class="mh">Теги</div><div class="mi"><span class="l">web</span>${I('tag', 20)}</div><div class="mi"><span class="l">prod</span>${I('tag', 20)}</div></div>`);
+/* ---- extra ---- */
+const kv = (k, v, c = '') => `<div class="cell"><span class="k">${k}</span><span class="v ${c}">${v}</span></div>`;
+const disk = (m, p, t) => `<div class="cell" style="display:block"><div style="display:flex;justify-content:space-between"><span>${m}</span><span style="color:var(--l2)">${t}</span></div><div class="bar" style="height:6px;margin-top:8px"><i class="${lvl(p)}" style="width:${p}%"></i></div></div>`;
+add('Остальное', '<b>Учётная запись</b> (кнопка с человечком). Сервер и отпечаток, пользователь, блокировка Face ID, выход. Язык берётся из системы (настройки iPhone). «Забыть сервер» стирает закрепление и связку ключей.', 'Учётная запись', dash() + `<div class="dim"></div><div class="sheet full" style="background:var(--bg)">
+ <div class="grab" style="margin-top:10px"></div><div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 16px"><h3 style="font-size:20px">Учётная запись</h3><span class="glass" style="padding:0"><span class="b" style="width:40px;height:40px;display:grid;place-items:center">${I('check', 22, 2.4)}</span></span></div>
+ <div class="gh">Сервер</div><div class="grp">${kv('Адрес', 'linager.example.com:8443')}<div class="cell"><span class="k">Отпечаток</span><span class="v mono" style="font-size:13px">SHA256:T13Kh8k…FmVlWE</span>${I('copy', 18)}</div></div>
+ <div class="gh">Пользователь</div><div class="grp">${kv('Логин', 'admin')}${kv('Роль', 'Администратор')}</div>
+ <div class="gh">Приложение</div><div class="grp"><div class="cell"><span class="k">Блокировка Face ID</span><span class="sw"></span></div></div>
+ <div class="grp"><div class="cell" style="justify-content:center;color:var(--red)">Выйти</div></div>
+ <div class="grp"><div class="cell" style="justify-content:center;color:var(--red)">Забыть сервер</div></div>
+ <div class="gf" style="text-align:center;margin-top:-6px">Linager для iOS 0.1.0 (1)</div></div>`, true);
+
+const LG = [['failed','crit',1,'triangle-alert','exclamationmark.triangle','Упавшие службы (красный)'],['reboot','warn',0,'power','power','Нужна перезагрузка (оранжевый)'],['updates','info',3,'circle-arrow-up','arrow.up.circle','Обновления пакетов: синий, от 10 оранжевый'],['images','warn',6,'container','shippingbox','Обновления образов Docker: синий, от 5 оранжевый'],['agentUpdate','warn',0,'sparkles','sparkles','Есть новый агент (оранжевый)'],['agentOld','crit',0,'triangle-alert','exclamationmark.triangle','Агент слишком стар (красный)'],['offline','mute',0,'','—','Нет связи (серый, со словом); рядом остаётся число обновлений серым']];
+document.getElementById('legend').innerHTML = `<div class="phone" style="width:auto;height:auto;padding:0;background:none;box-shadow:none;border-radius:0;display:block;color:inherit"><table><tr><th>Бейдж</th><th>Что значит</th><th>Символ SF</th><th>Значок в приложении</th></tr>${LG.map(([id,t,n,li,sf,txt]) => `<tr><td>${mc([id,t,n||undefined])}</td><td>${txt}</td><td><code>${sf}</code></td><td>${li ? '<code>'+li+'</code>' : ''}</td></tr>`).join('')}<tr><td>${tagsHtml({t:[['blue','web'],['green','prod']]})}</td><td>Теги сервера: первая буква на цвете тега; больше двух сворачиваются в «+N»</td><td>—</td><td>—</td></tr></table></div>`;
+const groups = [...new Set(frames.map(f => f.group))];
+document.getElementById('out').innerHTML = groups.map(g => `<h2>${g}</h2><div class="gal">${frames.filter(f => f.group === g).map(f => `<figure><div class="phone ${f.dark ? 'dark' : ''}"><div class="scr">${f.html}</div></div><figcaption>${f.cap.startsWith('<b>') ? f.cap : `<b>${f.title}</b>${f.cap}`}</figcaption></figure>`).join('')}</div>`).join('');
+</script>
+</body>
+</html>

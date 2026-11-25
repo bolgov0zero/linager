@@ -7,7 +7,7 @@ LDFLAGS := -s -w -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PK
 # Architectures of the release binaries (GOARCH values); `make build ARCHES=amd64` builds one.
 ARCHES ?= amd64 arm64
 
-.PHONY: all build build-windows test lint clean
+.PHONY: all build build-windows test lint clean ios-test ios-ipa
 
 all: build
 
@@ -25,9 +25,16 @@ build-windows:
 test:
 	go vet ./... && go test -race ./...
 
+# The iOS client (ios/): the tests of its logic run on the Mac, the IPA is built without a signature and installed by a sideloading tool.
+ios-test:
+	cd ios && swift test
+
+ios-ipa:
+	ios/build-ipa.sh
+
 lint:
 	golangci-lint run
 	shellcheck install.sh
 
 clean:
-	rm -rf bin
+	rm -rf bin ios/build
