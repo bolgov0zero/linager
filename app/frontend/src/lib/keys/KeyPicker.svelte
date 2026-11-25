@@ -2,6 +2,7 @@
   import { chainOf, pathOf } from '../folders';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
+  import { portal } from '../portal';
   import KeyOpenForm from './KeyOpenForm.svelte';
   import { loadDirectory, touch, vault } from './store';
   import { accountOf, sectionsFor, type Entry, type Known, type Sections, type Target } from './vault';
@@ -29,7 +30,8 @@
     const below = window.innerHeight - r.bottom - 8;
     const above = r.top - 8;
     const up = below < 180 && above > below;
-    const width = variant === 'icon' ? Math.min(380, window.innerWidth - 16) : r.width;
+    // the unlock field is small (320 px); the list of the keys needs a little more
+    const width = variant === 'icon' ? Math.min($vault ? 380 : 320, window.innerWidth - 16) : r.width;
     const left = variant === 'icon' ? Math.max(8, Math.min(r.left, window.innerWidth - width - 8)) : r.left;
     pos = { left, top: up ? r.top - 4 : r.bottom + 4, width, up, max: Math.max(120, Math.min(300, up ? above : below)) };
   }
@@ -95,10 +97,10 @@
 {/if}
 
 {#if open}
-  <div bind:this={list} class="pop keylist" role={$vault ? 'listbox' : 'dialog'} aria-label={t('keys.pick.label')} style="left:{pos.left}px;top:{pos.up ? 'auto' : `${pos.top}px`};bottom:{pos.up ? `${window.innerHeight - pos.top}px` : 'auto'};width:{pos.width}px;max-height:{pos.max}px">
+  <div bind:this={list} class="pop keylist" class:kc-pop={!$vault} use:portal={{ near: button }} role={$vault ? 'listbox' : 'dialog'} aria-label={t('keys.pick.label')} style="left:{pos.left}px;top:{pos.up ? 'auto' : `${pos.top}px`};bottom:{pos.up ? `${window.innerHeight - pos.top}px` : 'auto'};width:{pos.width}px;max-height:{pos.max}px">
     {#if !$vault}
       <!-- the vault is locked: its unlocking is here, under the button, not in a window of its own -->
-      <div class="keyunlock"><KeyOpenForm onopened={() => { touch(); void show(); }} /></div>
+      <div class="keyunlock"><KeyOpenForm compact onopened={() => { touch(); void show(); }} /></div>
     {:else}
       {#if sections.here.length}<div class="gh">{serverName ? t('keys.pick.here', { name: serverName }) : t('keys.pick.thisServer')}</div>{#each sections.here as e (e.id)}{@render item(e)}{/each}{/if}
       {#if sections.group.length}<div class="gh">{t('keys.pick.group', { name: groupName })}</div>{#each sections.group as e (e.id)}{@render item(e)}{/each}{/if}

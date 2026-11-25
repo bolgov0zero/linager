@@ -6,8 +6,11 @@
   import { VaultError } from './vault';
   import { forgetVaultFile, pickVaultFile, rememberedVaultFile, type Picked } from './vaultFile';
 
-  /** The fields that open the vault: the file and the passphrase. Used by the window "Keys" and by the small window of a form. */
-  let { onopened }: { onopened?: () => void } = $props();
+  /**
+   * The fields that open the vault: the file and the passphrase. Used by the window "Keys" and by the small window of a form.
+   * `compact` is the small window: one field (the lock, the passphrase, the menu "other file / forget", the arrow) instead of the form.
+   */
+  let { onopened, compact = false }: { onopened?: () => void; compact?: boolean } = $props();
 
   let picked = $state<Picked | null>(null);
   let pass = $state('');
@@ -15,6 +18,30 @@
   let error = $state('');
   // the file chosen in the last seven days is offered again: only the passphrase is asked
   let remembered = $state(false);
+  let menuOpen = $state(false);
+  let input = $state<HTMLInputElement | null>(null);
+  // the compact field is asked for the passphrase at once: where the file is known the cursor is in it
+  $effect(() => {
+    if (compact && picked && input) input.focus();
+  });
+  // the menu closes on a click elsewhere and on Escape (which then does not close the window under it)
+  $effect(() => {
+    if (!menuOpen) return;
+    const off = (e: PointerEvent): void => {
+      if (!(e.target as Element | null)?.closest('.kc-menu, .kc-dots')) menuOpen = false;
+    };
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      menuOpen = false;
+    };
+    window.addEventListener('pointerdown', off, true);
+    window.addEventListener('keydown', esc, true);
+    return () => {
+      window.removeEventListener('pointerdown', off, true);
+      window.removeEventListener('keydown', esc, true);
+    };
+  });
   onMount(async () => {
     const r = await rememberedVaultFile();
     if (r && !picked) {
@@ -58,6 +85,28 @@
   }
 </script>
 
+{#if compact}
+  <form class="kc" onsubmit={(e) => { e.preventDefault(); void submit(); }}>
+    <div class="kc-box">
+      {#if picked}
+        <span class="kc-ic"><Icon name="lock" size={15} /></span>
+        <input class="kc-in" type="password" bind:this={input} bind:value={pass} autocomplete="current-password" placeholder={t('keys.compact.ph', { name: picked.name })} aria-label={t('keys.compact.ph', { name: picked.name })} oninput={() => (error = '')} />
+        <button class="kc-dots" type="button" title={t('keys.compact.menu')} aria-label={t('keys.compact.menu')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={busy} onclick={() => (menuOpen = !menuOpen)}><Icon name="ellipsis" size={15} /></button>
+      {:else}
+        <span class="kc-ic dim"><Icon name="folder" size={15} /></span>
+        <button class="kc-pick" type="button" onclick={choose}>{t('keys.compact.pick')}</button>
+      {/if}
+      <button class="kc-go" type="submit" title={busy ? t('keys.open.busy') : t('keys.unlock.go')} aria-label={t('keys.unlock.go')} disabled={!picked || !pass || busy}><Icon name="arrow-right" size={16} /></button>
+    </div>
+    {#if error}<div class="kc-err" role="alert">{error}</div>{/if}
+    {#if menuOpen}
+      <div class="kc-menu" role="menu">
+        <button type="button" role="menuitem" onclick={() => { menuOpen = false; void choose(); }}>{t('keys.unlock.other')}</button>
+        <button type="button" role="menuitem" class="danger" onclick={() => { menuOpen = false; void forget(); }}>{t('keys.file.forget')}</button>
+      </div>
+    {/if}
+  </form>
+{:else}
 <form class="mdl-stack" onsubmit={(e) => { e.preventDefault(); void submit(); }}>
   {#if remembered && picked}
     <!-- the file is remembered: nothing to open again, only the passphrase and "Unlock" -->
@@ -81,3 +130,4 @@
     <button class="btn primary" type="submit" disabled={!picked || !pass || busy}>{busy ? t('keys.open.busy') : t('keys.open.go')}</button>
   {/if}
 </form>
+{/if}

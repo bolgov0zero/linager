@@ -762,6 +762,7 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .fb.sq{padding:0;width:34px;height:34px;border-radius:10px}
 .fb-sq{width:100%;height:100%;display:grid;place-items:center;border:0;background:none;color:var(--text);cursor:pointer;touch-action:none}
 .keyunlock{padding:10px 12px}
+.keyunlock .krow{flex-wrap:nowrap}.keyunlock .krow .btn{min-width:0;white-space:nowrap}
 
 /* a menu item with a second action at its end (the snippets of the terminal: run, or only paste) */
 .pop .mrow{display:flex;align-items:center;gap:2px}.pop .mrow>button:first-child{flex:1;min-width:0}
@@ -850,3 +851,18 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 .con-modes button[data-mode]>svg,.ctab[data-mode] .ctab-b>svg{color:var(--mc)}
 .con-modes button[data-mode][aria-pressed=true]{border-color:color-mix(in srgb,var(--mc) 55%,transparent);background:color-mix(in srgb,var(--mc) 13%,transparent)}
 .ctab[data-mode].on{border-color:color-mix(in srgb,var(--mc) 45%,var(--border-hh))}
+
+/* The compact unlock field of the keys (a popup under the key button): one row, the lock, the passphrase, "..." with the file menu, the arrow */
+.pop.kc-pop{overflow:visible;max-height:none;padding:4px 4px 4px 10px}.pop.kc-pop .keyunlock{padding:0}
+.pop.kc-pop:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-pop)}
+.pop.kc-pop:has(.kc-err){border-color:var(--crit);box-shadow:0 0 0 3px var(--crit-s),var(--shadow-pop)}
+.kc{position:relative;display:flex;flex-direction:column;gap:4px}
+.kc-box{display:flex;align-items:center;gap:8px}.kc-ic{flex:none;display:grid;color:var(--accent-t)}.kc-ic.dim{color:var(--text3)}
+.pop .kc-in{flex:1;min-width:0;height:30px;padding:0;border:0;outline:0;background:none;color:var(--text);font:inherit;font-size:13px;text-align:left}
+.pop .kc-pick{flex:1;min-width:0;height:30px;padding:0;border:0;background:none;color:var(--text);font-weight:500;font-size:13px;text-align:left;justify-content:flex-start}
+.pop .kc-dots{flex:none;width:26px;height:30px;padding:0;justify-content:center;border:0;border-radius:5px;background:none;color:var(--text2)}.pop .kc-dots:hover:not(:disabled){background:var(--hover);color:var(--text)}
+.pop .kc-go{flex:none;width:30px;height:30px;padding:0;justify-content:center;border:1px solid #2563eb;border-radius:6px;background:linear-gradient(180deg,#4c97ff,#2563eb);color:#fff}
+.pop .kc-go:disabled{border-color:color-mix(in srgb,var(--accent) 30%,transparent);background:color-mix(in srgb,var(--accent) 22%,var(--surface));color:var(--text3);cursor:default}
+.kc-err{padding:0 2px 3px 0;color:var(--crit-t);font-size:12px}
+.kc-menu{position:absolute;right:0;top:100%;margin-top:6px;z-index:3;min-width:170px;padding:4px;display:flex;flex-direction:column;border:1px solid var(--border-h);border-radius:var(--radius);background:var(--pop-bg);box-shadow:var(--shadow-pop)}
+.pop .kc-menu button{height:28px;padding:0 9px;justify-content:flex-start}.pop .kc-menu button.danger{color:var(--crit-t)}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.5
+
+- **Fix (application): the unlock window of the keys opened at the side in the full screen** of the Assistant and RDP; it must stand under the key button. The floating bar over the picture has a transform and a backdrop filter, which make it the reference of everything `position: fixed` inside it, so the window, placed by the coordinates of the screen, was shifted by the place of the bar and pressed to the right edge, where it narrowed. The window is moved out of the bar (`portal.ts`) into the pane of the full screen, and its place is right now. The row of its buttons ("Another file", "Forget the file", "Unlock") no longer wraps. Test: `portal.test.mjs`.
+- Change (application): **the unlock window of the keys is compact**: one field of 320 by 40 px (it was a form of about 190 px high). The lock, the passphrase (the hint says which file: "Passphrase for linager-keys.lvault"), the menu "..." with "Another file" and "Forget the file", and the arrow (Enter also unlocks). A wrong passphrase makes the border red with the message under the field; with no file chosen the field offers "Choose the keys file". The window "Keys" keeps the full form. The variant was chosen from three mockups.
+
 ## 1.1.4
 
 - New (application): **the compact cards show the updates**, Docker images included. Where the footer showed one note or the address, it now has small chips: failed services (red), a reboot is needed (amber), updates of the system and of Docker images (blue; amber from 10 packages or 5 images), an update of the agent (amber). At most three chips fit next to the buttons (measured at the smallest width of a card, 212 px), the rest fold into "+N" with a tooltip. A server that does not answer shows "offline" and the updates it knew of in grey. With nothing to show the address stays. The variant was chosen from three mockups (icons instead of the address). Tests in `status.test.mjs`.

@@ -2936,5 +2936,8 @@
   "st.snippets.drag": "Drag the row to change the order (or Alt+Up/Down)",
   "mgr.win.hint": "Signing a session out closes the programs of the user, unsaved work is lost. The user can sign in again.",
   "desk.display": "Display mode",
-  "tag.s.offline": "offline"
+  "tag.s.offline": "offline",
+  "keys.compact.ph": "Passphrase for {name}",
+  "keys.compact.pick": "Choose the keys file",
+  "keys.compact.menu": "Another file, or forget the file"
 }
