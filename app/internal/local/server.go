@@ -144,6 +144,7 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("POST /app/download", s.download)
 	inner.HandleFunc("POST /app/vault/open", s.vaultOpen)
 	inner.HandleFunc("POST /app/vault/save", s.vaultSave)
+	inner.HandleFunc("PUT /app/vault/write", s.vaultWrite)
 	inner.HandleFunc("GET /app/tray", s.trayGet)
 	inner.HandleFunc("PUT /app/tray", s.trayPut)
 	inner.HandleFunc("GET /app/autostart", s.autostartGet)
@@ -489,7 +490,7 @@ func (s *Server) vaultOpen(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	s.vault.remember(path)
-	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b)})
+	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b), "sum": sumOf(b)})
 }
 
 // vaultLast returns the vault file chosen earlier (within seven days) so that the page need not ask for it again.
@@ -510,7 +511,7 @@ func (s *Server) vaultLast(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b)})
+	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "data": base64.StdEncoding.EncodeToString(b), "sum": sumOf(b)})
 }
 
 func (s *Server) vaultForget(w http.ResponseWriter, _ *http.Request) {
@@ -555,7 +556,52 @@ func (s *Server) vaultSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.vault.remember(dest)
-	writeJSON(w, http.StatusOK, map[string]any{"saved": dest, "name": filepath.Base(dest)})
+	writeJSON(w, http.StatusOK, map[string]any{"saved": dest, "name": filepath.Base(dest), "sum": sumOf(b)})
+}
+
+// vaultWrite writes the vault into the file that is open (the one remembered by the application), with no dialog: the Keys save
+// every change by themselves. `base` is the fingerprint of the file as the page last saw it; when the file on the disk is another
+// (changed by a sync tool, or another file was opened in another window) it answers 409 "changed" and writes nothing, unless
+// `force` says to overwrite. 404 "no_file" when no file is remembered, 404 "gone" when it was deleted: the page then asks where to save.
+func (s *Server) vaultWrite(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Data  string `json:"data"`
+		Base  string `json:"base"`
+		Force bool   `json:"force"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	b, err := base64.StdEncoding.DecodeString(req.Data)
+	if err != nil || len(b) == 0 || len(b) > maxVault {
+		fail(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	path, ok := s.vault.recall()
+	if !ok {
+		fail(w, http.StatusNotFound, "no_file")
+		return
+	}
+	cur, err := os.ReadFile(path) //nolint:gosec // the path is the one the person chose in the dialog
+	if err != nil {
+		if os.IsNotExist(err) {
+			s.vault.forget()
+			fail(w, http.StatusNotFound, "gone")
+			return
+		}
+		fail(w, http.StatusInternalServerError, "read")
+		return
+	}
+	if !req.Force && req.Base != "" && sumOf(cur) != req.Base {
+		fail(w, http.StatusConflict, "changed")
+		return
+	}
+	if err := writeVaultInPlace(path, cur, b); err != nil {
+		fail(w, http.StatusInternalServerError, "write")
+		return
+	}
+	s.vault.remember(path) // writing is a use: the seven days start again
+	writeJSON(w, http.StatusOK, map[string]any{"name": filepath.Base(path), "sum": sumOf(b)})
 }
 
 // downloadPath is what a download may fetch: the file or the zip of the file manager of a server, or the CSV of its metrics.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../Icon.svelte';
   import { onMount } from 'svelte';
   import { api, type Session } from '../api';
   import { t } from '../i18n.svelte';
@@ -43,7 +44,7 @@
   <nav class="set-nav" aria-label={t('st.settings.nav')}>
     <h2>{t('st.settings.title')}</h2>
     {#each sections as s (s.id)}
-      <button class="sn" type="button" aria-current={current === s.id} onclick={() => (section = s.id)}>{t(`st.settings.section.${s.id}`)}</button>
+      <button class="sn" type="button" aria-current={current === s.id} onclick={() => (section = s.id)}><Icon name={s.icon} size={15} /><span>{t(`st.settings.section.${s.id}`)}</span></button>
     {/each}
     <div class="set-foot">w/ ❤️ by bolgov0zero</div>
   </nav>

@@ -617,10 +617,16 @@
     mode = kind;
   }
 
-  /** How much the window must grow (or shrink) for the picture to fit it exactly, pixel for pixel; null before the picture is there. */
+  /**
+   * How much the window must change for the picture to fill it with no black bars: the bars are the room that the picture, kept in
+   * its proportions at the scale in force, does not take (above and below, or at the sides). So the window shrinks (or grows) by
+   * exactly that, and the picture stays at the scale it has. Null before the picture is there or when there are no bars.
+   */
   export function fitDelta(): { dw: number; dh: number } | null {
     if (size.w <= 0 || size.h <= 0 || box.w <= 0 || box.h <= 0) return null;
-    return { dw: size.w - box.w, dh: size.h - box.h };
+    const dw = cssW - box.w;
+    const dh = cssH - box.h;
+    return Math.abs(dw) < 2 && Math.abs(dh) < 2 ? null : { dw, dh };
   }
 
   // in "100%" the picture is scrolled by the mouse at the edges of the window (there are no scroll bars)

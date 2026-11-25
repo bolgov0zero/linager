@@ -74,5 +74,6 @@ test('the entry that opens the snippet settings is set apart by a line and is ca
 });
 
 test('the letter of a tag badge is centred on the ink of the capital (the font has more room below the baseline)', () => {
-  assert.match(src('../app.css'), /\.tb-l\{[^}]*padding-top:2px/);
+  assert.match(src('../app.css'), /@supports \(text-box: trim-both cap alphabetic\)\{\.tb-l i\{text-box:trim-both cap alphabetic\}\}/);
+  assert.match(src('./TagBadges.svelte'), /<span class="tb-l"><i>\{letterOf\(tg\.name\)\}<\/i><\/span>/);
 });

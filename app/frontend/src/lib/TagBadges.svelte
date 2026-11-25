@@ -12,10 +12,10 @@
 {#if tags.length > 0}
   <span class="tbs">
     {#each view.shown as tg (tg.name)}
-      <span class="tb tc-{tagColor(tg.color)}" role="img" aria-label={tg.name}><span class="tb-i"><span class="tb-l">{letterOf(tg.name)}</span><span class="tb-n">{tg.name}</span></span></span>
+      <span class="tb tc-{tagColor(tg.color)}" role="img" aria-label={tg.name}><span class="tb-i"><span class="tb-l"><i>{letterOf(tg.name)}</i></span><span class="tb-n">{tg.name}</span></span></span>
     {/each}
     {#if view.rest.length > 0}
-      <span class="tb tb-more" role="img" aria-label={view.rest.map((x) => x.name).join(', ')}><span class="tb-i"><span class="tb-l">+{view.rest.length}</span><span class="tb-n">{view.rest.map((x) => x.name).join(', ')}</span></span></span>
+      <span class="tb tb-more" role="img" aria-label={view.rest.map((x) => x.name).join(', ')}><span class="tb-i"><span class="tb-l"><i>+{view.rest.length}</i></span><span class="tb-n">{view.rest.map((x) => x.name).join(', ')}</span></span></span>
     {/if}
   </span>
 {/if}

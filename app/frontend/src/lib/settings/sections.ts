@@ -2,17 +2,17 @@
 // and their own profile; the rest is for an administrator.
 export type SettingsSection = 'app' | 'profile' | 'users' | 'access' | 'connection' | 'updates' | 'audit' | 'snippets' | 'folders' | 'tags';
 
-export const SETTINGS_SECTIONS: { id: SettingsSection; admin: boolean }[] = [
-  { id: 'app', admin: false },
-  { id: 'profile', admin: false },
-  { id: 'users', admin: true },
-  { id: 'snippets', admin: true },
-  { id: 'folders', admin: true },
-  { id: 'tags', admin: true },
-  { id: 'access', admin: true },
-  { id: 'connection', admin: true },
-  { id: 'updates', admin: true },
-  { id: 'audit', admin: true },
+export const SETTINGS_SECTIONS: { id: SettingsSection; admin: boolean; icon: string }[] = [
+  { id: 'app', icon: 'sliders-horizontal', admin: false },
+  { id: 'profile', icon: 'user', admin: false },
+  { id: 'users', icon: 'users', admin: true },
+  { id: 'snippets', icon: 'file-code', admin: true },
+  { id: 'folders', icon: 'folders', admin: true },
+  { id: 'tags', icon: 'tag', admin: true },
+  { id: 'access', icon: 'shield-check', admin: true },
+  { id: 'connection', icon: 'network', admin: true },
+  { id: 'updates', icon: 'download', admin: true },
+  { id: 'audit', icon: 'scroll-text', admin: true },
 ];
 
 export function isSection(v: string): v is SettingsSection {

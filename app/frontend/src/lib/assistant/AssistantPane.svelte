@@ -5,7 +5,9 @@
   import FloatingBar from '../FloatingBar.svelte';
   import { createFullscreen } from '../fullscreen.svelte';
   import Icon from '../Icon.svelte';
+  import { asstDisplayKey, parseAsstDisplay, type AsstDisplay } from '../display-pref';
   import { native } from '../native';
+  import { getPref, setPref } from '../prefs';
   import AssistantBadge from './AssistantBadge.svelte';
   import AssistantQuality from './AssistantQuality.svelte';
   import AssistantSessionView, { type AssistInfo, type AssistPhase } from './AssistantSession.svelte';
@@ -24,7 +26,16 @@
   let info = $state<AssistInfo | null>(null);
   let screen = $state<AssistantSessionView | null>(null);
   let session = $state('console');
-  let display = $state<'fit' | 'fill' | 'real'>('fit');
+  // the mode of the picture is remembered for each server (by the application)
+  // svelte-ignore state_referenced_locally
+  let display = $state<AsstDisplay>(parseAsstDisplay(getPref(asstDisplayKey(serverId))));
+  $effect(() => {
+    display = parseAsstDisplay(getPref(asstDisplayKey(serverId)));
+  });
+  function setDisplay(v: AsstDisplay): void {
+    display = v;
+    setPref(asstDisplayKey(serverId), v);
+  }
   let list = $state<AssistSession[]>([]);
   let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
   let quality = $state(false);
@@ -87,9 +98,9 @@
     }
   }
   const displayItems = $derived<CtxItem[]>([
-    { key: 'fit', icon: 'scaling', label: t('assist.mode.fit'), selected: display === 'fit', onselect: () => (display = 'fit') },
-    { key: 'fill', icon: 'expand', label: t('assist.mode.fill'), selected: display === 'fill', onselect: () => (display = 'fill') },
-    { key: 'real', icon: 'scan', label: t('assist.mode.real'), selected: display === 'real', onselect: () => (display = 'real') },
+    { key: 'fit', icon: 'scaling', label: t('assist.mode.fit'), selected: display === 'fit', onselect: () => setDisplay('fit') },
+    { key: 'fill', icon: 'expand', label: t('assist.mode.fill'), selected: display === 'fill', onselect: () => setDisplay('fill') },
+    { key: 'real', icon: 'scan', label: t('assist.mode.real'), selected: display === 'real', onselect: () => setDisplay('real') },
     ...(onwindow || !live ? [] : [{ key: 'fitwin', icon: 'proportions', label: t('assist.mode.window'), separated: true, disabled: full.on, onselect: () => void fitWindow() }]),
     { key: 'full', icon: full.on ? 'minimize-2' : 'maximize', label: full.on ? t('fs.exit') : t('assist.mode.full'), separated: true, onselect: () => void full.toggle() },
   ]);

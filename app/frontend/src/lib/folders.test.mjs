@@ -45,8 +45,9 @@ test('what stops a move: itself, depth, a name in the way', () => {
   assert.equal(moveProblem([...deep, g(9, 'x')], 9, 7), '');
 });
 
-test('the options of a select carry the depth and the path', () => {
+test('the options of a select carry the depth, the path and the icon (an open folder when something lies in it)', () => {
   const o = folderOptions(L, 'No folder');
-  assert.deepEqual(o[0], { v: '0', t: 'No folder' });
-  assert.deepEqual(o[3], { v: '3', t: 'Front', d: 2, b: 'Prod / Web / Front' });
+  assert.deepEqual(o[0], { v: '0', t: 'No folder', i: 'folders' });
+  assert.deepEqual(o[3], { v: '3', t: 'Front', d: 2, b: 'Prod / Web / Front', i: 'folder' });
+  assert.equal(o[1].i, 'folder-open'); // "Prod" has folders under it
 });

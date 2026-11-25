@@ -1,14 +1,15 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
 
-  // An option may carry a depth `d` (the list indents it, for a tree) and a longer label `b` for the button (the path of a folder).
+  // An option may carry a depth `d` (the list indents it, for a tree), a longer label `b` for the button (the path of a folder) and an icon `i`.
+  // The chosen option is shown by the highlight of its row, not by a tick.
   let {
     value,
     options,
     icon = '',
     small = false,
     onchange,
-  }: { value: string; options: { v: string; t: string; d?: number; b?: string }[]; icon?: string; small?: boolean; onchange: (v: string) => void } = $props();
+  }: { value: string; options: { v: string; t: string; d?: number; b?: string; i?: string }[]; icon?: string; small?: boolean; onchange: (v: string) => void } = $props();
 
   let open = $state(false);
   let btn = $state<HTMLButtonElement | null>(null);
@@ -55,7 +56,7 @@
   <div bind:this={pop} class="pop" role="listbox" style="left:{pos.left}px;top:{pos.top}px;min-width:{pos.minWidth}px">
     {#each options as o (o.v)}
       <button type="button" role="option" aria-selected={o.v === value} style={o.d ? `padding-left:${9 + o.d * 14}px` : undefined} onclick={() => pick(o.v)}>
-        {o.t}{#if o.v === value}<Icon name="check" size={14} />{/if}
+        <span class="opt">{#if o.i}<Icon name={o.i} size={14} />{/if}{o.t}</span>
       </button>
     {/each}
   </div>

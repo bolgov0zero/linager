@@ -97,6 +97,8 @@ export function moveProblem(list: readonly Group[], id: number, parent: number |
 }
 
 /** The entries of a select: a "none" entry first, then the folders in tree order, each with its depth (for the indent) and its path. */
-export function folderOptions(list: readonly Group[], none: string, noneValue = '0'): { v: string; t: string; d?: number; b?: string }[] {
-  return [{ v: noneValue, t: none }, ...flatten(list).map((n) => ({ v: String(n.id), t: n.name, d: n.depth, b: n.path }))];
+export function folderOptions(list: readonly Group[], none: string, noneValue = '0'): { v: string; t: string; d?: number; b?: string; i?: string }[] {
+  // a folder has the icon of a folder (an open one when something lies in it), the entry "none" the icon of all the folders
+  const hasKids = new Set(list.map((g) => g.parent_id).filter((x): x is number => x != null));
+  return [{ v: noneValue, t: none, i: 'folders' }, ...flatten(list).map((n) => ({ v: String(n.id), t: n.name, d: n.depth, b: n.path, i: hasKids.has(n.id) ? 'folder-open' : 'folder' }))];
 }

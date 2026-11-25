@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../Icon.svelte';
   import { onMount } from 'svelte';
   import { api, type Group } from '../api';
   import { isUnauthorized } from '../errors';
@@ -23,6 +24,7 @@
 
   type Tab = 'confirm' | 'link' | 'ssh';
   const TABS: Tab[] = ['confirm', 'link', 'ssh'];
+  const TAB_ICON: Record<Tab, string> = { confirm: 'circle-check', link: 'link', ssh: 'square-terminal' };
   let tab = $state<Tab>('confirm');
   let pending = $state(0);
   let groups = $state<Group[]>([]);
@@ -38,7 +40,7 @@
   <div class="asv">
     <nav class="asv-nav" aria-label={t('asv.nav')}>
       {#each TABS as id (id)}
-        <button type="button" aria-current={tab === id} onclick={() => (tab = id)}><span>{t(`asv.tab.${id}`)}</span>{#if id === 'confirm'}<em class:hot={pending > 0}>{pending}</em>{/if}</button>
+        <button type="button" aria-current={tab === id} onclick={() => (tab = id)}><span class="asv-l"><Icon name={TAB_ICON[id]} size={15} />{t(`asv.tab.${id}`)}</span>{#if id === 'confirm'}<em class:hot={pending > 0}>{pending}</em>{/if}</button>
       {/each}
     </nav>
     <div class="asv-body">

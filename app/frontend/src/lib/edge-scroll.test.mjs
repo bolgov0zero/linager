@@ -70,3 +70,10 @@ test('the number of a session in the menu does not take the margin of the global
   assert.doesNotMatch(src('./ContextMenu.svelte'), /class="lead"/);
   assert.match(src('../app.css'), /\.ctx \.clead\{[^}]*margin:0/);
 });
+
+test('"Window fits the picture" takes away the black bars: the window changes by the room the scaled picture does not take', () => {
+  const asst = src('./assistant/AssistantSession.svelte');
+  assert.match(asst, /const dw = cssW - box\.w;/);
+  assert.match(asst, /const dh = cssH - box\.h;/);
+  assert.doesNotMatch(asst, /dw: size\.w - box\.w/); // not the real size of the screen
+});

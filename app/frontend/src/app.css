@@ -873,7 +873,10 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 .tbs{display:inline-flex;align-items:center;gap:3px;flex:none}
 .tb{position:relative;flex:none;width:20px;height:20px}
 .tb-i{position:absolute;left:0;top:0;height:20px;box-sizing:border-box;width:max-content;max-width:20px;overflow:hidden;border-radius:var(--radius-sm);border:1px solid color-mix(in srgb,var(--tg) 38%,transparent);background:color-mix(in srgb,var(--tg) 18%,var(--surface));color:color-mix(in srgb,var(--tg) 55%,var(--text));transition:max-width .18s ease,box-shadow .18s}
-.tb-l{position:absolute;left:0;top:0;width:18px;height:18px;box-sizing:border-box;padding-top:2px;display:grid;place-items:center;font-size:11px;font-weight:600;transition:opacity .1s}
+.tb-l{position:absolute;left:0;top:0;width:18px;height:18px;display:grid;place-items:center;font-size:11px;font-weight:600;transition:opacity .1s}
+.tb-l i{display:block;font-style:normal;line-height:1}
+/* the letter is centred by its capitals, not by the em box: the fonts of the engines keep different room above and below the baseline */
+@supports (text-box: trim-both cap alphabetic){.tb-l i{text-box:trim-both cap alphabetic}}
 .tb-n{display:block;height:18px;line-height:18px;padding:0 8px;font-size:11.5px;font-weight:500;white-space:nowrap;opacity:0;transition:opacity .12s .06s}
 .tb:hover{z-index:6}.tb:hover .tb-i{max-width:280px;box-shadow:0 4px 14px rgba(0,0,0,.35)}.tb:hover .tb-l{opacity:0}.tb:hover .tb-n{opacity:1}
 .tb-more .tb-l{font:500 10.5px var(--mono)}.tb-more .tb-i{background:var(--surface);border-color:var(--border-h);color:var(--text2)}
@@ -945,3 +948,8 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 .pf-small{font-size:11.5px}
 .pf-codes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 10px;margin:0;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none;background:var(--input-bg);font-size:12.5px}
 .upd-act{display:flex;gap:8px;margin-left:auto;flex:none}
+
+.set-nav .sn{gap:9px}.set-nav .sn .ic{color:var(--text3);flex:none}.set-nav .sn:hover .ic{color:var(--text2)}.set-nav .sn[aria-current=true] .ic{color:var(--accent-t)}
+.asv-nav .asv-l{display:inline-flex;align-items:center;gap:9px}.asv-nav .asv-l .ic{color:var(--text3);flex:none}.asv-nav button[aria-current=true] .asv-l .ic{color:var(--accent-t)}
+.pop button .opt{display:inline-flex;align-items:center;gap:8px;min-width:0}.pop button .opt .ic{color:var(--text3);flex:none}
+.pop button[aria-selected=true]{background:var(--accent-soft)}.pop button[aria-selected=true] .opt .ic{color:var(--accent-t)}

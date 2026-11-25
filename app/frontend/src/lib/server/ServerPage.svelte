@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { flagValue, parseFlag, SIDEBAR_KEY } from '../display-pref';
+  import { getPref, setPref } from '../prefs';
   import { onMount } from 'svelte';
   import { ApiError, serverApi, subscribeLive, type ServerDetail } from '../api';
   import DeleteServerModal from '../DeleteServerModal.svelte';
@@ -37,7 +39,12 @@
 
   let s = $state<ServerDetail | null>(null);
   let missing = $state(false);
-  let collapsed = $state(false);
+  // the sidebar is folded or open the same on every server: the choice is kept by the application
+  let collapsed = $state(parseFlag(getPref(SIDEBAR_KEY), false));
+  function toggleSidebar(): void {
+    collapsed = !collapsed;
+    setPref(SIDEBAR_KEY, flagValue(collapsed));
+  }
   let closedGroups = $state<Record<string, boolean>>({});
 
   interface Item {
@@ -163,7 +170,7 @@
         {/each}
       </div>
       <div class="sp-foot"><span class="mono">agent {s.agent_version}</span>
-        <button class="btn xs" type="button" onclick={() => (collapsed = !collapsed)} title={collapsed ? t('sp.expand') : t('sp.collapse')}><Icon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={15} /></button>
+        <button class="btn xs" type="button" onclick={toggleSidebar} title={collapsed ? t('sp.expand') : t('sp.collapse')}><Icon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={15} /></button>
       </div>
     </aside>
 

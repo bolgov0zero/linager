@@ -2975,5 +2975,11 @@
   "st.profile.copyLink": "Копировать ссылку",
   "st.profile.newCodes": "10 новых",
   "st.profile.newOnes": "Создать новые",
-  "st.recovery.leftShort": "осталось {n}"
+  "st.recovery.leftShort": "осталось {n}",
+  "keys.saving": "сохраняется…",
+  "keys.saveFailed": "не удалось сохранить",
+  "keys.conflict.title": "Файл ключей изменился на диске",
+  "keys.conflict.text": "После того как вы открыли файл, его изменил кто-то другой (программа синхронизации или другой компьютер). Перезаписать его вашими изменениями? Прежнее содержимое останется рядом в файле .bak.",
+  "keys.conflict.overwrite": "Перезаписать",
+  "keys.conflict.other": "Сохранить как…"
 }

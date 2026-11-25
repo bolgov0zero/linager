@@ -9,7 +9,7 @@
   import KeyEditModal from './KeyEditModal.svelte';
   import KeyOpenForm from './KeyOpenForm.svelte';
   import { TYPES, bindText } from './labels';
-  import { LOCK_CHOICES, closeVault, createVault, lockMinutes, lockWaiting, removeEntry, saveFile, setLockMinutes, touch, vault } from './store';
+  import { LOCK_CHOICES, autosave, closeVault, createVault, flush, lockMinutes, lockWaiting, removeEntry, saveFile, setLockMinutes, touch, vault } from './store';
   import { DEFAULT_FILE, PASSPHRASE_MIN, VaultError, accountOf, type Entry, type EntryType } from './vault';
 
   // The window "Keys": create or open the personal vault, then list, add, change and delete the keys.
@@ -57,6 +57,7 @@
     return ok;
   }
   async function closeAsk(): Promise<void> {
+    if ($vault?.dirty) await flush(); // the last changes go into the file before it closes
     if (!$vault?.dirty) return closeVault();
     // saving first; "drop" closes at once
     const keep = await confirmAsk({ title: t('keys.closeAsk.title'), text: t('keys.closeAsk.text'), ok: t('keys.closeAsk.save'), cancel: t('keys.closeAsk.drop'), danger: false });
@@ -93,10 +94,12 @@
         <span class="ok-t"><span class="dot ok"></span> {t('keys.state.open')}</span>
         <b class="mono" title={$vault.file}>{$vault.file}</b>
         <span class="dim">{t('keys.count', { n: entries.length })}</span>
-        {#if $vault.dirty}<span class="badge b-warn">{t('keys.unsaved')}</span>{:else}<span class="dim">{t('keys.saved')}</span>{/if}
+        {#if $vault.saveError}<span class="badge b-crit">{t('keys.saveFailed')}</span>
+        {:else if $vault.dirty || $vault.saving}<span class="dim">{t('keys.saving')}</span>
+        {:else}<span class="dim">{t('keys.saved')}</span>{/if}
         <span class="grow"></span>
         <span class="dim">{t('keys.lock.label')}</span><CustomSelect small value={String($lockMinutes)} options={lockOptions} onchange={(v) => setLockMinutes(Number(v))} />
-        <button class="btn sm" class:primary={$vault.dirty} type="button" onclick={() => void save()}>{t('keys.save')}</button>
+        {#if $vault.saveError || !$autosave}<button class="btn sm primary" type="button" onclick={() => void save()}>{t('keys.save')}</button>{/if}
         <button class="btn sm" type="button" onclick={closeAsk}>{t('keys.close')}</button>
       </div>
       {#if $lockWaiting}<p class="warnbox warn" role="status">{t('keys.lock.waiting')}</p>{/if}

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.10
+
+- New (application): **the Keys save by themselves.** Every change of a key is written into the open file half a second later, with no dialog and no "Save" button (the window says "saving…" and "saved"). The application writes through a temporary file and keeps the previous content beside the file as `<file>.bak`, and refuses to overwrite a file that was changed on the disk since it was read (it asks: overwrite, or save as another file). When a write fails the window says so and shows "Save the file". The auto-lock writes what is not written yet before it closes. The new endpoint is `PUT /app/vault/write`; the answers of open, last and save carry the fingerprint `sum` of the file. A browser in development keeps the button. Tests: `TestVaultWriteInPlace`, `autosave.test.mjs`.
+- Change (application): **the settings sidebar, the sidebar of "Add server" and the list of the folders have icons**, the folders list as in the settings (a folder, an open one when something lies in it, "all folders"). The chosen entry of the lists is shown by the highlight, not by a tick.
+- Fix (application): **the letter of a tag badge is centred for real.** The 1.1.9 fix moved it by a fixed pixel, which is right for one engine only; the web views of the system keep a different room above and below the baseline. Now the box of the letter is cut to the height of the capitals (`text-box: trim-both cap alphabetic`), so it is centred by the letter itself in any engine that supports it (Safari 18.2+, Chromium 133+).
+- New (application): **the application remembers the mode of the picture for each server.** The Assistant (fit the window, stretch, 100%) and the remote desktop (the scale, and "change the resolution to the window") open each server the way it was left. It is kept in the preferences of the application, not on the Linager server. The remote desktop applies the remembered scale to a new connection, which used to start as "fit" every time.
+- New (application): **the sidebar of the page of a server is remembered for all the servers.** Fold it on one and it is folded on every page of a server (and open again the same way). Also only in the application. Tests: `display-pref.test.mjs`.
+- Fix (application): **"Window fits the picture" takes away the black bars** instead of growing the window to the real size of the screen. The bars are the room above and below (or at the sides) that the picture, kept in its proportions, does not take; the window shrinks (or grows) by exactly that, and the picture keeps the scale it had. With no bars the entry does nothing.
+
 ## 1.1.9
 
 - Fix (application): **the letter of a tag badge was a pixel too high** in the badges of the cards and of the rows: the font keeps more room under the baseline than above the capitals, so the letter is centred on its ink now.

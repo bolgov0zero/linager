@@ -580,6 +580,79 @@ func TestWindowFitEndpoint(t *testing.T) {
 	}
 }
 
+// TestVaultWriteInPlace: the Keys write every change into the open file with no dialog: atomically, the previous content stays
+// as a .bak, a file that was changed on the disk is not overwritten without "force", and nothing is written when no file is open.
+func TestVaultWriteInPlace(t *testing.T) {
+	dir := t.TempDir()
+	vault := filepath.Join(dir, "keys.lvault")
+	if err := os.WriteFile(vault, []byte("v1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, _ := profiles.Open(filepath.Join(dir, "profiles.json"))
+	s, err := New(Options{Assets: fstest.MapFS{"index.html": {Data: []byte("x")}}, Profiles: store, VaultMemo: filepath.Join(dir, "vault-last.json"),
+		PickFile: func(string) (string, bool, error) { return vault, true, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = s.Serve() }()
+	t.Cleanup(s.Close)
+	enc := func(x string) string { return base64.StdEncoding.EncodeToString([]byte(x)) }
+	if c := call(t, "PUT", s.URL()+"app/vault/write", map[string]any{"data": enc("v2")}, nil); c != http.StatusNotFound {
+		t.Fatalf("no file is open: %d", c)
+	}
+	var open struct {
+		Sum string `json:"sum"`
+	}
+	if c := call(t, "POST", s.URL()+"app/vault/open", map[string]string{}, &open); c != 200 || open.Sum != sumOf([]byte("v1")) {
+		t.Fatalf("open: %d %+v", c, open)
+	}
+	var wrote struct {
+		Sum string `json:"sum"`
+	}
+	if c := call(t, "PUT", s.URL()+"app/vault/write", map[string]any{"data": enc("v2"), "base": open.Sum}, &wrote); c != 200 || wrote.Sum != sumOf([]byte("v2")) {
+		t.Fatalf("write: %d %+v", c, wrote)
+	}
+	if b, _ := os.ReadFile(vault); string(b) != "v2" {
+		t.Fatalf("the file was not written: %q", b)
+	}
+	if b, _ := os.ReadFile(vault + ".bak"); string(b) != "v1" {
+		t.Fatalf("the previous content must stay as .bak: %q", b)
+	}
+	if st, _ := os.Stat(vault); st.Mode().Perm() != 0o600 {
+		t.Fatalf("the file holds passwords: %v", st.Mode())
+	}
+	left, _ := filepath.Glob(filepath.Join(dir, ".lvault-*"))
+	if len(left) != 0 {
+		t.Fatalf("a temporary file was left: %v", left)
+	}
+	// somebody else changed the file: refused, nothing written; "force" overwrites
+	if err := os.WriteFile(vault, []byte("theirs"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if c := call(t, "PUT", s.URL()+"app/vault/write", map[string]any{"data": enc("v3"), "base": wrote.Sum}, nil); c != http.StatusConflict {
+		t.Fatalf("a changed file: %d", c)
+	}
+	if b, _ := os.ReadFile(vault); string(b) != "theirs" {
+		t.Fatalf("a refused write must not touch the file: %q", b)
+	}
+	if c := call(t, "PUT", s.URL()+"app/vault/write", map[string]any{"data": enc("v3"), "base": wrote.Sum, "force": true}, nil); c != 200 {
+		t.Fatalf("force: %d", c)
+	}
+	if b, _ := os.ReadFile(vault + ".bak"); string(b) != "theirs" {
+		t.Fatalf(".bak must hold what was overwritten: %q", b)
+	}
+	// a deleted file: "gone", and it is forgotten
+	if err := os.Remove(vault); err != nil {
+		t.Fatal(err)
+	}
+	if c := call(t, "PUT", s.URL()+"app/vault/write", map[string]any{"data": enc("v4")}, nil); c != http.StatusNotFound {
+		t.Fatalf("a deleted file: %d", c)
+	}
+	if c := call(t, "PUT", s.URL()+"app/vault/write", map[string]any{"data": "!!"}, nil); c != http.StatusBadRequest {
+		t.Fatalf("bad data: %d", c)
+	}
+}
+
 // A check that GitHub refuses for the number of requests says so, with the time it may be repeated.
 func TestUpdateCheckSaysWhenGitHubRefusesForTheLimit(t *testing.T) {
 	rel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

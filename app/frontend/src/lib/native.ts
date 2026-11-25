@@ -62,12 +62,14 @@ export const native = {
   /** Saves a file of the server (a path of its API) to the disk: the application asks where. saved is the path; cancelled when it was. */
   download: (path: string, name: string) => call<{ saved?: string; cancelled?: boolean }>('POST', 'download', { path, name }),
   /** The file of the vault (Keys): the application asks which file (a native dialog) and returns its bytes (base64). */
-  vaultOpen: () => call<{ name?: string; data?: string; cancelled?: boolean }>('POST', 'vault/open', {}),
+  vaultOpen: () => call<{ name?: string; data?: string; sum?: string; cancelled?: boolean }>('POST', 'vault/open', {}),
   /** The vault file chosen in the last seven days (every use renews the period): the bytes come back without a dialog. */
-  vaultLast: () => call<{ name?: string; data?: string }>('GET', 'vault/last'),
+  vaultLast: () => call<{ name?: string; data?: string; sum?: string }>('GET', 'vault/last'),
   vaultForget: () => call<{ ok: boolean }>('DELETE', 'vault/last'),
   /** The application asks where to save the file (a native dialog) and writes the bytes (base64, already encrypted). */
-  vaultSave: (name: string, data: string) => call<{ saved?: string; name?: string; cancelled?: boolean }>('POST', 'vault/save', { name, data }),
+  vaultSave: (name: string, data: string) => call<{ saved?: string; name?: string; sum?: string; cancelled?: boolean }>('POST', 'vault/save', { name, data }),
+  /** Writes the vault into the file that is open, with no dialog. `base` is the fingerprint of the file as it was last seen: 409 when the file changed since. */
+  vaultWrite: (data: string, base: string, force = false) => call<{ name: string; sum: string }>('PUT', 'vault/write', { data, base, force }),
   /** The connections of the tray (kept by the application, per Linager server): the entries and whether the tray exists. */
   trayGet: () => call<{ entries: TrayEntry[]; native: boolean }>('GET', 'tray'),
   /** Sets the modes (terminal, rdp, asst) of a server in the tray; no modes removes it. */

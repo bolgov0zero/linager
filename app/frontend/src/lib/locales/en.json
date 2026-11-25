@@ -2974,5 +2974,11 @@
   "st.profile.copyLink": "Copy the link",
   "st.profile.newCodes": "10 new",
   "st.profile.newOnes": "Create new",
-  "st.recovery.leftShort": "{n} left"
+  "st.recovery.leftShort": "{n} left",
+  "keys.saving": "saving…",
+  "keys.saveFailed": "could not save",
+  "keys.conflict.title": "The keys file changed on the disk",
+  "keys.conflict.text": "After you opened the file someone else changed it (a sync program or another computer). Overwrite it with your changes? The previous content stays beside it in a .bak file.",
+  "keys.conflict.overwrite": "Overwrite",
+  "keys.conflict.other": "Save as…"
 }

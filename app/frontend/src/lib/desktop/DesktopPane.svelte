@@ -4,16 +4,37 @@
   import FloatingBar from '../FloatingBar.svelte';
   import { createFullscreen } from '../fullscreen.svelte';
   import Icon from '../Icon.svelte';
+  import { flagValue, parseFlag, parseRdpScale, rdpAutoKey, rdpScaleKey, type RdpScale } from '../display-pref';
   import { native } from '../native';
+  import { getPref, setPref } from '../prefs';
   import DesktopSessionView, { type DeskPhase } from './DesktopSession.svelte';
 
   // The remote desktop (RDP) of a Windows computer: the bar, then the client. Used in a Console tab and on the server page.
   let { serverId, name, address, online, nativeWindows = false, onwindow }: { serverId: string; name: string; address: string; online: boolean; nativeWindows?: boolean; onwindow?: () => void } = $props();
 
   let phase = $state<DeskPhase>('form');
-  let autoResize = $state(true);
-  /** The scale in force (a new connection starts as "fit"). */
-  let scale = $state<'fit' | 'real'>('fit');
+  // the scale and the resolution that follows the window are remembered for each server (by the application)
+  // svelte-ignore state_referenced_locally
+  let autoResize = $state(parseFlag(getPref(rdpAutoKey(serverId)), true));
+  // svelte-ignore state_referenced_locally
+  let scale = $state<RdpScale>(parseRdpScale(getPref(rdpScaleKey(serverId))));
+  $effect(() => {
+    autoResize = parseFlag(getPref(rdpAutoKey(serverId)), true);
+    scale = parseRdpScale(getPref(rdpScaleKey(serverId)));
+  });
+  // a new connection starts as "fit": the remembered scale is put on it when it is open
+  $effect(() => {
+    if (phase === 'open') session?.setScale(scale);
+  });
+  function setScale(v: RdpScale): void {
+    scale = v;
+    setPref(rdpScaleKey(serverId), v);
+    session?.setScale(v);
+  }
+  function toggleAuto(): void {
+    autoResize = !autoResize;
+    setPref(rdpAutoKey(serverId), flagValue(autoResize));
+  }
   let session = $state<DesktopSessionView | null>(null);
   let menu = $state<{ x: number; y: number; items: CtxItem[] } | null>(null);
   let root = $state<HTMLDivElement | null>(null);
@@ -21,14 +42,11 @@
 
   const live = $derived(phase === 'open');
   const statusText = $derived(phase === 'connecting' ? t('desk.connecting') : phase === 'open' ? t('desk.open') : t('desk.closed'));
-  $effect(() => {
-    if (phase !== 'open') scale = 'fit';
-  });
   // the button "display": the scale of the picture, the resolution that follows the window and the full screen
   const displayItems = $derived<CtxItem[]>([
-    { key: 'fit', icon: 'scaling', label: t('desk.scaleFit'), selected: scale === 'fit', onselect: () => { scale = 'fit'; session?.setScale('fit'); } },
-    { key: 'real', icon: 'scan', label: t('desk.scaleReal'), selected: scale === 'real', onselect: () => { scale = 'real'; session?.setScale('real'); } },
-    { key: 'auto', icon: 'refresh-cw', label: t('desk.autoResize'), selected: autoResize, separated: true, onselect: () => (autoResize = !autoResize) },
+    { key: 'fit', icon: 'scaling', label: t('desk.scaleFit'), selected: scale === 'fit', onselect: () => setScale('fit') },
+    { key: 'real', icon: 'scan', label: t('desk.scaleReal'), selected: scale === 'real', onselect: () => setScale('real') },
+    { key: 'auto', icon: 'refresh-cw', label: t('desk.autoResize'), selected: autoResize, separated: true, onselect: toggleAuto },
     { key: 'full', icon: full.on ? 'minimize-2' : 'maximize', label: full.on ? t('fs.exit') : t('desk.fullscreen'), separated: true, onselect: () => void full.toggle() },
   ]);
   const moreItems = $derived.by<CtxItem[]>(() => {
