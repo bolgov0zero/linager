@@ -4,7 +4,8 @@
   import { t } from './i18n.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
-  import { assistantOffered, chipsOf, isWindows, levelOf, meter, rdpOffered, visibleChips, worstTone, type AgentFlag, type Chip } from './status';
+  import TagBadges from './TagBadges.svelte';
+  import { assistantOffered, CHIP_ICON, chipsOf, isWindows, levelOf, meter, rdpOffered, visibleChips, worstTone, type AgentFlag, type Chip } from './status';
 
   let { card, editing = false, agent = null, onopen }: { card: ServerCard; editing?: boolean; agent?: AgentFlag; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
 
@@ -25,8 +26,7 @@
   );
   // The footer: what needs a look as small chips (failures, a reboot, updates, Docker images, the agent), and the address when there is
   // nothing. Three chips fit next to the buttons; the rest fold into "+N" (the tooltip lists them).
-  const chips = $derived(visibleChips(chipsOf(card, agent)));
-  const ICON: Record<Chip['id'], string> = { offline: '', failed: 'triangle-alert', reboot: 'power', updates: 'circle-arrow-up', images: 'container', agentUpdate: 'sparkles', agentOld: 'triangle-alert' };
+  const chips = $derived(visibleChips(chipsOf(card, agent), (card.tag_items?.length ?? 0) > 0 ? 2 : 3));
   const chipTitle = (x: Chip): string => t(`tag.${x.id}`, { n: x.n ?? 0 });
 </script>
 
@@ -45,12 +45,13 @@
   <footer class="mini-f">
     <div class="mchips">
       {#each chips.shown as x (x.id)}
-        <span class="mchip t-{x.tone}" class:txt={x.id === 'offline'} title={chipTitle(x)}>{#if ICON[x.id]}<Icon name={ICON[x.id]} size={11} />{/if}{#if x.id === 'offline'}{t('tag.s.offline')}{:else if x.n}{x.n}{/if}</span>
+        <span class="mchip t-{x.tone}" class:txt={x.id === 'offline'} title={chipTitle(x)}>{#if CHIP_ICON[x.id]}<Icon name={CHIP_ICON[x.id]} size={11} />{/if}{#if x.id === 'offline'}{t('tag.s.offline')}{:else if x.n}{x.n}{/if}</span>
       {:else}
         <span class="mono dim">{card.address}</span>
       {/each}
       {#if chips.rest.length > 0}<span class="mchip t-{worstTone(chips.rest)} more" title={chips.rest.map(chipTitle).join('; ')}>+{chips.rest.length}</span>{/if}
     </div>
+    <TagBadges tags={card.tag_items ?? []} max={2} />
     <div class="acts">
       {#if hasModule('terminal')}      <button class="btn icon xs" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onopen(card, 'terminal')}><Icon name="square-terminal" size={14} /></button>{/if}
       {#if hasModule('desktop') && rdpOffered(card)}<button class="btn icon xs" type="button" title={t('card.rdp')} disabled={!card.online} onclick={() => onopen(card, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}

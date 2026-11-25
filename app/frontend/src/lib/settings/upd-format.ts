@@ -1,5 +1,8 @@
-import { ApiError, type UpdateStep } from '../api';
+import { ApiError, type AgentUpdateRow, type UpdateStep } from '../api';
 import { i18n, t } from '../i18n.svelte';
+
+/** The agent states a rollout can be run for: the ones that count as "needs an update" on the tab and in the table. */
+export const APPLICABLE = new Set<AgentUpdateRow['status']>(['available', 'unsupported', 'failed', 'rollback']);
 
 export const SERVER_STEPS: UpdateStep['id'][] = ['verify', 'backup', 'stop', 'replace', 'migrate', 'start'];
 

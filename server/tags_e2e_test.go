@@ -37,6 +37,23 @@ func TestServerTags(t *testing.T) {
 	if code := admin.do("GET", "/api/servers/"+id, nil, &got); code != 200 || strings.Join(got.Tags, "|") != "prod|Web tier|db" {
 		t.Fatalf("the tags come back with the server: %d %+v", code, got)
 	}
+	// the dashboard cards carry the tags with their colours, in the given order (an empty list for a server without any)
+	var dash struct {
+		Items []struct {
+			ID   string `json:"id"`
+			Tags []struct {
+				Name  string `json:"name"`
+				Color string `json:"color"`
+			} `json:"tag_items"`
+		} `json:"items"`
+	}
+	if code := admin.do("POST", "/api/dashboard/items", map[string]any{"server_id": id}, nil); code != 200 && code != 409 {
+		t.Fatalf("add to the dashboard: %d", code)
+	}
+	if code := admin.do("GET", "/api/dashboard", nil, &dash); code != 200 || len(dash.Items) != 1 || len(dash.Items[0].Tags) != 3 ||
+		dash.Items[0].Tags[0].Name != "prod" || dash.Items[0].Tags[0].Color == "" {
+		t.Fatalf("the dashboard card must carry the tags: %d %+v", code, dash)
+	}
 	// a smaller set replaces the bigger one
 	if code := admin.do("PUT", "/api/servers/"+id+"/tags", map[string]any{"tags": []string{"db"}}, &got); code != 200 || len(got.Tags) != 1 {
 		t.Fatalf("replace: %d %+v", code, got)

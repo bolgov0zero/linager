@@ -3,15 +3,13 @@
   import CustomSelect from '../CustomSelect.svelte';
   import { shortOs } from '../status';
   import { t } from '../i18n.svelte';
-  import Fold from './Fold.svelte';
   import UpdAgentSteps from './UpdAgentSteps.svelte';
+  import { APPLICABLE } from './upd-format';
 
   let { info, onrun }: { info: UpdatesInfo; /** Resolves true when the request was accepted. */ onrun: (ids: string[] | 'all', mode: RolloutMode, stopOnError: boolean) => Promise<boolean> } = $props();
 
-  const APPLICABLE = new Set<AgentUpdateRow['status']>(['available', 'unsupported', 'failed', 'rollback']);
   const TOTAL_STEPS = 8;
 
-  let open = $state(false);
   let mode = $state<RolloutMode>('first_then_rest');
   let stopOnError = $state(true);
   /** Checkbox state by agent id. Kept apart from `info`, so refreshes never reset it. */
@@ -27,10 +25,6 @@
   const allSelected = $derived(applicable.length > 0 && selectedIds.length === applicable.length);
   const needServer = $derived(Boolean(info.server.available) && info.server.available !== info.server.current);
   const modeOptions = $derived([{ v: 'all', t: t('st.upd.mode.all') }, { v: 'one_by_one', t: t('st.upd.mode.one') }, { v: 'first_then_rest', t: t('st.upd.mode.first') }]);
-
-  /** The folded header says what needs doing, so the list can stay closed. */
-  const meta = $derived(rolloutRunning ? t('st.upd.agents.metaRunning') : applicable.length > 0 ? t('st.upd.agents.metaNeed', { n: applicable.length }) : info.agents.length > 0 ? t('st.upd.agents.metaOk') : '');
-  const metaTone = $derived<'ok' | 'warn' | 'muted'>(rolloutRunning || applicable.length > 0 ? 'warn' : info.agents.length > 0 ? 'ok' : 'muted');
 
   async function run(ids: string[] | 'all', clear: string[] = []): Promise<void> {
     submitting = true;
@@ -50,7 +44,7 @@
   const stepName = (a: AgentUpdateRow): string => (a.step_id ? t(`st.upd.agstep.${a.step_id}`) : '');
 </script>
 
-<Fold title={t('st.upd.agents.title')} {meta} tone={metaTone} bind:open>
+<div class="upd-agents">
   <p class="dim">{t('st.upd.agents.intro')} <b class="mono">{info.agents_target}</b>. {#if needServer}{t('st.upd.agents.needServer', { version: info.server.available ?? '' })}{/if}</p>
   {#if rolloutRunning}<p class="warnbox warn">{t('st.upd.agents.rolloutRunning')}</p>{/if}
 
@@ -73,7 +67,7 @@
         {@const isApplicable = APPLICABLE.has(agent.status)}
         <tr>
           <td>{#if isApplicable}<input type="checkbox" aria-label={t('st.upd.agents.select', { name: agent.name })} bind:checked={picked[agent.id]} disabled={!canAct} />{/if}</td>
-          <td class="srvc"><div class="cut"><b>{agent.name}</b></div><div class="dim cut" title="{agent.os} · {agent.address}">{shortOs(agent.os)} · {agent.address}</div></td>
+          <td class="srvc"><div class="cut"><b>{agent.name}</b></div><div class="dim cut" title="{agent.os} · {agent.address}">{shortOs(agent.os)} · {agent.address}</div><div class="nm-ver mono">{agent.version}</div></td>
           <td class="mono">{agent.version}</td>
           <td class="stc">
             {#if agent.status === 'current' && agent.manual}<span class="badge b-warn">{t('st.upd.ag.manual', { version: agent.target ?? '' })}</span>
@@ -107,4 +101,4 @@
       {/each}
     </tbody>
   </table></div>
-</Fold>
+</div>

@@ -153,6 +153,27 @@ func (s *Store) ServerTags(ctx context.Context, serverID string) ([]TagRef, erro
 	return out, rows.Err()
 }
 
+// AllServerTags returns the tags of every server that has any, by server id, each list in the order they were given (the
+// dashboard shows them on the cards, so it asks once for all of them).
+func (s *Store) AllServerTags(ctx context.Context) (map[string][]TagRef, error) {
+	rows, err := s.Pool.Query(ctx, `SELECT st.server_id::text, t.id, t.name, t.color FROM server_tags st JOIN tags t ON t.id=st.tag_id
+		ORDER BY st.server_id, st.position, lower(t.name)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]TagRef{}
+	for rows.Next() {
+		var id string
+		var t TagRef
+		if err := rows.Scan(&id, &t.ID, &t.Name, &t.Color); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], t)
+	}
+	return out, rows.Err()
+}
+
 // SetServerTags replaces the tags of a server by names (a name the registry does not know yet is added to it, with the
 // default colour). It returns the tags now on the server and how many users hold a grant by a tag that was put on or taken
 // off, because their access to this server changed with it. ErrNotFound when there is no such server.

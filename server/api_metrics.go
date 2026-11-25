@@ -53,6 +53,8 @@ type serverCard struct {
 	Sample       *protocol.Sample `json:"sample"`
 	Spark        []float64        `json:"spark"`
 	GroupID      *int64           `json:"group_id"`
+	// Tags are the tags of the server with their colours (an empty list, not null, when there are none).
+	Tags []store.TagRef `json:"tag_items"`
 }
 
 func (a *Admin) card(ctx context.Context, s *store.Server) serverCard {
@@ -61,7 +63,7 @@ func (a *Admin) card(ctx context.Context, s *store.Server) serverCard {
 		v.Spark = []float64{}
 	}
 	return serverCard{ID: s.ID, Name: s.Name, Address: s.Address, OS: s.OS, AgentVersion: s.AgentVersion,
-		Online: a.Hub.Online(s.ID), LastSeenAt: s.LastSeenAt, Sample: v.Sample, Spark: v.Spark}
+		Online: a.Hub.Online(s.ID), LastSeenAt: s.LastSeenAt, Sample: v.Sample, Spark: v.Spark, Tags: []store.TagRef{}}
 }
 
 func (a *Admin) dashID(r *http.Request, u *store.User) (int64, bool) {
@@ -91,11 +93,15 @@ func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request, u *store.User)
 		return
 	}
 	groups, _ := a.DB.ServerGroups(r.Context())
+	tags, _ := a.DB.AllServerTags(r.Context()) // the tags are optional: a failure shows the cards without them
 	items := make([]serverCard, 0, len(list))
 	for _, s := range list {
 		c := a.card(r.Context(), s)
 		if g, ok := groups[s.ID]; ok {
 			c.GroupID = &g
+		}
+		if tg, ok := tags[s.ID]; ok {
+			c.Tags = tg
 		}
 		items = append(items, c)
 	}

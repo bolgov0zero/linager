@@ -106,7 +106,7 @@
 <div class="term-win" class:embedded>
   <div class="term-tools">
     <CustomSelect small value={user} options={userOptions} icon="user" onchange={(v) => (user = v)} />
-    <Menu icon="file-code" label={t('term.snippets')} items={[...snippets.map((s) => ({ v: String(s.id), t: s.name, alt: true })), { v: MANAGE, t: t('term.snippets.manage') }]} empty={t('term.snippets.none')} onpick={(v) => runSnippet(v)} onalt={(v) => runSnippet(v, true)} altIcon="clipboard-paste" altTitle={t('term.snippetPaste')} />
+    <Menu icon="file-code" label={t('term.snippets')} items={[...snippets.map((s) => ({ v: String(s.id), t: s.name, alt: true })), { v: MANAGE, t: t('term.snippets.manage'), sep: true }]} empty={t('term.snippets.none')} onpick={(v) => runSnippet(v)} onalt={(v) => runSnippet(v, true)} altIcon="clipboard-paste" altTitle={t('term.snippetPaste')} />
     <span class="spacer"></span>
     {#if phase !== 'open'}<span class="muted" style="font-size:12px">{phase === 'connecting' ? t('term.connecting') : t('term.closed')}</span>{/if}
     {#if phase === 'closed'}<button class="btn sm" type="button" onclick={() => (attempt += 1)}>{t('term.reconnect')}</button>{/if}

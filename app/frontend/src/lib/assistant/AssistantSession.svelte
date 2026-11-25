@@ -22,6 +22,7 @@
 </script>
 
 <script lang="ts">
+  import { attachEdgeScroll } from '../edge-scroll';
   import { untrack } from 'svelte';
   import { assistantSocketUrl } from '../api';
   import { t } from '../i18n.svelte';
@@ -72,6 +73,7 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null);
   let host = $state<HTMLDivElement | null>(null);
+  let view = $state<HTMLDivElement | null>(null);
   let message = $state('');
   /** The computer's screen is dark and is being woken: a plain "connecting" stub, with no technical hint. */
   let waking = $state(false);
@@ -615,11 +617,30 @@
     mode = kind;
   }
 
+  /** How much the window must grow (or shrink) for the picture to fit it exactly, pixel for pixel; null before the picture is there. */
+  export function fitDelta(): { dw: number; dh: number } | null {
+    if (size.w <= 0 || size.h <= 0 || box.w <= 0 || box.h <= 0) return null;
+    return { dw: size.w - box.w, dh: size.h - box.h };
+  }
+
+  // in "100%" the picture is scrolled by the mouse at the edges of the window (there are no scroll bars)
+  $effect(() => {
+    if (!view) return;
+    return attachEdgeScroll(view, {
+      scroller: () => view,
+      enabled: () => mode === 'real',
+      moved: (e) => {
+        pendingMove = remote(e);
+        if (!frame) frame = requestAnimationFrame(flushMove);
+      },
+    });
+  });
+
   const label = $derived(session === 'console' ? t('assist.console') : t('assist.sessionN', { n: session }));
 </script>
 
 <div class="asst" bind:this={host}>
-  <div class="asst-view" class:real={mode === 'real'} bind:clientWidth={box.w} bind:clientHeight={box.h}>
+  <div class="asst-view" class:real={mode === 'real'} bind:this={view} bind:clientWidth={box.w} bind:clientHeight={box.h}>
     <canvas
       bind:this={canvas}
       tabindex="0"

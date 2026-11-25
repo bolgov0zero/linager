@@ -1,11 +1,9 @@
 <script lang="ts">
   import type { UpdateHistoryRow } from '../api';
   import { t } from '../i18n.svelte';
-  import Fold from './Fold.svelte';
   import { fmtDateTime } from './upd-format';
 
   let { history }: { history: UpdateHistoryRow[] } = $props();
-  let open = $state(false);
   const BADGE: Record<UpdateHistoryRow['status'], { cls: string; key: string }> = {
     success: { cls: 'b-ok', key: 'st.upd.hist.success' },
     failed: { cls: 'b-crit', key: 'st.upd.hist.failed' },
@@ -13,7 +11,7 @@
   };
 </script>
 
-<Fold title={t('st.upd.hist.title')} meta={history.length > 0 ? String(history.length) : ''} bind:open>
+<div class="upd-hist">
   <div class="panel flush" style="margin:0"><table class="tbl compact">
     <thead><tr><th>{t('st.upd.hist.time')}</th><th>{t('st.upd.hist.what')}</th><th>{t('st.upd.hist.versions')}</th><th>{t('st.upd.hist.result')}</th></tr></thead>
     <tbody>
@@ -29,4 +27,4 @@
       {/each}
     </tbody>
   </table></div>
-</Fold>
+</div>

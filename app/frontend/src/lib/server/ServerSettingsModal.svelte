@@ -8,6 +8,7 @@
   import Modal from '../Modal.svelte';
   import { native, type TrayMode } from '../native';
   import TagChip from '../TagChip.svelte';
+  import TagPicker from './TagPicker.svelte';
   import { showToast } from '../toast';
 
   // Settings of one server: its tags (kept by the Linager server) and its connections in the tray menu (kept by the
@@ -39,7 +40,7 @@
   let error = $state('');
 
   const colorOf = (name: string): string | undefined => registry.find((x) => x.name.toLowerCase() === name.toLowerCase())?.color;
-  const suggestions = $derived(registry.filter((x) => !tags.some((n) => n.toLowerCase() === x.name.toLowerCase())).map((x) => x.name));
+  const suggestions = $derived(registry.filter((x) => !tags.some((n) => n.toLowerCase() === x.name.toLowerCase())));
 
   onMount(async () => {
     if (canTags) {
@@ -60,8 +61,8 @@
     loaded = true;
   });
 
-  function addTag(): void {
-    const v = draft.split(/\s+/).filter(Boolean).join(' ');
+  function addTag(name: string = draft): void {
+    const v = name.split(/\s+/).filter(Boolean).join(' ');
     if (!v) return;
     if (v.length > MAX_CHARS) {
       error = t('ssm.tags.long', { n: MAX_CHARS });
@@ -114,8 +115,7 @@
         </div>
       {:else}<p class="dim">{t('ssm.tags.none')}</p>{/if}
       {#if canTags}
-        <label class="fl"><span class="field"><input autocomplete="off" spellcheck="false" maxlength={MAX_CHARS} placeholder={t('ssm.tags.add')} list="ssm-tags-{server.id}" bind:value={draft} onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }} /></span></label>
-        <datalist id="ssm-tags-{server.id}">{#each suggestions as sg (sg)}<option value={sg}></option>{/each}</datalist>
+        <TagPicker items={suggestions} taken={tags} bind:value={draft} placeholder={t('ssm.tags.add')} maxlength={MAX_CHARS} onpick={addTag} />
       {:else}<p class="dim">{t('ssm.tags.admin')}</p>{/if}
     </section>
     <section class="mdl-stack">

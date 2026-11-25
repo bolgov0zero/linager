@@ -75,6 +75,9 @@ export function chipsOf(c: ServerCard, agent: AgentFlag = null): Chip[] {
   return out;
 }
 
+/** The icon of each chip (the compact card and the list show the same ones); the offline chip has a word instead. */
+export const CHIP_ICON: Record<Chip['id'], string> = { offline: '', failed: 'triangle-alert', reboot: 'power', updates: 'circle-arrow-up', images: 'container', agentUpdate: 'sparkles', agentOld: 'triangle-alert' };
+
 /** The chips that fit (three of them in a footer of 118 px) and the rest, which the card folds into "+N". */
 export function visibleChips(chips: Chip[], max = 3): { shown: Chip[]; rest: Chip[] } {
   if (chips.length <= max) return { shown: chips, rest: [] };

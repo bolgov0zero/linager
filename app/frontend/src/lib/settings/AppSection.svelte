@@ -1,12 +1,15 @@
 <script lang="ts">
   import { i18n, t } from '../i18n.svelte';
   import { fmtBytes } from '../status';
-  import CustomSelect from '../CustomSelect.svelte';
+  import Icon from '../Icon.svelte';
   import { autoCheck, checkUpdate, githubToken, installUpdate, setAutoCheck, setChannel, startAutoCheck, upd, updateBusy } from '../update.svelte';
   import { onMount } from 'svelte';
   import { native } from '../native';
 
   let auto = $state(autoCheck());
+  /** The release notes and the token field are folded until asked for: the page keeps to what is needed every time. */
+  let notesOpen = $state(false);
+  let tokenOpen = $state(false);
   const info = $derived(upd.info);
   const channels = $derived([{ v: 'stable', t: t('set.upd.ch.stable') }, { v: 'beta', t: t('set.upd.ch.beta') }]);
   function pickChannel(v: string): void {
@@ -71,58 +74,72 @@
   });
 </script>
 
-<div class="set-sec">
+<div class="set-sec app">
 <section class="panel blk">
-  <h3>{t('set.upd.title')}</h3>
-  <dl class="facts">
-    <div><dt>{t('set.upd.current')}</dt><dd class="mono">{info?.current ?? '—'}</dd></div>
-    <div><dt>{t('set.upd.channel')}</dt><dd>{#if info?.supported}<CustomSelect small value={info.channel} options={channels} onchange={pickChannel} />{:else}{info ? t(`set.upd.ch.${info.channel}`) : '—'}{/if}</dd></div>
-  </dl>
+  <h4 class="ph">{t('set.upd.title')}</h4>
+  <div class="vrow">
+    <b class="ubig mono">{info?.current ?? '—'}</b>
+    {#if info?.supported && info.newer}
+      <span class="dim">→</span><b class="ubig mono new">{info.latest ?? ''}</b><span class="badge b-warn">{t('set.upd.availShort')}{#if info.size} · {fmtBytes(info.size)}{/if}</span>
+    {:else if info?.supported && info.checked_at && !upd.failed}
+      <span class="badge b-ok">{t('set.upd.latestShort')}</span>
+    {/if}
+    <span class="grow"></span>
+    {#if info?.supported && info.newer}
+      {#if updateBusy()}
+        <span class="bar lv-ok upd-bar"><i style="width:{upd.status.pct}%"></i></span><span class="dim">{phaseText}</span>
+      {:else}
+        <button class="btn primary" type="button" onclick={installUpdate}>{t('set.upd.install')}</button>
+      {/if}
+    {:else if info?.supported}
+      <button class="btn" type="button" disabled={upd.checking || updateBusy()} onclick={checkUpdate}>{upd.checking ? t('set.upd.checking') : t('set.upd.check')}</button>
+    {/if}
+  </div>
   {#if reason}<p class="dim">{reason}</p>{/if}
   {#if info?.supported}
-    {#if info.newer}
-      <div class="upd-new">
-        <div class="row"><b>{t('set.upd.available', { v: info.latest ?? '' })}</b>{#if info.size}<span class="dim">{fmtBytes(info.size)}</span>{/if}</div>
-        {#if info.notes?.length}<ul class="upd-notes">{#each info.notes as n (n)}<li>{n}</li>{/each}</ul>{/if}
-        {#if updateBusy()}
-          <div class="row"><span class="bar lv-ok"><i style="width:{upd.status.pct}%"></i></span><span class="dim">{phaseText}</span></div>
-        {:else}
-          <div class="row"><button class="btn primary" type="button" onclick={installUpdate}>{t('set.upd.install')}</button></div>
-        {/if}
-        {#if upd.status.phase === 'error'}<div class="err" role="alert">{t('set.upd.failed')}: {upd.status.error}</div>{/if}
-      </div>
-    {:else if info.checked_at && !upd.failed}
-      <p class="ok-t">{t('set.upd.latest')}</p>
+    {#if info.newer && info.notes?.length}
+      <button class="linkbtn" type="button" aria-expanded={notesOpen} onclick={() => (notesOpen = !notesOpen)}>{t('set.upd.whatsNew')}<Icon name={notesOpen ? 'chevron-up' : 'chevron-down'} size={12} /></button>
+      {#if notesOpen}<ul class="upd-notes">{#each info.notes as n (n)}<li>{n}</li>{/each}</ul>{/if}
     {/if}
+    {#if upd.status.phase === 'error'}<div class="err" role="alert">{t('set.upd.failed')}: {upd.status.error}</div>{/if}
     {#if upd.failed}<div class="err" role="alert">{failText}</div>{/if}
-    <div class="row">
-      <button class="btn" type="button" disabled={upd.checking || updateBusy()} onclick={checkUpdate}>{upd.checking ? t('set.upd.checking') : t('set.upd.check')}</button>
+    <hr class="sep" />
+    <div class="ctl">
+      <span class="alb">{t('set.upd.channel')}<button class="q" type="button" aria-label={t('set.upd.tipChannel')} data-tip={t('set.upd.tipChannel')}>?</button></span>
+      <span class="seg" role="radiogroup" aria-label={t('set.upd.channel')}>
+        {#each channels as c (c.v)}<button type="button" role="radio" aria-checked={info.channel === c.v} class:on={info.channel === c.v} onclick={() => info.channel !== c.v && pickChannel(c.v)}>{c.t}</button>{/each}
+      </span>
       <span class="grow"></span>
+      {#if info.newer}<button class="btn" type="button" disabled={upd.checking || updateBusy()} onclick={checkUpdate}>{upd.checking ? t('set.upd.checking') : t('set.upd.check')}</button>{/if}
       <label class="ck"><input type="checkbox" bind:checked={auto} onchange={() => setAutoCheck(auto)} />{t('set.upd.auto')}</label>
     </div>
-    <p class="dim">{t('set.upd.channelHint')}</p>
-    <p class="dim">{t('set.upd.hint')}</p>
-    <div class="tokrow">
-      <b>{t('set.upd.token.title')}</b>
-      {#if tokenSet}
-        <div class="row"><span class="ok-t">{t('set.upd.token.set')}</span><span class="grow"></span><button class="btn sm danger" type="button" onclick={clearToken}>{t('set.upd.token.remove')}</button></div>
-      {:else}
-        <form class="row" autocomplete="off" onsubmit={(e) => { e.preventDefault(); void saveToken(); }}>
-          <span class="field grow"><input type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label={t('set.upd.token.title')} bind:value={tokenDraft} oninput={() => (tokenError = '')} /></span>
-          <button class="btn" type="submit" disabled={tokenBusy || !tokenDraft.trim()}>{t('common.save')}</button>
-        </form>
-      {/if}
-      {#if tokenError}<div class="err" role="alert">{tokenError}</div>{/if}
-      <p class="dim">{t('set.upd.token.hint')}</p>
+    <div class="ctl" style="gap:10px">
+      <button class="linkbtn" type="button" aria-expanded={tokenOpen} onclick={() => (tokenOpen = !tokenOpen)}>{tokenSet ? t('set.upd.token.setLink') : t('set.upd.token.addLink')}</button>
+      <button class="q" type="button" aria-label={t('set.upd.tipToken')} data-tip={t('set.upd.tipToken')}>?</button>
     </div>
+    {#if tokenOpen}
+      <div class="tokrow">
+        {#if tokenSet}
+          <div class="row"><span class="ok-t">{t('set.upd.token.set')}</span><span class="grow"></span><button class="btn sm danger" type="button" onclick={clearToken}>{t('set.upd.token.remove')}</button></div>
+        {:else}
+          <form class="row" autocomplete="off" onsubmit={(e) => { e.preventDefault(); void saveToken(); }}>
+            <span class="field grow"><input type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label={t('set.upd.token.title')} bind:value={tokenDraft} oninput={() => (tokenError = '')} /></span>
+            <button class="btn" type="submit" disabled={tokenBusy || !tokenDraft.trim()}>{t('common.save')}</button>
+          </form>
+        {/if}
+        {#if tokenError}<div class="err" role="alert">{tokenError}</div>{/if}
+      </div>
+    {/if}
   {/if}
 </section>
 
 {#if login?.supported}
   <section class="panel blk">
-    <h3>{t('set.tray.title')}</h3>
-    <label class="ck"><input type="checkbox" disabled={loginBusy} checked={login.enabled} onchange={(e) => void setLogin(e.currentTarget.checked)} />{t('set.tray.login')}</label>
-    <p class="dim">{t('set.tray.hint')}</p>
+    <h4 class="ph">{t('set.tray.title')}</h4>
+    <div class="ctl" style="gap:10px">
+      <label class="ck"><input type="checkbox" disabled={loginBusy} checked={login.enabled} onchange={(e) => void setLogin(e.currentTarget.checked)} />{t('set.tray.login')}</label>
+      <button class="q" type="button" aria-label={t('set.tray.tip')} data-tip={t('set.tray.tip')}>?</button>
+    </div>
   </section>
 {/if}
 </div>

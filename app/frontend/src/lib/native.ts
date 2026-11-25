@@ -78,6 +78,8 @@ export const native = {
   /** The full screen of the window in focus: reads the state, or sets it (the system window goes to the full screen). */
   fullscreenGet: () => call<{ on: boolean }>('GET', 'fullscreen'),
   fullscreenSet: (on: boolean) => call<{ on: boolean }>('PUT', 'fullscreen', { on }),
+  /** The window in focus grows or shrinks by dw, dh (the Assistant fits the window to the picture). */
+  fitWindow: (dw: number, dh: number) => call<{ ok: boolean }>('PUT', 'window-fit', { dw, dh }),
   /** Opens a native window; in a browser (development) the same page opens in a new tab. */
   openWindow: async (kind: WindowKind, id: string, title: string, native: boolean, arg = ''): Promise<void> => {
     if (native) {

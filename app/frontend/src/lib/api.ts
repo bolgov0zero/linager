@@ -50,6 +50,8 @@ export interface ServerCard {
   /** The last CPU values, 5 seconds apart, oldest first. */
   spark: number[];
   group_id: number | null;
+  /** The tags of the server with their colours (an older server does not send them). */
+  tag_items?: TagItem[];
 }
 
 export interface SystemInfo {

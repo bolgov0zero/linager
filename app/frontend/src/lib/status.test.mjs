@@ -98,3 +98,15 @@ test('three chips fit, the rest fold into "+N" with the worst tone', () => {
   assert.equal(worstTone([{ id: 'updates', tone: 'info' }, { id: 'failed', tone: 'crit' }]), 'crit');
   assert.equal(worstTone([{ id: 'updates', tone: 'info' }]), 'info');
 });
+
+test('the list "Rows" shows the same chips as the compact card (one icon table, no folding, "all clear" when empty)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const rows = readFileSync(new URL('./Rows.svelte', import.meta.url), 'utf8');
+  const mini = readFileSync(new URL('./Mini.svelte', import.meta.url), 'utf8');
+  for (const src of [rows, mini]) {
+    assert.match(src, /CHIP_ICON/);
+    assert.match(src, /chipsOf\(/);
+  }
+  assert.doesNotMatch(rows, /visibleChips/); // the list has the room for all of them
+  assert.match(rows, /tag\.clean/);
+});

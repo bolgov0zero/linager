@@ -6,20 +6,20 @@
   import Modal from '../Modal.svelte';
   import { fmtDateTime, fmtDuration, SERVER_STEPS } from './upd-format';
 
-  let { info, busy, restarting, checking, channelBusy, oncheck, onchannel, onupdate }: {
+  let { info, busy, restarting, channelBusy, onchannel, onupdate }: {
     info: UpdatesInfo;
     /** Server update running or being started. */
     busy: boolean;
     restarting: boolean;
-    checking: boolean;
     channelBusy: boolean;
-    oncheck: () => void;
     onchannel: (channel: 'stable' | 'beta') => void;
     onupdate: (version: string) => void;
   } = $props();
 
   let confirmOpen = $state(false);
   let notesOpen = $state(false);
+  /** In a narrow window the less important facts are folded; this opens them. */
+  let detailsOpen = $state(false);
 
   const srv = $derived(info.server);
   const run = $derived(srv.update_run);
@@ -99,26 +99,28 @@
   }
 </script>
 
-<section class="panel">
-  <h4 class="ph">{t('st.upd.srv.title')}</h4>
-  <div class="row" style="margin-bottom:10px">
-    <b class="ubig mono">{srv.current}</b>
-    {#if available}<span class="badge b-warn">{t('st.upd.srv.available', { version: available })}</span>{:else}<span class="badge b-ok">{t('st.upd.srv.current')}</span>{/if}
+<section class="panel hero">
+  <div class="hero-top">
+    <div class="hv">
+      <b class="ubig mono">{srv.current}</b>
+      {#if available}<span class="dim">→</span><b class="ubig mono new">{available}</b><span class="badge b-warn">{t('st.upd.srv.availableShort')}</span>{:else}<span class="badge b-ok">{t('st.upd.srv.current')}</span>{/if}
+    </div>
+    <span class="grow"></span>
+    <div class="hbtn">
+      <button class="btn sm" type="button" disabled={notes.length === 0} onclick={() => (notesOpen = true)}>{t('st.upd.notes.button')}</button>
+      {#if canUpdate}<button class="btn sm primary" type="button" disabled={busy} onclick={() => (confirmOpen = true)}>{t('st.upd.srv.update', { version: available ?? '' })}</button>{/if}
+    </div>
   </div>
-  <dl class="facts">
-    <div><dt>{t('st.upd.srv.channel')}</dt><dd><CustomSelect small value={info.channel} options={channelOptions} onchange={(v) => (busy || channelBusy ? undefined : onchannel(v as 'stable' | 'beta'))} /></dd></div>
-    <div><dt>{t('st.upd.srv.checked')}</dt><dd>{fmtDateTime(srv.checked_at)}</dd></div>
-    <div><dt>{t('st.upd.srv.migrations')}</dt><dd>{srv.db_migrations.pending > 0 ? t('st.upd.srv.migrationsPending') : t('st.upd.srv.migrationsOk')}</dd></div>
-    <div><dt>{t('st.upd.srv.backup')}</dt><dd>{srv.last_backup ? fmtDateTime(srv.last_backup) : '—'}</dd></div>
-    <div><dt>{t('st.upd.srv.source')}</dt><dd class="mono">{srv.source}</dd></div>
-  </dl>
-  {#if srv.check_error}<div class="err" style="margin-top:10px">{srv.check_error}</div>{/if}
-  <div class="row" style="margin-top:12px;flex-wrap:wrap">
-    <button class="btn sm" type="button" disabled={busy || checking} onclick={oncheck}>{checking ? t('st.upd.srv.checking') : t('st.upd.srv.check')}</button>
-    <button class="btn sm" type="button" disabled={notes.length === 0} onclick={() => (notesOpen = true)}>{t('st.upd.notes.button')}</button>
-    {#if canUpdate}<button class="btn sm primary" type="button" disabled={busy} onclick={() => (confirmOpen = true)}>{t('st.upd.srv.update', { version: available ?? '' })}</button>{/if}
+  <div class="hfacts" class:open={detailsOpen}>
+    <span class="ufact">{t('st.upd.srv.checked')} <b>{fmtDateTime(srv.checked_at)}</b></span>
+    <span class="ufact">{t('st.upd.srv.migrations')} <b>{srv.db_migrations.pending > 0 ? t('st.upd.srv.migrationsPending') : t('st.upd.srv.migrationsOk')}</b></span>
+    <span class="ufact fx-extra">{t('st.upd.srv.backup')} <b>{srv.last_backup ? fmtDateTime(srv.last_backup) : '—'}</b></span>
+    <span class="ufact fx-extra">{t('st.upd.srv.source')} <b class="mono">{srv.source}</b></span>
+    <span class="ufact sel"><span>{t('st.upd.srv.channel')}</span><CustomSelect small value={info.channel} options={channelOptions} onchange={(v) => (busy || channelBusy ? undefined : onchannel(v as 'stable' | 'beta'))} /></span>
+    <button class="linkbtn more" type="button" aria-expanded={detailsOpen} onclick={() => (detailsOpen = !detailsOpen)}>{t('st.upd.details')}</button>
   </div>
-  {#if noUpdater}<p class="dim" style="margin-top:8px">{t('st.upd.srv.noUpdater')}</p>{/if}
+  {#if srv.check_error}<div class="err">{srv.check_error}</div>{/if}
+  {#if noUpdater}<p class="dim">{t('st.upd.srv.noUpdater')}</p>{/if}
 </section>
 
 {#if statusOpen}

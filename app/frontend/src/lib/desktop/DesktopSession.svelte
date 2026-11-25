@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { attachEdgeScroll } from '../edge-scroll';
   import KeyPicker from '../keys/KeyPicker.svelte';
   import { getPref, setPref } from '../prefs';
   import { desktopApi, desktopSocketUrl, type DesktopState } from '../api';
@@ -359,9 +360,39 @@
     }
   }
 
+  let scaleKind: keyof typeof SCALE = 'fit';
+  let hideBars: HTMLStyleElement | null = null;
   export function setScale(kind: keyof typeof SCALE): void {
+    scaleKind = kind;
     ui?.setScale(SCALE[kind]);
+    // in "100%" the picture is scrolled by the mouse at the edges, so the scroll bars of the client (in its shadow root) are hidden
+    const root = element?.shadowRoot;
+    if (!root) return;
+    if (kind === 'real' && !hideBars) {
+      hideBars = document.createElement('style');
+      hideBars.textContent = '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
+      root.appendChild(hideBars);
+    } else if (kind !== 'real' && hideBars) {
+      hideBars.remove();
+      hideBars = null;
+    }
   }
+
+  /** The part of the client that scrolls in "100%": the client keeps it in its shadow root. */
+  function scroller(): HTMLElement | null {
+    const root = element?.shadowRoot;
+    if (!root) return null;
+    for (const el of root.querySelectorAll<HTMLElement>('div')) {
+      if (el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1) continue;
+      const o = getComputedStyle(el).overflow;
+      if (o !== 'visible' && o !== 'hidden') return el;
+    }
+    return null;
+  }
+  $effect(() => {
+    if (!host) return;
+    return attachEdgeScroll(host, { scroller, enabled: () => scaleKind === 'real' });
+  });
 
   /** The local clipboard to the computer (the browser asks for permission). */
   export async function sendClipboard(): Promise<void> {

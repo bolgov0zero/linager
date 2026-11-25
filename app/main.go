@@ -111,6 +111,28 @@ func main() {
 			}
 			return w.IsFullscreen(), nil
 		}
+		// the window grows or shrinks by what the picture needs, and stays inside the work area of its screen (it moves back when it would stick out)
+		opts.FitWindow = func(dw, dh int) error {
+			w, ok := wins.app.Window.Current().(*application.WebviewWindow)
+			if !ok || w == nil {
+				return errors.New("no window")
+			}
+			if w.IsFullscreen() {
+				return errors.New("full screen")
+			}
+			cw, ch := w.Size()
+			nw, nh := cw+dw, ch+dh
+			x, y := w.Position()
+			if sc, err := w.GetScreen(); err == nil && sc != nil {
+				wa := sc.WorkArea
+				nw, nh = min(nw, wa.Width), min(nh, wa.Height)
+				x = max(wa.X, min(x, wa.X+wa.Width-nw))
+				y = max(wa.Y, min(y, wa.Y+wa.Height-nh))
+			}
+			w.SetSize(max(nw, 1), max(nh, 1))
+			w.SetPosition(x, y)
+			return nil
+		}
 		opts.PickFile = func(ext string) (string, bool, error) {
 			path, err := wins.app.Dialog.OpenFile().AddFilter("Linager keys", "*"+ext).CanChooseFiles(true).CanChooseDirectories(false).PromptForSingleSelection()
 			return path, path != "", err

@@ -58,21 +58,40 @@
   const current = $derived(entries.find((e) => e.value === session)?.s);
   const canCad = $derived((current?.type ?? (session === 'console' ? 'console' : '')) === 'console');
   const statusText = $derived(phase === 'connecting' ? t('assist.connectingShort') : phase === 'open' ? t('assist.open') : t('assist.closed'));
-  const label = (s: AssistSession): string => {
-    const note = !s.screen ? t('assist.noScreen') : s.type === 'rdp' && s.client ? s.client : '';
-    return `${s.id} · ${t(`assist.type.${s.type}`)} · ${s.user || t('assist.noUser')}${note ? ` (${note})` : ''}`;
-  };
-
+  /** The name of a session without the computer or the domain ("HOMESRV\\bolgov" is "bolgov"). */
+  const userOf = (u: string): string => u.slice(u.lastIndexOf('\\') + 1);
   function open(items: CtxItem[], ev: MouseEvent): void {
     const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
     menu = { x: r.left, y: r.bottom + 2, items };
   }
-  const sessionItems = $derived<CtxItem[]>(entries.map((e) => ({ key: e.value, label: `${e.value === session ? '✓ ' : ''}${e.s ? label(e.s) : t('assist.console')}`, disabled: e.s ? !e.s.screen : false, onselect: () => (session = e.value) })));
+  // a row of the menu "Session": the number, the user (the address of the RDP client under it) and the kind of the session as a badge
+  const sessionItems = $derived<CtxItem[]>(entries.map((e) => {
+    const s = e.s;
+    if (!s) return { key: e.value, icon: 'log-in', label: t('assist.console'), selected: e.value === session, onselect: () => (session = e.value) };
+    const user = userOf(s.user);
+    return {
+      key: e.value, icon: user ? 'user' : 'log-in', lead: String(s.id), label: user || t('assist.noUser'), sub: s.type === 'rdp' && s.client ? s.client : undefined,
+      badge: s.screen ? { text: t(`assist.type.${s.type}`), tone: s.type === 'rdp' ? 'info' : 'mute' } : { text: t('assist.noScreen'), tone: 'warn' },
+      selected: e.value === session, disabled: !s.screen, onselect: () => (session = e.value),
+    } as CtxItem;
+  }));
+  /** The window grows or shrinks to the size of the picture (the window of the Assistant only: the pane inside the main window does not resize it). */
+  async function fitWindow(): Promise<void> {
+    const d = screen?.fitDelta();
+    if (!d) return;
+    try {
+      if (nativeWindows) await native.fitWindow(d.dw, d.dh);
+      else window.resizeTo(window.outerWidth + d.dw, window.outerHeight + d.dh);
+    } catch {
+      showToast(t('common.genericError'));
+    }
+  }
   const displayItems = $derived<CtxItem[]>([
-    { key: 'fit', label: `${display === 'fit' ? '✓ ' : ''}${t('assist.mode.fit')}`, onselect: () => (display = 'fit') },
-    { key: 'fill', label: `${display === 'fill' ? '✓ ' : ''}${t('assist.mode.fill')}`, onselect: () => (display = 'fill') },
-    { key: 'real', label: `${display === 'real' ? '✓ ' : ''}${t('assist.mode.real')}`, onselect: () => (display = 'real') },
-    { key: 'full', label: full.on ? t('fs.exit') : t('assist.mode.full'), separated: true, onselect: () => void full.toggle() },
+    { key: 'fit', icon: 'scaling', label: t('assist.mode.fit'), selected: display === 'fit', onselect: () => (display = 'fit') },
+    { key: 'fill', icon: 'expand', label: t('assist.mode.fill'), selected: display === 'fill', onselect: () => (display = 'fill') },
+    { key: 'real', icon: 'scan', label: t('assist.mode.real'), selected: display === 'real', onselect: () => (display = 'real') },
+    ...(onwindow || !live ? [] : [{ key: 'fitwin', icon: 'proportions', label: t('assist.mode.window'), separated: true, disabled: full.on, onselect: () => void fitWindow() }]),
+    { key: 'full', icon: full.on ? 'minimize-2' : 'maximize', label: full.on ? t('fs.exit') : t('assist.mode.full'), separated: true, onselect: () => void full.toggle() },
   ]);
   const moreItems = $derived.by<CtxItem[]>(() => {
     const s = screen;
@@ -80,21 +99,21 @@
     const mons = info?.monitors ?? [];
     const picked = info?.monitor ?? -1;
     const monitors: CtxItem[] = mons.length < 2 ? [] : [
-      ...mons.map((m, i) => ({ key: `mon${i}`, label: `${picked === i ? '✓ ' : ''}${t('assist.monitorN', { n: i + 1 })}${m.primary ? ` (${t('assist.monitorPrimary')})` : ''} · ${m.w}×${m.h}`, separated: i === 0, onselect: () => s?.selectMonitor(i) })),
-      { key: 'monall', label: `${picked === -1 ? '✓ ' : ''}${t('assist.monitorAll')}`, onselect: () => s?.selectMonitor(-1) },
+      ...mons.map((m, i) => ({ key: `mon${i}`, icon: 'monitor', label: `${t('assist.monitorN', { n: i + 1 })}${m.primary ? ` (${t('assist.monitorPrimary')})` : ''} · ${m.w}×${m.h}`, selected: picked === i, separated: i === 0, onselect: () => s?.selectMonitor(i) })),
+      { key: 'monall', icon: 'monitor', label: t('assist.monitorAll'), selected: picked === -1, onselect: () => s?.selectMonitor(-1) },
     ];
     return [
-      ...(linux ? [] : [{ key: 'tm', label: t('assist.taskManager'), onselect: () => s?.combo(['ControlLeft', 'ShiftLeft', 'Escape']) }]),
-      { key: 'win', label: t('assist.winKey'), onselect: () => s?.winKey() },
-      { key: 'lock', label: t('assist.lock'), onselect: () => s?.combo(['MetaLeft', 'KeyL']) },
-      ...(linux ? [] : [{ key: 'run', label: t('assist.run'), onselect: () => s?.combo(['MetaLeft', 'KeyR']) }]),
-      { key: 'alttab', label: t('assist.altTab'), onselect: () => s?.combo(['AltLeft', 'Tab']) },
+      ...(linux ? [] : [{ key: 'tm', icon: 'activity', label: t('assist.taskManager'), hint: 'Ctrl+Shift+Esc', onselect: () => s?.combo(['ControlLeft', 'ShiftLeft', 'Escape']) }]),
+      { key: 'win', icon: 'layout-grid', label: t('assist.winKey'), hint: 'Win', onselect: () => s?.winKey() },
+      { key: 'lock', icon: 'lock', label: t('assist.lock'), hint: 'Win+L', onselect: () => s?.combo(['MetaLeft', 'KeyL']) },
+      ...(linux ? [] : [{ key: 'run', icon: 'play', label: t('assist.run'), hint: 'Win+R', onselect: () => s?.combo(['MetaLeft', 'KeyR']) }]),
+      { key: 'alttab', icon: 'arrow-left-right', label: t('assist.altTab'), hint: 'Alt+Tab', onselect: () => s?.combo(['AltLeft', 'Tab']) },
       ...monitors,
-      { key: 'send', label: t('desk.clipSend'), separated: true, disabled: !clip, onselect: () => void s?.sendClipboard() },
-      { key: 'save', label: t('desk.clipSave'), disabled: !clip, onselect: () => s?.getClipboard() },
-      { key: 'info', label: `${$assistInfoShown ? '✓ ' : ''}${t('assist.info')}`, separated: true, onselect: toggleAssistInfo },
-      { key: 'quality', label: t('assist.quality'), onselect: () => (quality = true) },
-      { key: 'off', label: t('assist.disconnect'), onselect: () => s?.disconnect() },
+      { key: 'send', icon: 'clipboard-paste', label: t('desk.clipSend'), separated: true, disabled: !clip, onselect: () => void s?.sendClipboard() },
+      { key: 'save', icon: 'clipboard-copy', label: t('desk.clipSave'), disabled: !clip, onselect: () => s?.getClipboard() },
+      { key: 'info', icon: 'info', label: t('assist.info'), selected: $assistInfoShown, separated: true, onselect: toggleAssistInfo },
+      { key: 'quality', icon: 'sliders-horizontal', label: t('assist.quality'), onselect: () => (quality = true) },
+      { key: 'off', icon: 'unplug', label: t('assist.disconnect'), danger: true, separated: true, onselect: () => s?.disconnect() },
     ];
   });
   const canType = $derived(live && !linux && isSignInDesktop(info?.desktop));

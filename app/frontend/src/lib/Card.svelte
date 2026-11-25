@@ -4,6 +4,7 @@
   import { t } from './i18n.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
+  import TagBadges from './TagBadges.svelte';
   import { assistantOffered, fmtAgo, fmtRate, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, sparkPath, tagsOf, type AgentFlag } from './status';
 
   let { card, now, editing = false, agent = null, onopen }: { card: ServerCard; now: number; editing?: boolean; agent?: AgentFlag; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
@@ -55,6 +56,7 @@
   </div>
   <footer class="c-foot">
     <span class="up">{card.online ? t('card.uptime', { v: s ? fmtUptime(s.uptime, units) : '—' }) : t('card.offline', { v: fmtAgo(card.last_seen_at, now, units) })}</span>
+    <TagBadges tags={card.tag_items ?? []} max={3} />
     <div class="acts">
       {#if hasModule('terminal')}      <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!card.online} onclick={() => onopen(card, 'terminal')}><Icon name="square-terminal" size={14} /></button>{/if}
       {#if hasModule('desktop') && rdpOffered(card)}<button class="btn icon sm" type="button" title={t('card.rdp')} disabled={!card.online} onclick={() => onopen(card, 'rdp')}><Icon name="monitor" size={14} /></button>{/if}

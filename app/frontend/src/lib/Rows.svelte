@@ -3,15 +3,16 @@
   import { hasModule } from './me.svelte';
   import { t } from './i18n.svelte';
   import { getPref, setPref } from './prefs';
+  import TagBadges from './TagBadges.svelte';
   import EditBar from './EditBar.svelte';
   import { openServer } from './route.svelte';
   import type { ServerCard } from './api';
   import type { RowEdit } from './dash-edit';
-  import { assistantOffered, fmtAgo, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, tagsOf, type AgentFlag } from './status';
+  import { assistantOffered, CHIP_ICON, chipsOf, fmtAgo, fmtUptime, isWindows, levelOf, meter, rdpOffered, shortOs, tagsOf, type AgentFlag, type Chip } from './status';
 
   let { cards, now, edit = null, agents = {}, onmenu, onopen }: { cards: ServerCard[]; now: number; edit?: RowEdit | null; agents?: Record<string, AgentFlag>; onmenu?: (e: MouseEvent, c: ServerCard) => void; onopen: (c: ServerCard, kind: 'terminal' | 'rdp' | 'asst') => void } = $props();
-  // the badges that have a short form for the narrow cell of the list
-  const SHORT = new Set(['reboot', 'updates', 'images', 'failed', 'agentUpdate', 'agentOld']);
+  // the column "Status" shows the same chips as the footer of the compact card (an icon and a number); the list has the room for all of them
+  const chipTitle = (x: Chip): string => t(`tag.${x.id}`, { n: x.n ?? 0 });
   const units = $derived({ d: t('unit.d'), h: t('unit.h'), min: t('unit.min') });
 
   // a click on a header sorts by the column, a second one reverses, a third one returns to the order of the server
@@ -78,6 +79,7 @@
       <th class="sortable" aria-sort={sort.key === c.k ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
         <button type="button" onclick={() => setSort(c.k)}>{c.label()}{#if sort.key === c.k}<Icon name={sort.dir === 1 ? 'arrow-up' : 'arrow-down'} size={12} />{/if}</button>
       </th>
+      {#if c.k === 'state'}<th>{t('rows.tags')}</th>{/if}
     {/each}
     <th></th>{#if edit}<th></th>{/if}
   </tr></thead>
@@ -100,7 +102,8 @@
             {:else}<span class="dim">—</span>{/if}
           </td>
         {/each}
-        <td class="nw"><span class="tgs">{#each tagsOf(c, agents[c.id] ?? null) as tag (tag.id)}<span class="badge b-{tag.tone}" title={t(`tag.${tag.id}`, { n: tag.n ?? 0 })}>{t(SHORT.has(tag.id) ? `tag.s.${tag.id}` : `tag.${tag.id}`, { n: tag.n ?? 0 })}</span>{/each}</span></td>
+        <td class="nw"><span class="mchips">{#each chipsOf(c, agents[c.id] ?? null) as x (x.id)}<span class="mchip t-{x.tone}" class:txt={x.id === 'offline'} title={chipTitle(x)}>{#if CHIP_ICON[x.id]}<Icon name={CHIP_ICON[x.id]} size={11} />{/if}{#if x.id === 'offline'}{t('tag.s.offline')}{:else if x.n}{x.n}{/if}</span>{:else}<span class="mchip t-ok txt">{t('tag.clean')}</span>{/each}</span></td>
+        <td><TagBadges tags={c.tag_items ?? []} max={5} /></td>
         <td class="mono dim nw">{c.online ? (s ? fmtUptime(s.uptime, units) : '—') : fmtAgo(c.last_seen_at, now, units)}</td>
         <td class="r"><span class="r-btns">
           {#if hasModule('terminal')}      <button class="btn icon sm" type="button" title={t('card.terminal')} disabled={!c.online} onclick={() => onopen(c, 'terminal')}><Icon name="square-terminal" size={14} /></button>{/if}

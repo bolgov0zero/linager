@@ -26,23 +26,23 @@
   });
   // the button "display": the scale of the picture, the resolution that follows the window and the full screen
   const displayItems = $derived<CtxItem[]>([
-    { key: 'fit', label: `${scale === 'fit' ? '✓ ' : ''}${t('desk.scaleFit')}`, onselect: () => { scale = 'fit'; session?.setScale('fit'); } },
-    { key: 'real', label: `${scale === 'real' ? '✓ ' : ''}${t('desk.scaleReal')}`, onselect: () => { scale = 'real'; session?.setScale('real'); } },
-    { key: 'auto', label: `${autoResize ? '✓ ' : ''}${t('desk.autoResize')}`, onselect: () => (autoResize = !autoResize) },
-    { key: 'full', label: full.on ? t('fs.exit') : t('desk.fullscreen'), separated: true, onselect: () => void full.toggle() },
+    { key: 'fit', icon: 'scaling', label: t('desk.scaleFit'), selected: scale === 'fit', onselect: () => { scale = 'fit'; session?.setScale('fit'); } },
+    { key: 'real', icon: 'scan', label: t('desk.scaleReal'), selected: scale === 'real', onselect: () => { scale = 'real'; session?.setScale('real'); } },
+    { key: 'auto', icon: 'refresh-cw', label: t('desk.autoResize'), selected: autoResize, separated: true, onselect: () => (autoResize = !autoResize) },
+    { key: 'full', icon: full.on ? 'minimize-2' : 'maximize', label: full.on ? t('fs.exit') : t('desk.fullscreen'), separated: true, onselect: () => void full.toggle() },
   ]);
   const moreItems = $derived.by<CtxItem[]>(() => {
     const s = session;
     const clip = s?.clipboardAvailable() ?? false;
     return [
-      { key: 'tm', label: t('desk.taskManager'), onselect: () => s?.combo(['ControlLeft', 'ShiftLeft', 'Escape']) },
-      { key: 'win', label: t('desk.winKey'), onselect: () => s?.winKey() },
-      { key: 'lock', label: t('desk.lock'), onselect: () => s?.combo(['MetaLeft', 'KeyL']) },
-      { key: 'run', label: t('desk.run'), onselect: () => s?.combo(['MetaLeft', 'KeyR']) },
-      { key: 'alttab', label: t('desk.altTab'), onselect: () => s?.combo(['AltLeft', 'Tab']) },
-      { key: 'send', label: t('desk.clipSend'), separated: true, disabled: !clip, onselect: () => void s?.sendClipboard() },
-      { key: 'save', label: t('desk.clipSave'), disabled: !clip, onselect: () => void s?.saveClipboard() },
-      { key: 'off', label: t('desk.disconnect'), separated: true, onselect: () => s?.disconnect() },
+      { key: 'tm', icon: 'activity', label: t('desk.taskManager'), hint: 'Ctrl+Shift+Esc', onselect: () => s?.combo(['ControlLeft', 'ShiftLeft', 'Escape']) },
+      { key: 'win', icon: 'layout-grid', label: t('desk.winKey'), hint: 'Win', onselect: () => s?.winKey() },
+      { key: 'lock', icon: 'lock', label: t('desk.lock'), hint: 'Win+L', onselect: () => s?.combo(['MetaLeft', 'KeyL']) },
+      { key: 'run', icon: 'play', label: t('desk.run'), hint: 'Win+R', onselect: () => s?.combo(['MetaLeft', 'KeyR']) },
+      { key: 'alttab', icon: 'arrow-left-right', label: t('desk.altTab'), hint: 'Alt+Tab', onselect: () => s?.combo(['AltLeft', 'Tab']) },
+      { key: 'send', icon: 'clipboard-paste', label: t('desk.clipSend'), separated: true, disabled: !clip, onselect: () => void s?.sendClipboard() },
+      { key: 'save', icon: 'clipboard-copy', label: t('desk.clipSave'), disabled: !clip, onselect: () => void s?.saveClipboard() },
+      { key: 'off', icon: 'unplug', label: t('desk.disconnect'), danger: true, separated: true, onselect: () => s?.disconnect() },
     ];
   });
   function open(items: CtxItem[], ev: MouseEvent): void {

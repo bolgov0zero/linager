@@ -3,9 +3,10 @@
   import Icon from './Icon.svelte';
 
   // A button with a list: a click on an item calls onpick. Nothing stays selected (a menu, not a select).
+  // An item with `sep` has a thin line above it (it is set apart from the list, like the entry that opens the settings).
   // An item can carry a second action as a small icon button at its end (onalt): "alt" on the item turns it on.
   let { items, onpick, onalt, altIcon = '', altTitle = '', icon = '', label, empty = '', small = true, children }: {
-    items: { v: string; t: string; alt?: boolean }[];
+    items: { v: string; t: string; alt?: boolean; sep?: boolean }[];
     onpick: (v: string) => void;
     onalt?: (v: string) => void;
     altIcon?: string;
@@ -44,7 +45,8 @@
 </button>
 {#if open}
   <div bind:this={pop} class="pop" role="menu" style="left:{pos.left}px;top:{pos.top}px;max-height:60vh;overflow:auto">
-    {#each items as it (it.v)}
+    {#each items as it, i (it.v)}
+      {#if it.sep && i > 0}<hr class="msep" />{/if}
       {#if it.alt && onalt}
         <div class="mrow">
           <button type="button" role="menuitem" onclick={() => { open = false; onpick(it.v); }}>{it.t}</button>

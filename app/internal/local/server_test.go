@@ -565,6 +565,21 @@ func TestFullscreenEndpoints(t *testing.T) {
 	}
 }
 
+func TestWindowFitEndpoint(t *testing.T) {
+	s, _, _ := start(t)
+	if c := call(t, "PUT", s.URL()+"app/window-fit", map[string]int{"dw": 100, "dh": -20}, nil); c != http.StatusNotImplemented {
+		t.Fatalf("no window: %d", c)
+	}
+	var gw, gh int
+	s.o.FitWindow = func(dw, dh int) error { gw, gh = dw, dh; return nil }
+	if c := call(t, "PUT", s.URL()+"app/window-fit", map[string]int{"dw": 100, "dh": -20}, nil); c != 200 || gw != 100 || gh != -20 {
+		t.Fatalf("fit: %d %d %d", c, gw, gh)
+	}
+	if c := call(t, "PUT", s.URL()+"app/window-fit", map[string]int{"dw": 1 << 30, "dh": 0}, nil); c != http.StatusBadRequest {
+		t.Fatalf("a huge size must be refused: %d", c)
+	}
+}
+
 // A check that GitHub refuses for the number of requests says so, with the time it may be repeated.
 func TestUpdateCheckSaysWhenGitHubRefusesForTheLimit(t *testing.T) {
 	rel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

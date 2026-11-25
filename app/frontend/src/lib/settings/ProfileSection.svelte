@@ -11,6 +11,9 @@
   const MIN_PASSWORD = 12;
 
   // ---- password ----
+  /** The rows open in place: the form of a row shows under it, and the closed rows are one line each. */
+  let pwOpen = $state(false);
+  let disOpen = $state(false);
   let curPw = $state('');
   let newPw = $state('');
   let newPw2 = $state('');
@@ -65,6 +68,7 @@
     try {
       await api.changePassword(curPw, newPw);
       curPw = newPw = newPw2 = '';
+      pwOpen = false;
       showToast(t('st.profile.password.done'));
     } catch (e) {
       if (!handle(e)) pwError = failText(e, 'st.profile.password.wrong');
@@ -111,6 +115,7 @@
     try {
       await api.totpDisable(disablePw);
       disablePw = '';
+      disOpen = false;
       codes = null;
       showToast(t('st.security.disabled'));
       await onrefresh();
@@ -157,78 +162,93 @@
   }
 </script>
 
-<div class="set-sec">
-  <h3>{t('st.profile.you', { login: session.login })}</h3>
+<div class="set-sec prof">
+  <div class="pf-who"><span class="pf-av" aria-hidden="true">{[...session.login][0]?.toUpperCase() ?? '?'}</span><b>{session.login}</b>{#if session.role}<span class="badge b-mute">{t(`st.users.role.${session.role}`)}</span>{/if}</div>
 
-  <section class="panel">
-    <h4 class="ph">{t('st.profile.password.title')}</h4>
-    <form class="mdl-stack" onsubmit={(e) => { e.preventDefault(); void changePassword(); }}>
-      <!-- the login is here so a password manager updates the right entry -->
-      <input type="text" name="username" autocomplete="username" value={session.login} hidden readonly />
-      <label class="fl"><span>{t('st.profile.password.current')}</span><span class="field"><input type="password" autocomplete="current-password" required bind:value={curPw} /></span></label>
-      <label class="fl"><span>{t('st.profile.password.new')}</span><span class="field"><input type="password" autocomplete="new-password" required bind:value={newPw} /></span></label>
-      <label class="fl"><span>{t('st.profile.password.repeat')}</span><span class="field"><input type="password" autocomplete="new-password" required bind:value={newPw2} /></span></label>
-      {#if pwError}<div class="err" role="alert">{pwError}</div>{/if}
-      <div class="row end"><button class="btn primary" type="submit" disabled={pwBusy}>{t('st.profile.password.submit')}</button></div>
-    </form>
-  </section>
-
-  <section class="panel">
-    <h4 class="ph">{t('st.profile.2fa.title')}</h4>
-    {#if session.totp_enabled}
-      <p class="dim">{t('st.security.totpOn')}</p>
-      <form class="mdl-stack" onsubmit={(e) => { e.preventDefault(); void disable(); }}>
-        <label class="fl"><span>{t('st.security.password')}</span><span class="field"><input type="password" autocomplete="current-password" required bind:value={disablePw} /></span></label>
-        {#if tfError}<div class="err" role="alert">{tfError}</div>{/if}
-        <div class="row end"><button class="btn danger" type="submit" disabled={tfBusy || !disablePw}>{t('st.security.disable')}</button></div>
-      </form>
-    {:else if setup}
-      <div class="mdl-stack">
-        <p class="dim">{t('st.security.setupHint')}</p>
-        <div class="fl"><span>{t('st.security.secret')}</span><b class="mono secret">{groupSecret(setup.secret)}</b></div>
-        <div class="fl"><span>{t('st.security.uri')}</span><span class="field"><input class="mono" readonly value={setup.uri} /></span></div>
-        <div class="row"><button class="btn" type="button" onclick={() => void copy(setup?.uri ?? '')}>{t('st.common.copy')}</button></div>
-        <form class="mdl-stack" onsubmit={(e) => { e.preventDefault(); void enable(); }}>
-          <label class="fl"><span>{t('st.security.code')}</span><span class="field"><input class="mono" inputmode="numeric" autocomplete="one-time-code" maxlength="6" bind:value={code} /></span></label>
-          {#if tfError}<div class="err" role="alert">{tfError}</div>{/if}
-          <div class="row end"><button class="btn primary" type="submit" disabled={tfBusy || code.trim().length !== 6}>{t('st.security.confirmEnable')}</button></div>
-        </form>
-      </div>
-    {:else}
-      <p class="dim">{t('st.security.totpOff')}</p>
-      {#if tfError}<div class="err" role="alert" style="margin-top:8px">{tfError}</div>{/if}
-      <div class="row end" style="margin-top:10px"><button class="btn primary" type="button" disabled={tfBusy} onclick={() => void startSetup()}>{t('st.security.enable')}</button></div>
-    {/if}
-  </section>
-
-  {#if session.totp_enabled || codes}
-    <section class="panel">
-      <h4 class="ph">{t('st.recovery.title')}</h4>
-      {#if codes}
-        <p class="warnbox warn">{t('st.recovery.shown')}</p>
-        <ul class="codes mono">{#each codes as c (c)}<li>{c}</li>{/each}</ul>
-        <div class="row">
-          <button class="btn" type="button" onclick={() => void copy(codes?.join('\n') ?? '')}>{t('st.recovery.copy')}</button>
-          <button class="btn" type="button" onclick={downloadCodes}>{t('st.recovery.download')}</button>
-          <button class="btn primary" type="button" onclick={() => (codes = null)}>{t('st.recovery.saved')}</button>
+  <div class="pf-list">
+    <div class="pfr">
+      <b>{t('st.security.password')}</b><span class="grow"></span>
+      <button class="btn sm" type="button" aria-expanded={pwOpen} onclick={() => { pwOpen = !pwOpen; pwError = ''; }}>{pwOpen ? t('common.cancel') : t('st.profile.change')}</button>
+    </div>
+    {#if pwOpen}
+      <form class="pfx" onsubmit={(e) => { e.preventDefault(); void changePassword(); }}>
+        <!-- the login is here so a password manager updates the right entry -->
+        <input type="text" name="username" autocomplete="username" value={session.login} hidden readonly />
+        <div class="pf-fg">
+          <label class="pf-f">{t('st.profile.pw.current')}<span class="field"><input type="password" autocomplete="current-password" required bind:value={curPw} /></span></label>
+          <label class="pf-f">{t('st.profile.pw.new')}<span class="field"><input type="password" autocomplete="new-password" required placeholder={t('st.profile.pw.min')} bind:value={newPw} /></span></label>
+          <label class="pf-f">{t('st.profile.pw.repeat')}<span class="field"><input type="password" autocomplete="new-password" required bind:value={newPw2} /></span></label>
+          <button class="btn primary" type="submit" disabled={pwBusy}>{t('st.profile.pw.submit')}</button>
         </div>
+        {#if pwError}<div class="err" role="alert">{pwError}</div>{/if}
+      </form>
+    {/if}
+
+    <div class="pfr">
+      <b>{t('st.profile.2fa.title')}</b>
+      <span class="badge {session.totp_enabled ? 'b-ok' : 'b-mute'}">{session.totp_enabled ? t('st.profile.on') : t('st.profile.off')}</span>
+      <span class="grow"></span>
+      {#if session.totp_enabled}
+        <button class="btn sm danger" type="button" aria-expanded={disOpen} onclick={() => { disOpen = !disOpen; tfError = ''; }}>{disOpen ? t('common.cancel') : t('st.profile.disable')}</button>
+      {:else if setup}
+        <button class="btn sm" type="button" onclick={() => { setup = null; tfError = ''; }}>{t('common.cancel')}</button>
       {:else}
-        <p class="dim">{t('st.recovery.hint')}</p>
-        <p class:warnt={recoveryLeft <= 2}>{t('st.recovery.left', { n: recoveryLeft })}{#if recoveryLeft <= 2}{' · ' + t('st.recovery.low')}{/if}</p>
-        {#if regenOpen}
-          <form class="mdl-stack" style="margin-top:10px" onsubmit={(e) => { e.preventDefault(); void regenerate(); }}>
-            <p class="dim">{t('st.recovery.regenerateHint')}</p>
-            <label class="fl"><span>{t('st.security.password')}</span><span class="field"><input type="password" autocomplete="current-password" required bind:value={regenPw} /></span></label>
-            {#if regenError}<div class="err" role="alert">{regenError}</div>{/if}
-            <div class="row end">
-              <button class="btn" type="button" onclick={() => { regenOpen = false; regenPw = ''; regenError = ''; }}>{t('common.cancel')}</button>
-              <button class="btn primary" type="submit" disabled={regenBusy || !regenPw}>{t('st.recovery.regenerate')}</button>
-            </div>
-          </form>
-        {:else}
-          <div class="row end"><button class="btn" type="button" onclick={() => (regenOpen = true)}>{t('st.recovery.regenerate')}</button></div>
-        {/if}
+        <button class="btn sm primary" type="button" disabled={tfBusy} onclick={() => void startSetup()}>{t('st.profile.enable')}</button>
       {/if}
-    </section>
-  {/if}
+    </div>
+    {#if session.totp_enabled && disOpen}
+      <form class="pfx" onsubmit={(e) => { e.preventDefault(); void disable(); }}>
+        <div class="pf-fg">
+          <label class="pf-f">{t('st.security.password')}<span class="field"><input type="password" autocomplete="current-password" required bind:value={disablePw} /></span></label>
+          <button class="btn danger" type="submit" disabled={tfBusy || !disablePw}>{t('st.security.disable')}</button>
+        </div>
+        {#if tfError}<div class="err" role="alert">{tfError}</div>{/if}
+      </form>
+    {:else if !session.totp_enabled && setup}
+      <form class="pfx" onsubmit={(e) => { e.preventDefault(); void enable(); }}>
+        <div class="pf-fg">
+          <div class="pf-f grow">{t('st.security.secret')}
+            <span class="field pf-secret"><b class="mono secret">{groupSecret(setup.secret)}</b><button class="linkbtn" type="button" onclick={() => void copy(setup?.secret.replace(/\s+/g, '') ?? '')}>{t('st.common.copy')}</button></span>
+          </div>
+          <label class="pf-f">{t('st.profile.code')}<span class="field"><input class="mono" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" bind:value={code} /></span></label>
+          <button class="btn primary" type="submit" disabled={tfBusy || code.trim().length !== 6}>{t('st.profile.enable')}</button>
+        </div>
+        <span class="dim pf-small">{t('st.profile.orLink')} <button class="linkbtn" type="button" onclick={() => void copy(setup?.uri ?? '')}>{t('st.profile.copyLink')}</button></span>
+        {#if tfError}<div class="err" role="alert">{tfError}</div>{/if}
+      </form>
+    {:else if !session.totp_enabled && tfError}
+      <div class="pfx"><div class="err" role="alert">{tfError}</div></div>
+    {/if}
+
+    {#if session.totp_enabled || codes}
+      <div class="pfr">
+        <b>{t('st.recovery.title')}</b>
+        {#if codes}<span class="badge b-ok">{t('st.profile.newCodes')}</span>
+        {:else}<span class="badge {recoveryLeft <= 2 ? 'b-warn' : 'b-ok'}" title={recoveryLeft <= 2 ? t('st.recovery.low') : ''}>{t('st.recovery.leftShort', { n: recoveryLeft })}</span>{/if}
+        <span class="grow"></span>
+        {#if !codes}<button class="btn sm" type="button" aria-expanded={regenOpen} onclick={() => { regenOpen = !regenOpen; regenPw = ''; regenError = ''; }}>{regenOpen ? t('common.cancel') : t('st.profile.newOnes')}</button>{/if}
+      </div>
+      {#if codes}
+        <div class="pfx">
+          <div class="warnbox warn">{t('st.recovery.shown')}</div>
+          <ul class="pf-codes mono">{#each codes as c (c)}<li>{c}</li>{/each}</ul>
+          <div class="row">
+            <button class="btn sm" type="button" onclick={() => void copy(codes?.join('\n') ?? '')}>{t('st.recovery.copy')}</button>
+            <button class="btn sm" type="button" onclick={downloadCodes}>{t('st.recovery.download')}</button>
+            <span class="grow"></span>
+            <button class="btn primary" type="button" onclick={() => (codes = null)}>{t('st.recovery.saved')}</button>
+          </div>
+        </div>
+      {:else if regenOpen}
+        <form class="pfx" onsubmit={(e) => { e.preventDefault(); void regenerate(); }}>
+          <div class="pf-fg">
+            <label class="pf-f">{t('st.security.password')}<span class="field"><input type="password" autocomplete="current-password" required bind:value={regenPw} /></span></label>
+            <button class="btn primary" type="submit" disabled={regenBusy || !regenPw}>{t('st.profile.newOnes')}</button>
+          </div>
+          <span class="dim pf-small">{t('st.recovery.regenerateHint')}</span>
+          {#if regenError}<div class="err" role="alert">{regenError}</div>{/if}
+        </form>
+      {/if}
+    {/if}
+  </div>
 </div>

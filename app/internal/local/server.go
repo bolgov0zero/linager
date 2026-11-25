@@ -59,6 +59,8 @@ type Options struct {
 	AutostartExe string
 	// Fullscreen reads (set nil) or changes the full screen state of the window the person is working in; nil in the headless run.
 	Fullscreen func(set *bool) (bool, error)
+	// FitWindow grows or shrinks the window the person is working in by dw, dh (in the units of the page), within the screen; nil in the headless run.
+	FitWindow func(dw, dh int) error
 	// VaultMemo is the file that remembers the chosen vault file for seven days; empty keeps nothing.
 	VaultMemo string
 	Version   string
@@ -148,6 +150,7 @@ func (s *Server) handler() http.Handler {
 	inner.HandleFunc("PUT /app/autostart", s.autostartPut)
 	inner.HandleFunc("GET /app/fullscreen", s.fullscreenGet)
 	inner.HandleFunc("PUT /app/fullscreen", s.fullscreenPut)
+	inner.HandleFunc("PUT /app/window-fit", s.windowFit)
 	inner.HandleFunc("GET /app/vault/last", s.vaultLast)
 	inner.HandleFunc("DELETE /app/vault/last", s.vaultForget)
 	inner.HandleFunc("GET /app/prefs", s.prefsGet)
@@ -705,6 +708,32 @@ func (s *Server) fullscreenPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"on": on})
+}
+
+// maxFitDelta bounds what the page may ask: a window is never made bigger than any screen by it.
+const maxFitDelta = 10000
+
+func (s *Server) windowFit(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		DW int `json:"dw"`
+		DH int `json:"dh"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if req.DW < -maxFitDelta || req.DW > maxFitDelta || req.DH < -maxFitDelta || req.DH > maxFitDelta {
+		fail(w, http.StatusBadRequest, "bad_size")
+		return
+	}
+	if s.o.FitWindow == nil {
+		fail(w, http.StatusNotImplemented, "no_native_windows")
+		return
+	}
+	if err := s.o.FitWindow(req.DW, req.DH); err != nil {
+		fail(w, http.StatusInternalServerError, "window")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func (s *Server) autostartGet(w http.ResponseWriter, _ *http.Request) {

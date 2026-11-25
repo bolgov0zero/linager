@@ -3,12 +3,11 @@
   import { api, type RolloutMode, type UpdatesInfo } from '../api';
   import { t } from '../i18n.svelte';
   import { showToast } from '../toast';
-  import Fold from './Fold.svelte';
   import UpdAgentsPanel from './UpdAgentsPanel.svelte';
   import UpdCachePanel from './UpdCachePanel.svelte';
   import UpdHistory from './UpdHistory.svelte';
   import UpdServerPanel from './UpdServerPanel.svelte';
-  import { errText, fmtSize } from './upd-format';
+  import { APPLICABLE, errText, fmtSize } from './upd-format';
 
   // Updates of the Linager server and of the agents: the server and the agents are updated from here, the cache of the
   // downloaded releases is kept, and the history is listed. The polling is quick while something runs.
@@ -26,8 +25,16 @@
   let channelBusy = $state(false);
   let prefetching = $state<string | null>(null);
   let pruning = $state(false);
-  let openCli = $state(false);
+  type Tab = 'agents' | 'cache' | 'history' | 'cli';
+  let tab = $state<Tab>('agents');
 
+  const needCount = $derived(info ? info.agents.filter((a) => APPLICABLE.has(a.status)).length : 0);
+  const tabs = $derived<{ id: Tab; label: string; n?: number; warn?: boolean }[]>([
+    { id: 'agents', label: t('st.upd.agents.title'), n: info?.agents.length ?? 0, warn: needCount > 0 },
+    { id: 'cache', label: t('st.upd.tab.cache'), n: info?.cache.length ?? 0 },
+    { id: 'history', label: t('st.upd.tab.history'), n: info?.history.length ?? 0 },
+    { id: 'cli', label: t('st.upd.tab.cli') },
+  ]);
   const serverRunning = $derived(info?.server.update_run.state === 'running');
   const serverBusy = $derived(Boolean(serverRunning) || serverPending);
   const agentsBusy = $derived(info ? info.agents.some((a) => a.status === 'updating' || a.status === 'queued') : false);
@@ -151,24 +158,36 @@
   }
 </script>
 
-<div class="set-sec wide">
-  <div class="row"><h3 style="margin:0">{t('st.upd.title')}</h3><span class="grow"></span>{#if info}<span class="dim">{t('st.upd.channel', { channel: info.channel })}</span>{/if}</div>
+<div class="set-sec wide updtab">
+  <div class="row"><h3 style="margin:0">{t('st.upd.title')}</h3>{#if info}<span class="dim">{t('st.upd.channel', { channel: info.channel })}</span>{/if}<span class="grow"></span>{#if info}<button class="btn sm" type="button" disabled={serverBusy || checking} onclick={check}>{checking ? t('st.upd.srv.checking') : t('st.upd.srv.check')}</button>{/if}</div>
 
   {#if !info}
     <p class="dim">{loadFailed ? t('st.upd.loadError') : t('st.upd.loading')}</p>
   {:else}
     {#if loadFailed}<div class="err" role="alert">{t('st.upd.loadError')}</div>{/if}
-    <div class="two">
-      <UpdServerPanel {info} busy={serverBusy} {restarting} {checking} channelBusy={channelBusy || serverBusy} oncheck={check} onchannel={changeChannel} onupdate={startServerUpdate} />
-      <UpdCachePanel cache={info.cache} prunable={info.cache_prunable ?? 0} {pruning} {prefetching} onprefetch={prefetch} onprune={prune} />
+    <UpdServerPanel {info} busy={serverBusy} {restarting} channelBusy={channelBusy || serverBusy} onchannel={changeChannel} onupdate={startServerUpdate} />
+
+    <div class="upd-tabs" role="tablist" aria-label={t('st.upd.title')}>
+      {#each tabs as x (x.id)}
+        <button type="button" role="tab" id="upd-tab-{x.id}" aria-selected={tab === x.id} aria-controls="upd-pane" class:on={tab === x.id} onclick={() => (tab = x.id)}>{x.label}{#if x.n !== undefined}<em class:warn={x.warn}>{x.n}</em>{/if}</button>
+      {/each}
     </div>
-    <UpdAgentsPanel {info} onrun={runAgents} />
-    <UpdHistory history={info.history} />
-    <Fold title={t('st.upd.cli.title')} bind:open={openCli}>
-      <pre class="json mono">linager update --check      {t('st.upd.cli.check')}
+    <div id="upd-pane" role="tabpanel" aria-labelledby="upd-tab-{tab}" class="upd-pane">
+      {#if tab === 'agents'}
+        <UpdAgentsPanel {info} onrun={runAgents} />
+      {:else if tab === 'cache'}
+        <UpdCachePanel cache={info.cache} prunable={info.cache_prunable ?? 0} {pruning} {prefetching} onprefetch={prefetch} onprune={prune} />
+      {:else if tab === 'history'}
+        <UpdHistory history={info.history} />
+      {:else}
+        <section class="panel">
+          <h4 class="ph">{t('st.upd.cli.title')}</h4>
+          <pre class="json mono">linager update --check      {t('st.upd.cli.check')}
 linager update              {t('st.upd.cli.update')}
 linager agent update        {t('st.upd.cli.agentUpdate')}
 linager agent status        {t('st.upd.cli.agentStatus')}</pre>
-    </Fold>
+        </section>
+      {/if}
+    </div>
   {/if}
 </div>
