@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { t } from '../i18n.svelte';
   import Icon from '../Icon.svelte';
-  import { openPicked } from './store';
+  import { forgetKnown, openPicked } from './store';
   import { VaultError } from './vault';
   import { forgetVaultFile, pickVaultFile, rememberedVaultFile, type Picked } from './vaultFile';
 
@@ -64,6 +64,7 @@
   }
   async function forget(): Promise<void> {
     await forgetVaultFile();
+    forgetKnown();
     picked = null;
     remembered = false;
   }

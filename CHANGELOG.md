@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.6
+
+- New (application): **a dot on the key button shows the state of the keys.** In the top bar and on the key button of the Assistant and RDP panel: green, the vault is open; amber, the time of the auto-lock came but there are unsaved changes (save the file); red, the vault is closed. The red dot shows only when a vault is known (a file was opened in this window or a file is remembered); with nothing known there is no dot. The tooltip and the label say it in words ("Keys (closed)"). The state lives in the memory of each window, so a separate window shows its own. Tests: `keys/state.test.mjs`.
+
 ## 1.1.5
 
 - **Fix (application): the unlock window of the keys opened at the side in the full screen** of the Assistant and RDP; it must stand under the key button. The floating bar over the picture has a transform and a backdrop filter, which make it the reference of everything `position: fixed` inside it, so the window, placed by the coordinates of the screen, was shifted by the place of the bar and pressed to the right edge, where it narrowed. The window is moved out of the bar (`portal.ts`) into the pane of the full screen, and its place is right now. The row of its buttons ("Another file", "Forget the file", "Unlock") no longer wraps. Test: `portal.test.mjs`.

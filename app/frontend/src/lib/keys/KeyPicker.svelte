@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { chainOf, pathOf } from '../folders';
   import Icon from '../Icon.svelte';
   import { t } from '../i18n.svelte';
   import { portal } from '../portal';
   import KeyOpenForm from './KeyOpenForm.svelte';
-  import { loadDirectory, touch, vault } from './store';
+  import { checkVaultKnown, keyState, loadDirectory, touch, vault } from './store';
   import { accountOf, sectionsFor, type Entry, type Known, type Sections, type Target } from './vault';
 
   // The list "Key" of a login form of a server: the keys of the open vault that fit it, this server's first. Picking one
@@ -13,6 +14,9 @@
     serverId: string; use: 'rdp' | 'uac'; variant?: 'field' | 'icon'; picked?: string | null;
     onpick?: (entry: Entry) => void; onact?: (entry: Entry, action: 'login' | 'password' | 'signin') => void; title?: string;
   } = $props();
+
+  const keyTitle = (base: string, state: string): string => (state === 'none' ? base : `${base} (${t('keys.state.' + state)})`);
+  onMount(() => void checkVaultKnown());
 
   let button = $state<HTMLButtonElement | null>(null);
   let open = $state(false);
@@ -88,7 +92,7 @@
 {/snippet}
 
 {#if variant === 'icon'}
-  <button bind:this={button} class="btn sm icon" type="button" aria-haspopup="listbox" aria-expanded={open} {title} aria-label={title} onclick={() => (open ? hide() : void show())}><Icon name={$vault ? 'lock-open' : 'key-round'} size={14} /></button>
+  <button bind:this={button} class="btn sm icon" type="button" data-keys={$keyState} aria-haspopup="listbox" aria-expanded={open} title={keyTitle(title, $keyState)} aria-label={keyTitle(title, $keyState)} onclick={() => (open ? hide() : void show())}><Icon name={$vault ? 'lock-open' : 'key-round'} size={14} /></button>
 {:else}
   <div class="fl"><span>{t('keys.pick.label')}</span>
     <button bind:this={button} class="btn" type="button" style="justify-content:space-between;width:100%" aria-haspopup="listbox" aria-expanded={open} onclick={() => (open ? hide() : void show())}>

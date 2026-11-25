@@ -1,9 +1,10 @@
 // The open vault of the window. The decrypted entries live here, in memory, and nowhere else: not in the preferences, not
 // on the server. A closed window, a restart or the auto-lock forgets them; the file is the only copy.
-import { get, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 import { api, type Group } from '../api';
 import { getPref, setPref } from '../prefs';
-import { saveVaultFile, type Picked } from './vaultFile';
+import { keyStateOf } from './state';
+import { rememberedVaultFile, saveVaultFile, type Picked } from './vaultFile';
 import { DEFAULT_FILE, VaultError, cleanEntry, newSession, openVault, sealVault, wipe, type Entry, type Session } from './vault';
 
 export interface VaultState {
@@ -17,11 +18,30 @@ export interface VaultState {
 /** null while the vault is closed. */
 export const vault = writable<VaultState | null>(null);
 
+/** A vault is known to this window: one was opened here, or a file is remembered (the last one chosen in the last seven days). */
+export const vaultKnown = writable(false);
+vault.subscribe((v) => {
+  if (v) vaultKnown.set(true);
+});
+
+/** Looks for a remembered file (the buttons show a red dot when a known vault is closed, and nothing when there is none). */
+export async function checkVaultKnown(): Promise<void> {
+  if (await rememberedVaultFile()) vaultKnown.set(true);
+}
+
+/** The remembered file was forgotten: a closed vault is not known any more. */
+export function forgetKnown(): void {
+  if (!get(vault)) vaultKnown.set(false);
+}
+
 /** The window "Keys" is open. A form (the RDP form) opens it from where it is, so the state is here and not in a component. */
 export const keysOpen = writable(false);
 
 /** The auto-lock time was reached but there are unsaved changes: the vault stays open until the file is saved. */
 export const lockWaiting = writable(false);
+
+/** "open", "waiting", "closed" or "none": the dot of the buttons of the keys (see state.ts). */
+export const keyState = derived([vault, lockWaiting, vaultKnown], ([v, w, k]) => keyStateOf(v !== null, w, k));
 
 /** Minutes of silence before the vault closes itself; 0 turns it off. */
 export const LOCK_CHOICES = [5, 15, 30, 0] as const;

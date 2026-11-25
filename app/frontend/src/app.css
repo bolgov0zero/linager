@@ -651,6 +651,7 @@ input.range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px
 .upd-notes{margin:0;padding-left:18px;font-size:12.5px;color:var(--text2);display:grid;gap:2px;max-height:150px;overflow:auto}
 .ok-t{color:var(--ok-t);margin:0;font-size:12.5px}
 .mdl-stack .row{display:flex;align-items:center;gap:10px}
+.btn[data-keys]:not([data-keys=none]){position:relative}.btn[data-keys]:not([data-keys=none])::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 2px var(--dot-ring,var(--bg));pointer-events:none}.btn.sm.icon[data-keys]::after{top:2px;right:2px}.fb .btn,.asst-pane .btn{--dot-ring:var(--bg2)}.btn[data-keys=open]::after{background:var(--ok)}.btn[data-keys=waiting]::after{background:var(--warn)}.btn[data-keys=closed]::after{background:var(--crit)}
 .btn.has-mark{position:relative}.btn.has-mark::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
 .mdl-stack .err{overflow-wrap:anywhere}
 .win-pane{display:flex}.win-pane>.asst-pane{flex:1;min-width:0}

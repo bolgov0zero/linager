@@ -2940,5 +2940,8 @@
   "tag.s.offline": "нет связи",
   "keys.compact.ph": "Фраза для {name}",
   "keys.compact.pick": "Выбрать файл ключей",
-  "keys.compact.menu": "Другой файл или забыть файл"
+  "keys.compact.menu": "Другой файл или забыть файл",
+  "keys.state.open": "открыты",
+  "keys.state.waiting": "время вышло, сохраните файл",
+  "keys.state.closed": "закрыты"
 }

@@ -2939,5 +2939,8 @@
   "tag.s.offline": "offline",
   "keys.compact.ph": "Passphrase for {name}",
   "keys.compact.pick": "Choose the keys file",
-  "keys.compact.menu": "Another file, or forget the file"
+  "keys.compact.menu": "Another file, or forget the file",
+  "keys.state.open": "open",
+  "keys.state.waiting": "time is up, save the file",
+  "keys.state.closed": "closed"
 }

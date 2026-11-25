@@ -20,6 +20,8 @@
 
 The auto-lock (15 minutes of silence by default; 5, 30 or off; the choice is remembered in the application) closes the vault by itself. With unsaved changes it stays open until you save the file, and closes then.
 
+The dot on the key button (in the top bar and on the Assistant and RDP panel) shows the state: green, the vault is open; amber, the auto-lock time came but there are unsaved changes (save the file); red, the vault is closed. The red dot shows only when a vault is known (a file was opened in this window or a file is remembered); otherwise there is no dot. Each application window shows its own state.
+
 ## A key
 
 | Field | What it is |

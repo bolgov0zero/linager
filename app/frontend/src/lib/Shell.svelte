@@ -3,7 +3,7 @@
   import Icon from './Icon.svelte';
   import { i18n, setLocale, t } from './i18n.svelte';
   import KeysModal from './keys/KeysModal.svelte';
-  import { keysOpen } from './keys/store';
+  import { checkVaultKnown, keyState, keysOpen } from './keys/store';
   import { nav, setSection } from './route.svelte';
   import { native } from './native';
   import { startAutoCheck, upd } from './update.svelte';
@@ -29,7 +29,9 @@
       // optional
     }
   }
+  const keyTitle = (base: string, state: string): string => (state === 'none' ? base : `${base} (${t('keys.state.' + state)})`);
   onMount(() => {
+    void checkVaultKnown();
     const stop = startAutoCheck();
     void checkServer();
     const timer = setInterval(() => void checkServer(), 10 * 60_000);
@@ -57,7 +59,7 @@
       {#if server}<span class="badge b-ok mono" title={server}>{server}</span>{/if}
       <button class="btn ghost" type="button" onclick={() => setLocale(i18n.locale === 'ru' ? 'en' : 'ru')} title="Language"><span>{i18n.locale === 'ru' ? 'RU' : 'EN'}</span></button>
       <button class="btn icon ghost" type="button" onclick={flipTheme} title={t('nav.theme')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /></button>
-      <button class="btn icon ghost" type="button" title={t('keys.app.menu')} aria-label={t('keys.app.menu')} onclick={() => keysOpen.set(true)}><Icon name="key-round" size={16} /></button>
+      <button class="btn icon ghost" type="button" data-keys={$keyState} title={keyTitle(t('keys.app.menu'), $keyState)} aria-label={keyTitle(t('keys.app.menu'), $keyState)} onclick={() => keysOpen.set(true)}><Icon name="key-round" size={16} /></button>
       <button class="btn icon ghost" class:has-mark={upd.info?.newer || serverNew} type="button" title={upd.info?.newer ? t('set.upd.mark') : serverNew ? t('set.serverUpdate') : t('nav.settings')} aria-label={t('nav.settings')} onclick={openSettings}><Icon name="settings" size={16} /></button>
       <button class="btn ghost logout" type="button" onclick={onlogout}><Icon name="log-out" size={15} /><span>{t('nav.logout')}</span></button>
     </div>
