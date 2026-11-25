@@ -26,12 +26,13 @@ import (
 )
 
 type connStatusView struct {
-	AgentPort   int    `json:"agent_port"`
-	AppPort     int    `json:"app_port"`
-	AppUp       bool   `json:"app_up"`
-	Fingerprint string `json:"fingerprint"`
-	MinAgent    string `json:"min_agent"`
-	Move        *struct {
+	AgentPort      int    `json:"agent_port"`
+	AppPort        int    `json:"app_port"`
+	AppUp          bool   `json:"app_up"`
+	Fingerprint    string `json:"fingerprint"`
+	FingerprintAlt string `json:"fingerprint_alt"`
+	MinAgent       string `json:"min_agent"`
+	Move           *struct {
 		From    int `json:"from"`
 		To      int `json:"to"`
 		Moved   int `json:"moved"`
@@ -124,7 +125,7 @@ func TestConnectionPortsAndMove(t *testing.T) {
 	// --- the state ---
 	var st connStatusView
 	if code := api.do("GET", "/api/connection", nil, &st); code != 200 || st.AgentPort != portOf(cfg.Agents.Listen) || st.AppPort != portOf(cfg.App.Listen) || !st.AppUp ||
-		st.Fingerprint != serverFP || st.MinAgent == "" || st.Move != nil {
+		st.Fingerprint != serverFP || st.FingerprintAlt != pki.Fingerprint(keys.TLSAltDER) || st.MinAgent == "" || st.Move != nil {
 		t.Fatalf("connection state: %d %+v", code, st)
 	}
 

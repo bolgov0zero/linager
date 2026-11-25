@@ -64,14 +64,15 @@ type ConnMove struct {
 
 // ConnStatus is what the panel shows.
 type ConnStatus struct {
-	AgentPort   int         `json:"agent_port"`
-	AppPort     int         `json:"app_port"`
-	Host        string      `json:"host"`        // the address the listeners are bound to
-	Fingerprint string      `json:"fingerprint"` // of the certificate of both ports
-	MinAgent    string      `json:"min_agent"`   // the first agent version that follows a change of the agent port
-	AppUp       bool        `json:"app_up"`      // the application listener is really open
-	Move        *ConnMove   `json:"move"`
-	Blockers    []ConnAgent `json:"blockers"` // online agents that would be cut off by a change of the agent port
+	AgentPort      int         `json:"agent_port"`
+	AppPort        int         `json:"app_port"`
+	Host           string      `json:"host"`            // the address the listeners are bound to
+	Fingerprint    string      `json:"fingerprint"`     // of the certificate of both ports
+	FingerprintAlt string      `json:"fingerprint_alt"` // of the ECDSA certificate that Apple's TLS and Windows PowerShell get instead
+	MinAgent       string      `json:"min_agent"`       // the first agent version that follows a change of the agent port
+	AppUp          bool        `json:"app_up"`          // the application listener is really open
+	Move           *ConnMove   `json:"move"`
+	Blockers       []ConnAgent `json:"blockers"` // online agents that would be cut off by a change of the agent port
 }
 
 // ConnReq is what the panel sends.
@@ -256,7 +257,7 @@ func (c *Connection) Status(ctx context.Context) (*ConnStatus, error) {
 	c.mu.Lock()
 	appUp := c.app != nil
 	c.mu.Unlock()
-	out := &ConnStatus{AgentPort: st.AgentPort, AppPort: st.AppPort, Host: c.agentHost, Fingerprint: pki.Fingerprint(c.keys.TLSDER), MinAgent: protocol.MoveMinAgent,
+	out := &ConnStatus{AgentPort: st.AgentPort, AppPort: st.AppPort, Host: c.agentHost, Fingerprint: pki.Fingerprint(c.keys.TLSDER), FingerprintAlt: pki.Fingerprint(c.keys.TLSAltDER), MinAgent: protocol.MoveMinAgent,
 		AppUp: appUp, Blockers: []ConnAgent{}}
 	for _, a := range list {
 		if a.Online && !a.Supported {
@@ -475,8 +476,9 @@ func storedConnState(ctx context.Context, cfg *config.Server, db *store.Store) (
 
 // AppAccessPoint is what the application needs to connect: the port and the fingerprint of the certificate it must pin.
 type AppAccessPoint struct {
-	Port        int
-	Fingerprint string
+	Port           int
+	Fingerprint    string
+	FingerprintAlt string // of the ECDSA certificate, which is the one an iPhone sees
 }
 
 // AppPortInfo reads the port of the application and the fingerprint of the certificate (`linager server app-port`).
@@ -489,7 +491,8 @@ func AppPortInfo(ctx context.Context, cfg *config.Server, db *store.Store) (AppA
 	if err != nil {
 		return AppAccessPoint{}, err
 	}
-	return AppAccessPoint{Port: st.AppPort, Fingerprint: pki.Fingerprint(keys.TLSDER)}, nil
+	fp, alt := keys.Fingerprints()
+	return AppAccessPoint{Port: st.AppPort, Fingerprint: fp, FingerprintAlt: alt}, nil
 }
 
 // SetAppPort stores the application port in the database; the running server reads it when it starts. It is the way to

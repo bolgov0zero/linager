@@ -27,6 +27,13 @@ func writeSecret(path string, data []byte) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
+// Fingerprints are the fingerprints of the two server certificates: the Ed25519 one and the ECDSA one. Which of them a client sees
+// depends on what it can verify: Go and wget get the first, Apple's TLS (iPhone, iPad) and Windows PowerShell get the second. A person who
+// compares what a client shows with what the server shows needs the one the client got.
+func (k *Keys) Fingerprints() (primary, alt string) {
+	return pki.Fingerprint(k.TLSDER), pki.Fingerprint(k.TLSAltDER)
+}
+
 // InitKeys creates missing keys (CA, agent-port TLS certificate, command signing key).
 // Existing files are never overwritten.
 func InitKeys(dir string, hosts []string) error {

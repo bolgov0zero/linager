@@ -9,6 +9,8 @@
 
 Both ports use one certificate, so the section shows one fingerprint (SHA-256). The application remembers it on the first connection, the way SSH remembers a host key.
 
+The server really has two certificates with one name: Ed25519 and ECDSA P-256. A client gets the one whose signature it can verify: the desktop application, the agent and `wget` get Ed25519, while an **iPhone or iPad** (Apple's TLS) and Windows PowerShell get ECDSA. Their fingerprints differ. The main fingerprint (Ed25519) is shown in the section and on the line `Certificate fingerprint`; the ECDSA one, which an iPhone shows, is printed by `linager server app-port` on a line of its own, `Fingerprint for iPhone and iPad`, and the API returns it as `fingerprint_alt`.
+
 ## Application port
 
 A separate port: a direct TLS connection without a reverse proxy. The installation wizard always asks for it (`--app-port` without questions). The port cannot be switched off: there is no other way to the interface. If a server has no port (it was installed before the application), switch it on on the server: `sudo linager server app-port <port>`, then restart the service (`systemctl restart linager-server`); the same command without an argument shows the port and the fingerprint of the certificate. After changing the port in the application connect at the new address.

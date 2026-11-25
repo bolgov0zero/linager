@@ -114,7 +114,14 @@ func newServerCmd() *cobra.Command {
 				_, err = fmt.Fprintln(out, "The application port is not set: linager server app-port <port>")
 				return err
 			}
-			_, err = fmt.Fprintf(out, "Application port: %d\nCertificate fingerprint: %s\nIn the application enter <address of this server>:%d and compare the fingerprint.\n", info.Port, info.Fingerprint, info.Port)
+			_, err = fmt.Fprintf(out, "Application port: %d\nCertificate fingerprint: %s\n", info.Port, info.Fingerprint)
+			if err == nil && info.FingerprintAlt != "" {
+				// an iPhone or an iPad gets the other certificate: its fingerprint is what the phone shows
+				_, err = fmt.Fprintf(out, "Fingerprint for iPhone and iPad (the ECDSA certificate): %s\n", info.FingerprintAlt)
+			}
+			if err == nil {
+				_, err = fmt.Fprintf(out, "In the application enter <address of this server>:%d and compare the fingerprint.\n", info.Port)
+			}
 			return err
 		},
 	}
