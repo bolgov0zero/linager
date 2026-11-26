@@ -186,3 +186,54 @@ func TestPinMismatchIsReported(t *testing.T) {
 		t.Fatal("ErrPin must be comparable")
 	}
 }
+
+// The device of the application is told to the server with every request, whatever the web view sends, and the web view cannot read it.
+func TestDeviceHeadersGoWithEveryRequest(t *testing.T) {
+	var got http.Header
+	srv := newTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Clone()
+		_, _ = io.WriteString(w, "{}")
+	}))
+	s, err := NewSession(Target{Addr: addrOf(srv), Fingerprint: fingerprintOf(t, srv)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.SetDevice(strings.Repeat("T", 43), "platform=macos&app=1.0")
+
+	// the proxy (the web view), which tries to send its own headers
+	front := httptest.NewServer(s.Handler())
+	defer front.Close()
+	req, _ := http.NewRequest("GET", front.URL+"/api/me", nil)
+	req.Header.Set(DeviceHeader, "forged")
+	req.Header.Set(ClientHeader, "platform=forged")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if got.Get(DeviceHeader) != strings.Repeat("T", 43) || got.Get(ClientHeader) != "platform=macos&app=1.0" {
+		t.Fatalf("proxy: %v", got)
+	}
+	if resp.Header.Get(DeviceHeader) != "" {
+		t.Fatal("the token must not go back to the web view")
+	}
+
+	// the calls the application makes itself
+	r2, err := s.Client().Get(s.URL("/api/me"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = r2.Body.Close()
+	if got.Get(DeviceHeader) == "" {
+		t.Fatal("client")
+	}
+	r3, err := s.Fetch(context.Background(), "/api/x?y=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = r3.Body.Close()
+	if got.Get(DeviceHeader) == "" || got.Get(ClientHeader) == "" {
+		t.Fatal("fetch")
+	}
+}

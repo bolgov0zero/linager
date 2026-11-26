@@ -14,6 +14,8 @@ final class LockModel {
     /// The application is not in front (the app switcher takes its picture now): hide the content.
     private(set) var covering = false
     private var busy = false
+    /// The context that passed the face (or the passcode) of the lock: the keys behind Face ID open with it, with no second prompt.
+    private(set) var authenticated: LAContext?
 
     init() {
         let on = UserDefaults.standard.bool(forKey: Self.key)
@@ -30,7 +32,10 @@ final class LockModel {
             covering = enabled
         case .background:
             covering = enabled
-            if enabled { locked = true }
+            if enabled {
+                locked = true
+                authenticated = nil
+            }
         @unknown default:
             break
         }
@@ -40,14 +45,33 @@ final class LockModel {
         guard locked, !busy else { return }
         busy = true
         defer { busy = false }
-        let ctx = LAContext()
+        // the face first: a context that passed it is good for the Keychain item of the keys too. When the face does not do (no match, locked out),
+        // the passcode of the phone.
+        let face = LAContext()
         var err: NSError?
+        if face.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err) {
+            do {
+                if try await face.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: L("lock.reason")) {
+                    authenticated = face
+                    locked = false
+                    return
+                }
+            } catch let e as LAError where e.code == .userFallback || e.code == .biometryLockout || e.code == .biometryNotAvailable || e.code == .biometryNotEnrolled {
+                // on to the passcode
+            } catch {
+                return // cancelled: the person is asked again at the button
+            }
+        }
+        let code = LAContext()
         // a phone without a passcode cannot be asked: there is nothing to unlock with, and the lock cannot have been turned on
-        guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else {
+        guard code.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else {
             locked = false
             return
         }
-        if (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L("lock.reason"))) == true { locked = false }
+        if (try? await code.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L("lock.reason"))) == true {
+            authenticated = code
+            locked = false
+        }
     }
 
     /// Turning it on asks once, so that a phone that cannot unlock is never locked out.

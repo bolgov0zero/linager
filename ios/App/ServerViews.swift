@@ -52,8 +52,24 @@ private func offlineFor(_ c: ServerCard) -> String? {
 struct ServerMenu: View {
     let card: ServerCard
     let chips: [Chip]
+    /// Opens the terminal of the server; nil when the account has no right to it.
+    var onTerminal: ((ServerCard) -> Void)?
+    /// Opens the Assistant; nil when the account has no right to it.
+    var onAssistant: ((ServerCard) -> Void)?
 
     var body: some View {
+        if onTerminal != nil || (onAssistant != nil && assistantOffered(card)) {
+            Section {
+                if let onTerminal {
+                    Button { onTerminal(card) } label: { Label("ctx.terminal", systemImage: "apple.terminal") }
+                        .disabled(!card.online)
+                }
+                if let onAssistant, assistantOffered(card) {
+                    Button { onAssistant(card) } label: { Label("ctx.assistant", systemImage: "display") }
+                        .disabled(!card.online)
+                }
+            }
+        }
         Button { UIPasteboard.general.string = card.name } label: { Label("ctx.copyName", systemImage: "doc.on.doc") }
         Button { UIPasteboard.general.string = card.address } label: { Label("ctx.copyAddress", systemImage: "network") }
             .disabled(card.address.isEmpty)
@@ -76,6 +92,8 @@ struct ServerMenu: View {
 struct ServerRow: View {
     let card: ServerCard
     var agent: AgentFlag?
+    var onTerminal: ((ServerCard) -> Void)?
+    var onAssistant: ((ServerCard) -> Void)?
 
     var body: some View {
         let level = levelOf(card)
@@ -102,7 +120,7 @@ struct ServerRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .contextMenu { ServerMenu(card: card, chips: all) }
+        .contextMenu { ServerMenu(card: card, chips: all, onTerminal: onTerminal, onAssistant: onAssistant) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(card.name + ", " + level.title)
     }
@@ -135,6 +153,8 @@ struct Sparkline: View {
 struct ServerCardView: View {
     let card: ServerCard
     var agent: AgentFlag?
+    var onTerminal: ((ServerCard) -> Void)?
+    var onAssistant: ((ServerCard) -> Void)?
 
     var body: some View {
         let level = levelOf(card)
@@ -174,9 +194,9 @@ struct ServerCardView: View {
             .frame(minHeight: 20)
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .contextMenu { ServerMenu(card: card, chips: all) }
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
+        .contextMenu { ServerMenu(card: card, chips: all, onTerminal: onTerminal, onAssistant: onAssistant) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(card.name + ", " + level.title)
     }

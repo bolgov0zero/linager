@@ -5,6 +5,7 @@
   import Dashboard from './lib/Dashboard.svelte';
   import { t } from './lib/i18n.svelte';
   import Login from './lib/Login.svelte';
+  import Waiting from './lib/Waiting.svelte';
   import { native, type AppState } from './lib/native';
   import Confirm from './lib/Confirm.svelte';
   import Icon from './lib/Icon.svelte';
@@ -32,10 +33,15 @@
   }
   const win = route();
 
-  type Stage = 'loading' | 'connect' | 'login' | 'main' | 'window' | 'error';
+  type Stage = 'loading' | 'connect' | 'login' | 'waiting' | 'main' | 'window' | 'error';
   let stage = $state<Stage>('loading');
   let st = $state<AppState | null>(null);
   let session = $state<Session | null>(null);
+  /** Why the sign-in screen is shown instead of the application (a device that was refused or removed). */
+  let notice = $state('');
+
+  /** The device signed in but an administrator has not approved it yet. */
+  const waiting = (s: Session): boolean => !!s.device?.confirm && s.device.status === 'pending';
 
   async function enter(s: AppState): Promise<void> {
     st = s;
@@ -46,12 +52,13 @@
     try {
       session = await api.me(); // the cookie of an earlier sign-in may still be alive
       setMe(session);
-      stage = win ? 'window' : 'main';
+      stage = waiting(session) ? (win ? 'error' : 'waiting') : win ? 'window' : 'main';
     } catch (e) {
       if (win && e instanceof ApiError && e.status === 401) {
         stage = 'error';
         return;
       }
+      if (e instanceof ApiError && e.status === 403 && e.code === 'device_denied') notice = t('login.err.deviceDenied');
       stage = 'login';
     }
   }
@@ -90,7 +97,14 @@
 {:else if stage === 'connect' && st}
   <Connect app={st} onconnected={(s) => void enter(s)} />
 {:else if stage === 'login' && st?.profile}
-  <Login profile={st.profile} onsignedin={(s) => { session = s; setMe(s); stage = 'main'; }} onchange={(s) => void enter(s)} />
+  <Login profile={st.profile} {notice} onsignedin={(s) => { notice = ''; session = s; setMe(s); stage = waiting(s) ? 'waiting' : 'main'; }} onchange={(s) => void enter(s)} />
+{:else if stage === 'waiting' && st}
+  <Waiting
+    name={st.profile?.name ?? ''}
+    onapproved={(s) => { session = s; setMe(s); stage = 'main'; }}
+    onlogout={logout}
+    onlost={(why) => { notice = why === 'denied' ? t('login.err.deviceDenied') : t('wait.ended'); session = null; stage = 'login'; }}
+  />
 {:else if stage === 'window' && win && win.kind === 'terminal'}
   <Terminal id={win.id} title={win.title} nativeWindows={st?.native ?? false} initialUser={win.arg} />
 {:else if stage === 'window' && win && win.kind === 'note'}

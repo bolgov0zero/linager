@@ -9,7 +9,7 @@ frontend:
 	cd frontend && npm ci && npm run build && touch dist/.gitkeep
 
 test: frontend
-	cd frontend && npm run check && node --test src/lib/*.test.mjs src/lib/assistant/*.test.mjs src/lib/desktop/*.test.mjs src/lib/keys/*.test.mjs
+	cd frontend && npm run check && node --test src/lib/*.test.mjs src/lib/settings/*.test.mjs src/lib/assistant/*.test.mjs src/lib/desktop/*.test.mjs src/lib/keys/*.test.mjs
 	go vet ./... && go test ./internal/...
 
 build: frontend

@@ -18,8 +18,14 @@ jobs:
     with:
       version: ${{ github.ref_name }}
 
+  # the iPhone application: an IPA without a signature; a failure here does not stop the rest of the release either
+  ios:
+    uses: ./.github/workflows/ios-release.yml
+    with:
+      version: ${{ github.ref_name }}
+
   release:
-    needs: [windows, app]
+    needs: [windows, app, ios]
     # the Windows agent is built in its own job; if it fails, the Linux release is still published without it
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
@@ -45,11 +51,17 @@ jobs:
           pattern: app-*
           path: bin
           merge-multiple: true
+      - name: iPhone application
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa
+          path: bin
       - name: Manifest and checksums
         run: |
           git fetch --tags --force
           sh packaging/make-manifest.sh "${GITHUB_REF_NAME}"
-          cd bin && sha256sum linager_linux_amd64 linager_linux_arm64 $(ls linager-agent_windows_amd64.exe linager-agent_windows_amd64.msi linager-desktop_macos_arm64.zip linager-desktop-autoupdate_windows_x64.zip linager-desktop_windows_x64.msi linager-desktop_linux_x64.tar.gz 2>/dev/null) > SHA256SUMS
+          cd bin && sha256sum linager_linux_amd64 linager_linux_arm64 $(ls linager-agent_windows_amd64.exe linager-agent_windows_amd64.msi linager-desktop_macos_arm64.zip linager-desktop-autoupdate_windows_x64.zip linager-desktop_windows_x64.msi linager-desktop_linux_x64.tar.gz linager-ios_arm64.ipa 2>/dev/null) > SHA256SUMS
       - name: Sign (minisign)
         env:
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
@@ -69,7 +81,7 @@ jobs:
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease";; esac
           files="bin/linager_linux_amd64 bin/linager_linux_arm64 bin/SHA256SUMS bin/manifest.json"
-          for w in bin/linager-agent_windows_amd64.exe bin/linager-agent_windows_amd64.msi bin/linager-desktop_macos_arm64.zip bin/linager-desktop-autoupdate_windows_x64.zip bin/linager-desktop_windows_x64.msi bin/linager-desktop_linux_x64.tar.gz; do [ -f "$w" ] && files="$files $w"; done
+          for w in bin/linager-agent_windows_amd64.exe bin/linager-agent_windows_amd64.msi bin/linager-desktop_macos_arm64.zip bin/linager-desktop-autoupdate_windows_x64.zip bin/linager-desktop_windows_x64.msi bin/linager-desktop_linux_x64.tar.gz bin/linager-ios_arm64.ipa; do [ -f "$w" ] && files="$files $w"; done
           if [ -n "${UNSIGNED:-}" ]; then flags="--prerelease"; else files="$files bin/SHA256SUMS.minisig bin/manifest.json.minisig"; fi
           # Release notes: this version's section of CHANGELOG.md (the server shows them on the updates page).
           ver="${GITHUB_REF_NAME#v}"

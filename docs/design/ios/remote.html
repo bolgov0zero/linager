@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linager для iOS: удалённый экран (кликабельный макет)</title>
+<style>
+/* Clickable mockup of the remote screen (the Assistant and the remote desktop share it). Demo only: nothing is sent anywhere. */
+* { box-sizing: border-box; margin: 0; }
+body { font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; background: #e9eaee; color: #1c1c1e; padding: 24px 28px 60px; }
+h1 { font-size: 26px; letter-spacing: -.3px; }
+.lead { max-width: 900px; color: #555; margin: 8px 0 18px; }
+.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: start; max-width: 1500px; }
+.stage { min-height: 930px; display: grid; place-items: center; background: #dfe1e6; border-radius: 24px; position: relative; }
+.ctl { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; z-index: 5; }
+.ctl b { font-size: 12px; color: #555; font-weight: 600; margin-right: 2px; }
+.ctl button, .seg button { font: 13px -apple-system, system-ui, sans-serif; padding: 5px 11px; border-radius: 14px; border: 0; background: #fff; color: #1c1c1e; cursor: pointer; box-shadow: 0 0 0 1px #d0d2d8 inset; }
+.seg { display: inline-flex; gap: 2px; background: #cfd2d9; padding: 2px; border-radius: 16px; }
+.seg button { background: transparent; box-shadow: none; }
+.seg button.on { background: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+aside { font-size: 14px; }
+aside h2 { font-size: 16px; margin: 0 0 6px; }
+aside section { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+aside table { border-collapse: collapse; width: 100%; font-size: 13px; }
+aside td { padding: 4px 0; vertical-align: top; border-bottom: 1px solid #eee; }
+aside td:first-child { color: #555; width: 42%; padding-right: 8px; }
+aside li { margin: 4px 0 4px 18px; font-size: 13px; }
+kbd { font: 12px ui-monospace, Menlo, monospace; background: #f2f2f7; border: 1px solid #d8d8de; border-radius: 4px; padding: 0 4px; }
+
+/* ---------- device ---------- */
+.dev { width: 413px; height: 872px; padding: 10px; border-radius: 66px; background: #111; box-shadow: 0 0 0 2px #3a3a3c inset, 0 18px 40px rgba(0,0,0,.28); position: relative; transition: transform .5s ease; flex: none;
+  --bg: #000; --cell: #1c1c1e; --sep: rgba(84,84,88,.55); --l1: #fff; --l2: rgba(235,235,245,.6); --l3: rgba(235,235,245,.3); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.36);
+  --blue: #0a84ff; --green: #30d158; --orange: #ff9f0a; --red: #ff453a; --glass: rgba(58,58,62,.62); --menu: rgba(44,44,46,.86); }
+.dev.turning { transform: rotate(-90deg); }
+.dev.land { width: 872px; height: 413px; }
+.scr { width: 393px; height: 852px; border-radius: 56px; overflow: hidden; position: relative; background: var(--bg); color: var(--l1); font: 17px/22px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.4px; user-select: none; -webkit-user-select: none; }
+.dev.land .scr { width: 852px; height: 393px; border-radius: 46px; }
+.isl { position: absolute; z-index: 90; background: #000; border-radius: 20px; top: 11px; left: 50%; width: 124px; height: 36px; margin-left: -62px; }
+.dev.land .isl { top: 50%; left: 11px; width: 36px; height: 124px; margin: -62px 0 0; }
+.home { position: absolute; bottom: 8px; left: 50%; width: 138px; height: 5px; margin-left: -69px; background: #fff; border-radius: 3px; z-index: 95; opacity: .85; }
+.dev.land .home { width: 140px; margin-left: -70px; bottom: 6px; opacity: .45; }
+.sb { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; justify-content: space-between; align-items: center; padding: 6px 34px 0 52px; z-index: 40; font-weight: 600; font-size: 17px; }
+.dev.land .sb { display: none; }
+.ic { flex: none; vertical-align: middle; }
+#p, #l { position: absolute; inset: 0; }
+#l { display: none; }
+.dev.land #p { display: none; } .dev.land #l { display: block; }
+.fade { animation: fade .35s ease; } @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- portrait: dashboard, menu, form, connecting ---------- */
+.glass { display: flex; align-items: center; height: 44px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 0 0 .5px var(--sep), 0 3px 12px rgba(0,0,0,.22); color: var(--l1); }
+.nav { position: absolute; top: 54px; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: flex-end; padding: 0 16px; gap: 8px; }
+.glass .b { width: 44px; height: 44px; display: grid; place-items: center; }
+.lt { position: absolute; top: 104px; left: 16px; font-weight: 700; font-size: 34px; line-height: 41px; letter-spacing: .4px; }
+.list { position: absolute; top: 160px; left: 16px; right: 16px; background: var(--cell); border-radius: 22px; overflow: hidden; }
+.row { padding: 12px 16px; position: relative; cursor: pointer; }
+.row:hover { background: rgba(255,255,255,.04); }
+.row + .row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
+.row .n { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.row .s { font-size: 13px; color: var(--l2); margin: 1px 0 0 18px; letter-spacing: -.1px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); flex: none; }
+.hint { position: absolute; left: 24px; right: 24px; top: 400px; font-size: 13px; color: var(--l2); text-align: center; }
+.dim { position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 30; }
+.menu { position: absolute; width: 292px; background: var(--menu); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); border-radius: 18px; z-index: 36; box-shadow: 0 10px 40px rgba(0,0,0,.45); overflow: hidden; }
+.mi { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 44px; font-size: 17px; cursor: pointer; white-space: nowrap; }
+.mi + .mi { border-top: .5px solid var(--sep); }
+.mi:hover { background: rgba(255,255,255,.08); }
+.mi.off { color: var(--l3); cursor: default; } .mi.off:hover { background: none; }
+.mi .l { display: flex; align-items: center; gap: 10px; }
+.mi .l i { width: 16px; display: inline-block; font-style: normal; color: var(--blue); }
+.mi.sub { height: 30px; font-size: 13px; color: var(--l2); cursor: default; }
+.mi.sub:hover { background: none; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 150px; background: #1c1c1e; border-radius: 38px 38px 0 0; z-index: 35; padding: 14px 20px 34px; }
+.sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--l3); margin: -4px auto 14px; }
+.sheet h3 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .3px; }
+.sheet p { color: var(--l2); font-size: 15px; line-height: 20px; margin-top: 4px; letter-spacing: -.2px; }
+.grp { background: #2c2c2e; border-radius: 18px; overflow: hidden; margin: 16px 0 12px; }
+.cell { display: flex; align-items: center; gap: 12px; padding: 11px 16px; min-height: 44px; position: relative; }
+.cell + .cell::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
+.cell .k { width: 84px; flex: none; }
+.cell input { background: none; border: 0; outline: 0; color: var(--l1); font: inherit; letter-spacing: inherit; flex: 1; min-width: 0; }
+.btn { display: grid; place-items: center; height: 50px; border-radius: 25px; background: var(--blue); color: #fff; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.btn.g { background: var(--fill); color: var(--blue); }
+.spin { width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--fill2); border-top-color: var(--l1); animation: spin 1s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.conn { position: absolute; inset: 0; background: #000; z-index: 60; display: grid; place-content: center; text-align: center; }
+.conn b { font-size: 20px; } .conn small { display: block; color: var(--l2); font-size: 15px; margin-top: 4px; }
+.toast { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); background: var(--menu); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); padding: 9px 16px; border-radius: 20px; font-size: 14px; z-index: 120; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.4); letter-spacing: -.1px; }
+
+/* ---------- landscape: the remote screen ---------- */
+#view { position: absolute; inset: 0; background: #000; overflow: hidden; touch-action: none; cursor: default; }
+#pic { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; transition: transform .28s ease; overflow: hidden; border-radius: 3px; }
+.win-wall { position: absolute; inset: 0; background: radial-gradient(900px 600px at 70% 30%, #3a8cff 0%, #1456c9 38%, #0a2a73 75%, #06143a 100%); }
+.win-wall::after { content: ""; position: absolute; inset: 0; background: radial-gradient(500px 300px at 20% 80%, rgba(80,200,255,.35), transparent 70%); }
+.lin-wall { background: linear-gradient(135deg, #0e6d6a 0%, #0b3d58 55%, #101a30 100%); }
+.tb { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; background: rgba(235,240,250,.92); display: flex; align-items: center; justify-content: center; gap: 10px; font: 14px -apple-system, system-ui, sans-serif; color: #222; }
+.tb i { width: 34px; height: 34px; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); display: block; }
+.tb i:nth-child(2) { background: #2b7bff; } .tb i:nth-child(3) { background: #ffb020; } .tb i:nth-child(4) { background: #34c759; } .tb i:nth-child(5) { background: #ff5a4e; }
+.tb .clk { position: absolute; right: 18px; font-size: 13px; text-align: right; line-height: 16px; }
+.lin-top { position: absolute; left: 0; right: 0; top: 0; height: 36px; background: rgba(10,14,20,.86); color: #e6e6e6; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font: 14px -apple-system, system-ui, sans-serif; }
+.wnd { position: absolute; left: 190px; top: 80px; width: 760px; height: 480px; background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.45); overflow: hidden; color: #1c1c1e; font: 15px/22px -apple-system, system-ui, sans-serif; }
+.wnd .ttl { height: 40px; background: #f3f3f6; display: flex; align-items: center; padding: 0 14px; gap: 8px; border-bottom: 1px solid #dcdce2; }
+.wnd .ttl span { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; } .wnd .ttl span:nth-child(2) { background: #febc2e; } .wnd .ttl span:nth-child(3) { background: #28c840; }
+.wnd .ttl b { margin-left: 10px; font-weight: 600; }
+.wnd .body { padding: 18px 22px; display: grid; grid-template-columns: 200px 1fr; gap: 18px; }
+.wnd .side div { padding: 5px 10px; border-radius: 6px; } .wnd .side div:first-child { background: #e6efff; color: #1456c9; }
+.wnd .file { display: flex; justify-content: space-between; padding: 7px 4px; border-bottom: 1px solid #eee; color: #333; }
+.wnd .file em { font-style: normal; color: #888; }
+.lock { position: absolute; inset: 0; background: radial-gradient(900px 600px at 50% 20%, #2d6fe0, #0b1f55 70%, #040a1f); color: #fff; display: grid; place-content: center; text-align: center; font-family: -apple-system, system-ui, sans-serif; }
+.lock .t { font-size: 120px; font-weight: 300; line-height: 1; } .lock .d { font-size: 22px; opacity: .85; margin: 8px 0 60px; }
+.lock .av { width: 96px; height: 96px; border-radius: 50%; background: rgba(255,255,255,.22); margin: 0 auto 14px; display: grid; place-items: center; font-size: 40px; }
+.lock .pw { width: 300px; height: 40px; border-radius: 6px; background: rgba(255,255,255,.18); border-bottom: 2px solid #8fc0ff; margin: 14px auto 0; text-align: left; padding: 0 12px; line-height: 40px; font-size: 20px; letter-spacing: 3px; }
+#cur { position: absolute; width: 22px; height: 30px; z-index: 8; pointer-events: none; transition: left .12s ease, top .12s ease; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+#fx { position: absolute; inset: 0; pointer-events: none; z-index: 9; }
+.rip { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; animation: rip .55s ease-out forwards; }
+.rip.r { border-color: var(--orange); background: rgba(255,159,10,.3); }
+@keyframes rip { to { transform: scale(4); opacity: 0; } }
+.chip { position: absolute; z-index: 20; background: var(--menu); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border-radius: 14px; padding: 4px 10px; font-size: 12px; letter-spacing: -.1px; pointer-events: none; }
+#stats { left: 62px; bottom: 14px; font-variant-numeric: tabular-nums; }
+#hud { left: 50%; top: 60%; transform: translateX(-50%); font-size: 14px; padding: 8px 14px; border-radius: 18px; opacity: 0; transition: opacity .2s; }
+#hud.on { opacity: 1; }
+#wake { left: 50%; top: 56px; transform: translateX(-50%); }
+
+/* the panel and its button */
+#bar { position: absolute; top: 8px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; z-index: 40; padding: 0 70px; pointer-events: none; transition: opacity .22s, transform .22s; }
+#bar > * { pointer-events: auto; }
+#bar.hide { opacity: 0; transform: translateY(-14px) scale(.96); pointer-events: none; }
+#bar.hide > * { pointer-events: none; }
+.cap { display: flex; align-items: center; gap: 1px; height: 44px; padding: 0 5px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.3); }
+.round { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--glass); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.3); cursor: pointer; color: var(--l1); }
+.round.close { color: var(--red); }
+.k { min-width: 38px; height: 36px; border-radius: 18px; display: grid; place-items: center; cursor: pointer; color: var(--l1); padding: 0 4px; position: relative; }
+.k:hover { background: rgba(255,255,255,.1); }
+.k.on { background: var(--blue); color: #fff; }
+.k.pulse::after { content: ""; position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+.sep { width: .5px; height: 20px; background: var(--sep); margin: 0 4px; }
+#fab { position: absolute; z-index: 41; width: 48px; height: 48px; border-radius: 50%; display: none; place-items: center; background: var(--glass); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 0 0 .5px var(--sep), 0 6px 18px rgba(0,0,0,.4); cursor: grab; color: var(--l1); touch-action: none; transition: left .22s ease, top .22s ease; }
+#fab.drag { transition: none; cursor: grabbing; transform: scale(1.08); }
+.dev .menu.pop { width: 270px; }
+#kb { position: absolute; left: 0; right: 0; bottom: 0; z-index: 38; transform: translateY(105%); transition: transform .3s ease; }
+#kb.on { transform: none; }
+#kb .keys { display: flex; align-items: center; gap: 8px; padding: 0 70px 6px; }
+#kb .cap2 { flex: 1; height: 40px; border-radius: 20px; background: var(--glass); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.3); display: flex; align-items: center; padding: 0 5px; gap: 1px; overflow: hidden; }
+#kb .cap2 span { min-width: 34px; height: 32px; border-radius: 16px; display: grid; place-items: center; font-size: 14px; font-weight: 500; padding: 0 5px; cursor: pointer; }
+#kb .cap2 span:hover { background: rgba(255,255,255,.1); } #kb .cap2 span.on { background: var(--blue); }
+#kb .cap2 .m { font: 500 16px ui-monospace, Menlo, monospace; }
+#kb .board { background: #1c1c1e; padding: 8px 60px 14px; display: grid; gap: 7px; }
+#kb .board div { display: flex; gap: 5px; justify-content: center; }
+#kb .board span { flex: 1; max-width: 44px; height: 34px; border-radius: 6px; background: #4a4a4c; display: grid; place-items: center; font-size: 19px; letter-spacing: 0; box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+#kb .board span.w { max-width: 70px; background: #333335; font-size: 14px; } #kb .board span.sp { max-width: none; flex: 6; background: #4a4a4c; font-size: 14px; }
+#closed { position: absolute; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-radius: 24px; padding: 18px 22px 16px; width: 340px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.5); display: none; }
+#closed b { font-size: 17px; } #closed small { display: block; color: var(--l2); font-size: 13px; margin: 4px 0 12px; letter-spacing: -.1px; }
+#closed .row2 { display: flex; gap: 8px; } #closed .btn { flex: 1; height: 44px; margin: 0; font-size: 15px; }
+</style>
+</head>
+<body>
+<h1>Linager для iOS: удалённый экран</h1>
+<p class="lead">Кликабельный макет общего экрана <b>Помощника</b> и <b>удалённого рабочего стола (RDP)</b>. Путь: нажмите на строку сервера → выберите «Помощник» или «Удалённый рабочий стол» → картинка открывается в альбомной ориентации → панель сверху сворачивается в кнопку, которую можно перетаскивать → «закрыть» возвращает портрет. Данные условные, сервер не нужен.</p>
+
+<div class="wrap">
+<div class="stage" id="stage">
+  <div class="ctl">
+    <b>Экран компьютера:</b>
+    <span class="seg" id="segState"><button class="on" data-v="desk">Рабочий стол</button><button data-v="login">Экран входа</button></span>
+    <b style="margin-left:14px">Мониторов:</b>
+    <span class="seg" id="segMon"><button class="on" data-v="1">1</button><button data-v="2">2</button></span>
+    <button id="btnDrop">Имитировать обрыв связи</button>
+    <button id="btnReset">Сначала</button>
+  </div>
+  <div class="dev" id="dev">
+    <div class="scr" id="scr">
+      <div class="isl"></div><div class="home"></div>
+      <div class="sb"><span>9:41</span><span>●●● ᯤ ▮</span></div>
+      <div id="p"></div>
+      <div id="l"></div>
+    </div>
+  </div>
+</div>
+
+<aside>
+  <section>
+    <h2>Что здесь происходит</h2>
+    <ol style="margin-left:18px">
+      <li>Строка сервера → меню долгого нажатия (здесь нажатие мышью). Пункты зависят от сервера: Windows даёт оба режима, Linux с графической консолью только «Помощник», сервер без экрана ни одного.</li>
+      <li>RDP сначала спрашивает логин и пароль (форму можно заполнить из «Ключей»); Помощник подключается сразу.</li>
+      <li>При подключении телефон поворачивается в альбомную ориентацию, картинка на весь экран, вписана по высоте.</li>
+      <li>Панель сверху сворачивается стрелкой справа в круглую кнопку. Кнопку можно <b>перетащить</b>, она прилипает к левому или правому краю. Нажатие возвращает панель.</li>
+      <li>Кнопка клавиатуры открывает системную клавиатуру со стеклянной строкой клавиш; панель при этом сама сворачивается в кнопку, а картинка не уменьшается и следует за указателем (вернётся, когда клавиатура закроется).</li>
+      <li>«Закрыть» (крестик слева) завершает подключение и возвращает портрет.</li>
+    </ol>
+  </section>
+  <section>
+    <h2>Жесты на картинке</h2>
+    <table>
+      <tr><td>Тап</td><td>левый клик</td></tr>
+      <tr><td>Долгое нажатие</td><td>правый клик</td></tr>
+      <tr><td>Перетаскивание</td><td>в «прямом касании» двигает указатель, в «тачпаде» двигает его относительно</td></tr>
+      <tr><td>Два пальца вверх/вниз</td><td>колесо мыши (в макете колесо мыши)</td></tr>
+      <tr><td>Щипок</td><td>масштаб; <kbd>Shift</kbd> + перетаскивание сдвигает увеличенную картинку (в приложении два пальца)</td></tr>
+    </table>
+  </section>
+  <section>
+    <h2>Кнопки панели</h2>
+    <table>
+      <tr><td>Клавиатура</td><td>системная клавиатура и стеклянная строка клавиш (Esc, Ctrl, Alt, Win, Tab, стрелки)</td></tr>
+      <tr><td>Клавиши</td><td>Ctrl+Alt+Del, Win, Alt+Tab, диспетчер задач</td></tr>
+      <tr><td>Мышь</td><td>прямое касание или тачпад</td></tr>
+      <tr><td>Масштаб</td><td>по размеру, по ширине, 100%</td></tr>
+      <tr><td>Буфер обмена</td><td>отправить текст телефона на компьютер, получить с компьютера</td></tr>
+      <tr><td>Монитор</td><td>только Помощник и больше одного монитора</td></tr>
+      <tr><td>Качество</td><td>только Помощник: авто, высокое, среднее, низкое, статистика</td></tr>
+      <tr><td>Разрешение</td><td>только RDP: менять разрешение под экран</td></tr>
+      <tr><td>Ключ</td><td>Помощник на экране входа или UAC: ввести логин или пароль без буфера обмена. В iOS пока диалог «Ввести на экране входа» (текст вводится как есть и нигде не хранится), ключи из хранилища позже</td></tr>
+    </table>
+  </section>
+</aside>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const P = {
+  xmark: '<path d="M6 6l12 12M18 6L6 18"/>', up: '<path d="M5 15l7-7 7 7"/>', ellipsis: '<circle cx="12" cy="12" r="9.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.6"/>',
+  kb: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+  cmd: '<path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/>',
+  hand: '<path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10M12 10V4.5a1.5 1.5 0 0 1 3 0V10M15 10V6.5a1.5 1.5 0 0 1 3 0V14c0 4-2.5 7-6.500 7-3 0-4.500-1.500-6-4l-2-3.500a1.500 1.500 0 0 1 2.500-1.500L9 14"/>',
+  pad: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 15h18M12 15v4"/>',
+  zoom: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  clip: '<rect x="6" y="4" width="12" height="17" rx="2.5"/><path d="M9 4.500V3h6v1.500M9 10h6M9 14h6"/>',
+  display: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  gauge: '<path d="M4 17a9 9 0 1 1 16 0"/><path d="M12 14l4-5"/>',
+  res: '<path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 4l6 6M20 20l-6-6"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+  check: '<path d="M5 12.500l4.500 4.500L19 7"/>', chev: '<path d="M9 5l7 7-7 7"/>', server: '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.500h.01M7 17.500h.01"/>',
+  term: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12 15h5"/>', copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+  desk: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', net: '<circle cx="12" cy="12" r="9.5"/><path d="M2.500 12h19M12 2.500c3 3 3 16 0 19M12 2.500c-3 3-3 16 0 19"/>',
+  person: '<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="10" r="3"/><path d="M6.500 18.500c1.200-2.400 3.200-3.500 5.500-3.500s4.300 1.100 5.500 3.500"/>', more: '<circle cx="12" cy="12" r="9.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.6"/>',
+  chevd: '<path d="M5 9l7 7 7-7"/>'
+};
+const I = (n, s = 22, sw = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+
+const SERVERS = [
+  { id: 'office-pc', addr: '10.0.1.19', os: 'Windows 11 Pro', win: true, gui: true },
+  { id: 'dev-laptop', addr: '10.0.1.33', os: 'Ubuntu 24.04', win: false, gui: true },
+  { id: 'web-01', addr: '10.0.1.21', os: 'Debian 12', win: false, gui: false },
+];
+const S = { server: null, mode: null, land: false, keyboard: false, zoom: 'fit', touch: 'direct', stats: true, quality: 'auto', monitor: 'all', resize: true, ctrl: false, state: 'desk', mons: 1, fab: { x: 852 - 59 - 48 - 6, y: 12 }, busy: false };
+const p = $('#p'), l = $('#l'), dev = $('#dev');
+
+/* ---------- portrait ---------- */
+function showDashboard() {
+  p.innerHTML = `<div class="nav"><div class="glass"><span class="b">${I('more', 24, 1.7)}</span><span class="b">${I('person', 24, 1.7)}</span></div></div>
+  <div class="lt">Дашборд</div>
+  <div class="list">${SERVERS.map((s, i) => `<div class="row" data-i="${i}"><div class="n"><span class="dot"></span>${s.id}</div><div class="s">${s.addr} · ${s.os}</div></div>`).join('')}</div>
+  <div class="hint">Нажмите на строку: так в приложении работает долгое нажатие</div>`;
+  p.classList.add('fade');
+  p.querySelectorAll('.row').forEach(r => r.onclick = () => showMenu(+r.dataset.i, r));
+}
+function toast(msg, host = p) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; host.appendChild(t); setTimeout(() => t.remove(), 1700);
+}
+function closeMenus() { p.querySelectorAll('.menu,.dim').forEach(x => x.remove()); }
+function showMenu(i, row) {
+  closeMenus();
+  const s = SERVERS[i]; S.server = s;
+  const top = Math.min(row.offsetTop + 160 + row.offsetHeight + 8, 560);
+  const items = [
+    ['term', 'Терминал', () => toast('Терминал это отдельный экран (уже сделан)'), false],
+    s.gui ? ['display', 'Помощник', () => start('assistant'), false] : null,
+    s.win ? ['desk', 'Удалённый рабочий стол', () => start('rdp'), false] : null,
+    'sep',
+    ['copy', 'Скопировать имя', () => toast('Имя скопировано'), false],
+    ['net', 'Скопировать адрес', () => toast('Адрес скопирован'), false],
+  ].filter(Boolean);
+  const dim = document.createElement('div'); dim.className = 'dim'; dim.onclick = closeMenus; p.appendChild(dim);
+  const m = document.createElement('div'); m.className = 'menu'; m.style.cssText = `left:16px;top:${top}px`;
+  m.innerHTML = items.map((x, k) => x === 'sep' ? '<div style="height:8px;background:var(--fill)"></div>' : `<div class="mi" data-k="${k}"><span class="l">${s && x[1] ? '' : ''}${x[1]}</span>${I(x[0], 20)}</div>`).join('');
+  p.appendChild(m);
+  m.querySelectorAll('.mi').forEach(el => el.onclick = () => { const x = items[+el.dataset.k]; closeMenus(); x[2](); });
+  if (!s.gui) { const n = document.createElement('div'); n.className = 'mi sub'; n.textContent = 'У этого сервера нет графического экрана'; m.insertBefore(n, m.children[1]); }
+}
+async function start(mode) {
+  if (S.busy) return; S.mode = mode;
+  if (mode === 'rdp') return showForm();
+  connect();
+}
+function showForm() {
+  const s = S.server;
+  const dim = document.createElement('div'); dim.className = 'dim'; p.appendChild(dim);
+  const sh = document.createElement('div'); sh.className = 'sheet'; sh.id = 'form';
+  sh.innerHTML = `<div class="grab"></div><h3>Удалённый рабочий стол</h3><p>${s.id} · ${s.addr}. Пароль остаётся на телефоне и идёт только в соединение.</p>
+   <div class="grp"><div class="cell"><span class="k">Логин</span><input value="admin" id="fl"></div><div class="cell"><span class="k">Пароль</span><input type="password" value="secret123" id="fp"></div><div class="cell"><span class="k">Домен</span><input placeholder="необязательно"></div></div>
+   <div class="btn g" id="fk" style="height:44px;margin:0 0 4px">${I('key', 18)}&nbsp;Заполнить из ключей</div>
+   <div class="btn" id="fgo">Подключиться</div><div class="btn g" id="fcancel" style="background:none;margin-top:0">Отмена</div>`;
+  p.appendChild(sh);
+  $('#fcancel').onclick = () => { dim.remove(); sh.remove(); };
+  $('#fk').onclick = () => { $('#fl').value = 'CORP\\admin'; $('#fp').value = 'k3y-pass-9'; toast('Подставлено из ключа «office-pc admin»'); };
+  $('#fgo').onclick = () => { dim.remove(); sh.remove(); connect(); };
+}
+async function connect() {
+  S.busy = true;
+  const s = S.server, c = document.createElement('div'); c.className = 'conn';
+  c.innerHTML = `<div class="spin"></div><b>${S.mode === 'rdp' ? 'Удалённый рабочий стол' : 'Помощник'}</b><small>${s.id} · подключаюсь…</small>`;
+  p.appendChild(c);
+  await sleep(1100);
+  await rotate(true);
+  buildRemote();
+  S.busy = false;
+}
+async function rotate(toLand) {
+  if (toLand) {
+    dev.classList.add('turning'); await sleep(520);
+    dev.classList.remove('turning'); dev.classList.add('land');
+  } else {
+    dev.classList.add('turning'); dev.classList.remove('land');
+    await sleep(40); dev.classList.remove('turning'); await sleep(520);
+  }
+  S.land = toLand;
+}
+async function closeRemote() {
+  if (S.busy) return; S.busy = true;
+  l.innerHTML = ''; S.keyboard = false; S.autoFold = false;
+  p.innerHTML = '';
+  await rotate(false);
+  showDashboard();
+  S.busy = false;
+}
+
+/* ---------- landscape ---------- */
+const AREA = { l: 59, r: 59, t: 0, b: 22 };
+function desktopHtml() {
+  if (S.state === 'login') return `<div class="lock"><div><div class="t">9:41</div><div class="d">среда, 25 ноября</div><div class="av">A</div><div style="font-size:22px">admin</div><div class="pw">••••••••</div></div></div>`;
+  const lin = !S.server.win;
+  return `<div class="win-wall ${lin ? 'lin-wall' : ''}"></div>
+   ${lin ? '<div class="lin-top"><span>Activities</span><span>среда 9:41</span><span>● ▮</span></div>' : ''}
+   <div class="wnd"><div class="ttl"><span></span><span></span><span></span><b>${lin ? 'Файлы' : 'Проводник'} · Документы</b></div>
+    <div class="body"><div class="side"><div>Документы</div><div>Загрузки</div><div>Изображения</div><div>Рабочий стол</div></div>
+    <div><div class="file">Отчёт за квартал.xlsx<em>2,4 МБ</em></div><div class="file">Договор.pdf<em>860 КБ</em></div><div class="file">Схема сети.png<em>1,1 МБ</em></div><div class="file">Пароли (не открывать).txt<em>2 КБ</em></div><div class="file">Заметки.md<em>14 КБ</em></div></div></div></div>
+   ${lin ? '' : `<div class="tb"><i></i><i></i><i></i><i></i><i></i><div class="clk">9:41<br>25.11.2026</div></div>`}`;
+}
+function buildRemote() {
+  const asst = S.mode === 'assistant';
+  l.innerHTML = `<div id="view"><div id="pic">${desktopHtml()}<svg id="cur" viewBox="0 0 22 30" style="left:640px;top:360px"><path d="M2 1v22l5.500-5 3.500 8 4-1.800-3.500-7.700H19z" fill="#fff" stroke="#000" stroke-width="1.500" stroke-linejoin="round"/></svg><div id="fx"></div></div>
+   <div class="chip" id="stats"></div><div class="chip" id="hud"></div>${S.state === 'login' && asst ? '<div class="chip" id="wake">Экран входа: можно ввести пароль из ключей</div>' : ''}</div>
+   <div id="bar"></div><div id="fab">${I('ellipsis', 26, 1.7)}</div>
+   <div id="kb"><div class="keys"><div class="cap2">${['esc', 'ctrl', 'alt', 'win', 'tab'].map(k => `<span data-k="${k}">${k}</span>`).join('')}<span class="m">←</span><span class="m">↓</span><span class="m">↑</span><span class="m">→</span><span class="m">|</span><span class="m">/</span><span class="m">\\</span></div><div class="round" id="kbhide" style="width:40px;height:40px">${I('chevd', 18, 2)}</div></div>
+   <div class="board"><div>${'qwertyuiop'.split('').map(c => `<span>${c}</span>`).join('')}</div><div>${'asdfghjkl'.split('').map(c => `<span>${c}</span>`).join('')}</div><div><span class="w">⇧</span>${'zxcvbnm'.split('').map(c => `<span>${c}</span>`).join('')}<span class="w">⌫</span></div><div><span class="w">123</span><span class="sp">пробел</span><span class="w">⏎</span></div></div></div>
+   <div id="closed"><b>Соединение закрыто</b><small>Компьютер перестал отвечать.</small><div class="row2"><div class="btn" id="re">Подключиться снова</div><div class="btn g" id="cl">Закрыть</div></div></div>`;
+  l.classList.add('fade');
+  renderBar(); fitPic(); wireView(); updStats();
+  $('#fab').style.left = S.fab.x + 'px'; $('#fab').style.top = S.fab.y + 'px';
+  $('#kbhide').onclick = () => setKeyboard(false);
+  l.querySelectorAll('#kb .cap2 span[data-k]').forEach(el => el.onclick = () => { if (el.dataset.k === 'ctrl' || el.dataset.k === 'alt') el.classList.toggle('on'); else hud(`Клавиша ${el.textContent}`); });
+  $('#re').onclick = async () => { $('#closed').style.display = 'none'; hud('Подключаюсь снова…'); };
+  $('#cl').onclick = closeRemote;
+}
+function barButtons() {
+  const asst = S.mode === 'assistant';
+  const b = [['kb', 'kbd', 'Клавиатура', S.keyboard], ['cmd', 'keys', 'Клавиши'], [S.touch === 'direct' ? 'hand' : 'pad', 'mouse', 'Мышь'], ['zoom', 'zoom', 'Масштаб'], ['clip', 'clip', 'Буфер обмена']];
+  if (asst && S.mons > 1) b.push(['display', 'mon', 'Монитор']);
+  if (asst) b.push(['gauge', 'qual', 'Качество']);
+  if (!asst) b.push(['res', 'res', 'Разрешение', S.resize]);
+  if (asst && S.state === 'login') b.push(['key', 'key', 'Ключ', false, true]);
+  return b;
+}
+function renderBar() {
+  const bar = $('#bar');
+  bar.innerHTML = `<div class="round close" id="bclose" title="Закрыть">${I('xmark', 20, 2.2)}</div>
+   <div class="cap">${barButtons().map(x => `<div class="k ${x[3] ? 'on' : ''} ${x[4] ? 'pulse' : ''}" data-a="${x[1]}" title="${x[2]}">${I(x[0], 22, 1.7)}</div>`).join('<div class="sep" style="display:none"></div>')}</div>
+   <div class="round" id="bfold" title="Свернуть панель">${I('up', 20, 2.2)}</div>`;
+  $('#bclose').onclick = closeRemote;
+  $('#bfold').onclick = fold;
+  bar.querySelectorAll('.k').forEach(k => k.onclick = e => { e.stopPropagation(); act(k.dataset.a, k); });
+}
+function fold() {
+  closePop();
+  const bar = $('#bar'), fab = $('#fab');
+  bar.classList.add('hide'); fab.style.display = 'grid'; fab.classList.add('fade');
+}
+function unfold() { $('#bar').classList.remove('hide'); $('#fab').style.display = 'none'; }
+function closePop() { l.querySelectorAll('.pop').forEach(x => x.remove()); }
+function pop(anchor, rows) {
+  closePop();
+  const r = anchor.getBoundingClientRect(), lr = l.getBoundingClientRect(), sc = lr.width / 852;
+  const m = document.createElement('div'); m.className = 'menu pop';
+  m.innerHTML = rows.map((x, k) => x === 'sep' ? '<div style="height:8px;background:var(--fill)"></div>' : x.sub ? `<div class="mi sub">${x.sub}</div>` : `<div class="mi" data-k="${k}"><span class="l"><i>${x.on ? I('check', 16, 2.4) : ''}</i>${x.t}</span></div>`).join('');
+  const left = Math.max(60, Math.min(852 - 280 - 60, (r.left - lr.left) / sc - 100)), top = (r.bottom - lr.top) / sc + 8;
+  m.style.cssText = `left:${left}px;top:${top}px`;
+  l.appendChild(m);
+  m.querySelectorAll('.mi[data-k]').forEach(el => el.onclick = e => { e.stopPropagation(); const x = rows[+el.dataset.k]; closePop(); x.go && x.go(); });
+}
+function act(a, el) {
+  const asst = S.mode === 'assistant';
+  if (a === 'kbd') return setKeyboard(!S.keyboard);
+  if (a === 'keys') return pop(el, [{ t: 'Ctrl+Alt+Del', go: () => hud('Отправлено: Ctrl+Alt+Del') }, { t: 'Win (меню «Пуск»)', go: () => hud('Отправлено: Win') }, { t: 'Alt+Tab', go: () => hud('Отправлено: Alt+Tab') }, { t: 'Диспетчер задач', go: () => hud('Отправлено: Ctrl+Shift+Esc') }, { t: 'Esc', go: () => hud('Отправлено: Esc') }]);
+  if (a === 'mouse') return pop(el, [{ t: 'Прямое касание', on: S.touch === 'direct', go: () => { S.touch = 'direct'; renderBar(); hud('Прямое касание: указатель идёт за пальцем'); } }, { t: 'Тачпад', on: S.touch === 'pad', go: () => { S.touch = 'pad'; renderBar(); hud('Тачпад: двигайте пальцем, тап кликает там, где указатель'); } }]);
+  if (a === 'zoom') return pop(el, [{ t: 'По размеру экрана', on: S.zoom === 'fit', go: () => setZoom('fit') }, { t: 'По ширине', on: S.zoom === 'width', go: () => setZoom('width') }, { t: '100%', on: S.zoom === '100', go: () => setZoom('100') }, 'sep', { sub: 'Shift + перетаскивание сдвигает картинку' }]);
+  if (a === 'clip') return pop(el, [{ t: 'Отправить текст телефона', go: () => hud('Текст из буфера телефона отправлен на компьютер') }, { t: 'Получить текст с компьютера', go: () => hud('Текст компьютера в буфере телефона') }]);
+  if (a === 'mon') return pop(el, [{ t: 'Все как одна картинка', on: S.monitor === 'all', go: () => { S.monitor = 'all'; hud('Все мониторы'); } }, { t: 'Монитор 1 (основной)', on: S.monitor === '1', go: () => { S.monitor = '1'; hud('Монитор 1'); } }, { t: 'Монитор 2', on: S.monitor === '2', go: () => { S.monitor = '2'; hud('Монитор 2'); } }]);
+  if (a === 'qual') return pop(el, [{ t: 'Авто', on: S.quality === 'auto', go: () => { S.quality = 'auto'; updStats(); } }, { t: 'Высокое', on: S.quality === 'high', go: () => { S.quality = 'high'; updStats(); } }, { t: 'Среднее', on: S.quality === 'mid', go: () => { S.quality = 'mid'; updStats(); } }, { t: 'Низкое', on: S.quality === 'low', go: () => { S.quality = 'low'; updStats(); } }, 'sep', { t: 'Показывать статистику', on: S.stats, go: () => { S.stats = !S.stats; updStats(); } }]);
+  if (a === 'res') { S.resize = !S.resize; renderBar(); return hud(S.resize ? 'Разрешение подстраивается под экран телефона' : 'Разрешение компьютера не меняется'); }
+  if (a === 'key') return pop(el, [{ sub: 'Ввести без буфера обмена' }, { t: 'Логин «admin»', go: () => hud('Логин введён на экране входа') }, { t: 'Пароль «office-pc admin»', go: () => hud('Пароль введён (нигде не показывается)') }, { t: 'Логин, Tab, пароль, Enter', go: () => hud('Вход выполнен') }]);
+}
+function updStats() {
+  const st = $('#stats'); if (!st) return;
+  const q = { auto: 'авто', high: 'высокое', mid: 'среднее', low: 'низкое' }[S.quality];
+  st.style.display = S.mode === 'assistant' && S.stats ? 'block' : 'none';
+  st.textContent = `24 к/с · 1,2 Мбит/с · ${q}`;
+}
+function hud(t) { const h = $('#hud'); if (!h) return; h.textContent = t; h.classList.add('on'); clearTimeout(h._t); h._t = setTimeout(() => h.classList.remove('on'), 1600); }
+function setKeyboard(on) {
+  S.keyboard = on; $('#kb').classList.toggle('on', on);
+  // the keyboard takes half of the screen: the panel steps aside into its button, and comes back when the keyboard goes
+  if (on && !$('#bar').classList.contains('hide')) { S.autoFold = true; fold(); }
+  if (!on && S.autoFold) { S.autoFold = false; unfold(); }
+  fitPic(); renderBar();
+  if (on) hud('Картинка следует за указателем');
+}
+function setZoom(z) { S.zoom = z; pan.x = pan.y = 0; fitPic(); hud({ fit: 'По размеру экрана', width: 'По ширине', 100: '100%' }[z]); }
+const pan = { x: 0, y: 0 };
+const KB_H = 215;
+function fitPic() {
+  const pic = $('#pic'); if (!pic) return;
+  const aw = 852 - AREA.l - AREA.r, ah = 393 - AREA.t - AREA.b - (S.keyboard ? KB_H - AREA.b : 0);
+  // with the keyboard up the picture is not shrunk (it would be unreadable): it keeps a readable scale and follows the pointer
+  let sc = S.zoom === 'fit' ? (S.keyboard ? aw / 1280 : Math.min(aw / 1280, ah / 720)) : S.zoom === 'width' ? aw / 1280 : 1;
+  const w = 1280 * sc, h = 720 * sc;
+  let x = AREA.l + (aw - w) / 2, y = AREA.t + (ah - h) / 2;
+  const cur = $('#cur'), cx = parseFloat(cur.style.left) || 640, cy = parseFloat(cur.style.top) || 360;
+  if (w > aw) x = S.keyboard ? Math.max(AREA.l + aw - w, Math.min(AREA.l, AREA.l + aw / 2 - cx * sc)) : AREA.l + Math.max(Math.min(0, pan.x), aw - w);
+  if (h > ah) y = S.keyboard ? Math.max(AREA.t + ah - h, Math.min(AREA.t, AREA.t + ah / 2 - cy * sc)) : AREA.t + Math.max(Math.min(0, pan.y), ah - h);
+  S.sc = sc; S.ox = x; S.oy = y;
+  pic.style.transform = `translate(${x}px,${y}px) scale(${sc})`;
+}
+function wireView() {
+  const v = $('#view'), fx = $('#fx'), cur = $('#cur');
+  let down = null, holdT = null, moved = false;
+  const pt = e => { const r = $('#scr').getBoundingClientRect(), k = r.width / 852; return { x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k }; };
+  const toPic = q => ({ x: (q.x - S.ox) / S.sc, y: (q.y - S.oy) / S.sc });
+  const ripple = (px, rc) => { const d = document.createElement('div'); d.className = 'rip' + (rc ? ' r' : ''); d.style.left = px.x + 'px'; d.style.top = px.y + 'px'; fx.appendChild(d); setTimeout(() => d.remove(), 600); };
+  const place = px => { cur.style.left = Math.max(0, Math.min(1270, px.x)) + 'px'; cur.style.top = Math.max(0, Math.min(700, px.y)) + 'px'; if (S.keyboard) fitPic(); };
+  v.onpointerdown = e => {
+    if (e.target.closest('.menu,.k,.round,#fab,#kb,#closed')) return;
+    closePop(); if (S.keyboard === false && 0) {}
+    v.setPointerCapture(e.pointerId);
+    const q = pt(e); down = { q, t: Date.now(), shift: e.shiftKey, start: q, pan0: { ...pan }, cur0: { x: parseFloat(cur.style.left), y: parseFloat(cur.style.top) } }; moved = false;
+    holdT = setTimeout(() => { if (!moved) { const px = S.touch === 'direct' ? toPic(q) : { x: parseFloat(cur.style.left) + 4, y: parseFloat(cur.style.top) + 4 }; if (S.touch === 'direct') place(px); ripple(px, true); hud('Правый клик'); down = null; } }, 520);
+  };
+  v.onpointermove = e => {
+    if (!down) return; const q = pt(e);
+    if (Math.hypot(q.x - down.start.x, q.y - down.start.y) > 4) { moved = true; clearTimeout(holdT); }
+    if (!moved) return;
+    if (down.shift) { pan.x = down.pan0.x + (q.x - down.start.x); pan.y = down.pan0.y + (q.y - down.start.y); fitPic(); return; }
+    if (S.touch === 'direct') place(toPic(q)); else place({ x: down.cur0.x + (q.x - down.start.x) / S.sc, y: down.cur0.y + (q.y - down.start.y) / S.sc });
+  };
+  v.onpointerup = e => {
+    clearTimeout(holdT); if (!down) return;
+    if (!moved) { const px = S.touch === 'direct' ? toPic(down.q) : { x: parseFloat(cur.style.left) + 4, y: parseFloat(cur.style.top) + 4 }; if (S.touch === 'direct') place(px); ripple(px, false); }
+    down = null;
+  };
+  v.onwheel = e => { e.preventDefault(); hud(e.deltaY > 0 ? 'Прокрутка вниз' : 'Прокрутка вверх'); };
+  // the floating button: a drag moves it, a tap opens the panel
+  const fab = $('#fab'); let f = null;
+  fab.onpointerdown = e => { fab.setPointerCapture(e.pointerId); const r = $('#scr').getBoundingClientRect(), k = r.width / 852; f = { sx: e.clientX, sy: e.clientY, x: parseFloat(fab.style.left), y: parseFloat(fab.style.top), k, moved: false }; };
+  fab.onpointermove = e => {
+    if (!f) return; const dx = (e.clientX - f.sx) / f.k, dy = (e.clientY - f.sy) / f.k;
+    if (Math.hypot(dx, dy) > 4) { f.moved = true; fab.classList.add('drag'); }
+    if (f.moved) { fab.style.left = Math.max(AREA.l, Math.min(852 - 48 - AREA.r, f.x + dx)) + 'px'; fab.style.top = Math.max(6, Math.min(393 - 48 - 22, f.y + dy)) + 'px'; }
+  };
+  fab.onpointerup = () => {
+    if (!f) return; fab.classList.remove('drag');
+    if (f.moved) { const x = parseFloat(fab.style.left); const snap = x + 24 < 426 ? AREA.l + 6 : 852 - AREA.r - 48 - 6; fab.style.left = snap + 'px'; S.fab = { x: snap, y: parseFloat(fab.style.top) }; }
+    else unfold();
+    f = null;
+  };
+}
+
+/* ---------- page controls ---------- */
+function reset() { location.reload(); }
+$('#btnReset').onclick = reset;
+$('#btnDrop').onclick = () => { const c = $('#closed'); if (c) c.style.display = 'block'; else toast('Сначала подключитесь'); };
+$('#segState').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.state = b.dataset.v; $('#segState').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (S.land) { const bar = S.fab; buildRemote(); } };
+$('#segMon').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.mons = +b.dataset.v; $('#segMon').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (S.land) renderBar(); };
+showDashboard();
+</script>
+</body>
+</html>

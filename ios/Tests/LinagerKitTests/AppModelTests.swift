@@ -7,6 +7,8 @@ actor FakeAPI: LinagerAPI {
     var meResult: Result<SessionInfo, LinagerError> = .success(SessionInfo(csrf: "c1", login: "admin"))
     var needsCode = false
     var loginError: LinagerError?
+    /// What the sign-in answers (nil: a plain session).
+    var loginSession: SessionInfo?
     var dashboardResult: Result<[ServerCard], LinagerError> = .success([])
     var foldersResult: [Folder] = []
     var flags: [String: AgentFlag] = [:]
@@ -14,6 +16,8 @@ actor FakeAPI: LinagerAPI {
     private(set) var loggedOut = false
     private(set) var tokenNow: String? = "tok"
     private var liveContinuation: AsyncThrowingStream<LiveEvent, Error>.Continuation?
+
+    func set(loginSession: SessionInfo? = nil) { self.loginSession = loginSession }
 
     func set(me: Result<SessionInfo, LinagerError>? = nil, needsCode: Bool? = nil, loginError: LinagerError?? = nil,
              dashboard: Result<[ServerCard], LinagerError>? = nil, folders: [Folder]? = nil, flags: [String: AgentFlag]? = nil) {
@@ -30,7 +34,7 @@ actor FakeAPI: LinagerAPI {
         if needsCode && (totp ?? "").isEmpty { throw LinagerError.totpRequired }
         if needsCode && totp != "123456" { throw LinagerError.invalidCredentials }
         tokenNow = "tok-new"
-        return SessionInfo(csrf: "c2", login: login)
+        return loginSession ?? SessionInfo(csrf: "c2", login: login)
     }
 
     func me() async throws -> SessionInfo { try meResult.get() }
@@ -54,6 +58,33 @@ actor FakeAPI: LinagerAPI {
         AsyncThrowingStream { self.liveContinuation = $0 }
     }
 
+    func openTerminal(serverID: String, cols: Int, rows: Int, user: String?) async throws -> TerminalConnection { throw LinagerError.agentOffline }
+    func openAssistant(serverID: String, session: String) async throws -> AssistantConnection { throw LinagerError.agentOffline }
+    func openDesktop(serverID: String, params: RdpParams, engine: RdpEngine) async throws -> RdpConnection { throw LinagerError.agentOffline }
+    func serverDetail(serverID: String) async throws -> ServerDetail { throw LinagerError.agentOffline }
+    func history(serverID: String, period: HistoryPeriod) async throws -> History { throw LinagerError.agentOffline }
+    func files(serverID: String, path: String) async throws -> FileList { throw LinagerError.agentOffline }
+    func downloadFile(serverID: String, path: String) async throws -> URL { throw LinagerError.agentOffline }
+    func fileContent(serverID: String, path: String) async throws -> FileContent { throw LinagerError.agentOffline }
+    func saveFile(serverID: String, path: String, content: String, mtime: Int64) async throws -> Int64 { throw LinagerError.agentOffline }
+    func createFile(serverID: String, path: String) async throws { throw LinagerError.agentOffline }
+    func createFolder(serverID: String, path: String) async throws { throw LinagerError.agentOffline }
+    func deleteEntry(serverID: String, path: String) async throws { throw LinagerError.agentOffline }
+    func renameEntry(serverID: String, path: String, name: String) async throws { throw LinagerError.agentOffline }
+    func transferEntry(serverID: String, path: String, to dir: String, move: Bool, mode: TransferMode) async throws { throw LinagerError.agentOffline }
+    func stat(serverID: String, path: String) async throws -> FileStat { throw LinagerError.agentOffline }
+    func setPermissions(serverID: String, path: String, mode: String, recursive: Bool) async throws { throw LinagerError.agentOffline }
+    func setOwner(serverID: String, path: String, owner: String, group: String, recursive: Bool) async throws { throw LinagerError.agentOffline }
+    func uploadFile(serverID: String, to path: String, from file: URL, progress: @escaping @Sendable (Double) -> Void) async throws { throw LinagerError.agentOffline }
+    func assistantSettings(serverID: String) async throws -> AssistSettings { AssistSettings() }
+    func setAssistantSettings(serverID: String, _ settings: AssistSettings) async throws {}
+    func snippets() async throws -> [Snippet] { [] }
+    func snippetRan(id: Int64, serverID: String) async {}
+    func terminalUsers(serverID: String) async -> [String] { [] }
+
+    /// The stream of the live events is open (events sent before are lost).
+    var liveUp: Bool { liveContinuation != nil }
+
     func emit(_ name: String) { liveContinuation?.yield(LiveEvent(name: name)) }
     func breakStream() { liveContinuation?.finish(throwing: LinagerError.unreachable("gone")); liveContinuation = nil }
 }
@@ -70,13 +101,13 @@ private struct Rig {
     let store: MemoryProfileStore
     let snaps: MemorySnapshotStore
 
-    init(profile: Profile? = nil, probe: @escaping @Sendable (Endpoint) async throws -> String = { _ in pin }) {
+    init(profile: Profile? = nil, liveDelay: Duration = .milliseconds(30), probe: @escaping @Sendable (Endpoint) async throws -> String = { _ in pin }) {
         api = FakeAPI()
         store = MemoryProfileStore(profile)
         snaps = MemorySnapshotStore()
         let fake = api
         model = AppModel(store: store, snapshots: snaps, makeClient: { _ in fake }, probe: probe,
-                         now: { Date(timeIntervalSince1970: 1_000_000) }, liveDelay: .milliseconds(30), retryDelay: .milliseconds(30))
+                         now: { Date(timeIntervalSince1970: 1_000_000) }, liveDelay: liveDelay, retryDelay: .milliseconds(30), waitDelay: .milliseconds(20))
     }
 
     /// The persisting of the session runs in a task of its own.
@@ -264,16 +295,19 @@ struct AppModelTests {
     }
 
     @Test func manyLiveEventsMakeOneRefresh() async throws {
-        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin, login: "admin", token: "tok", csrf: "c"))
+        // the pause before the refresh is long, so that all the events come within it however busy the machine is
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin, login: "admin", token: "tok", csrf: "c"), liveDelay: .milliseconds(500))
         await r.api.set(dashboard: .success([cardA]))
         await r.model.launch()
         let before = await r.api.dashboardCalls
         r.model.startLive()
-        try await Task.sleep(for: .milliseconds(100)) // the first refresh and the stream are up
+        // the first refresh and the stream are up (a busy machine may take long: wait for the stream itself, not for a fixed time)
+        for _ in 0..<250 where !(await r.api.liveUp) { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(await r.api.liveUp)
         let afterStart = await r.api.dashboardCalls
         #expect(afterStart == before + 1)
         for _ in 0..<20 { await r.api.emit("metrics") }
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: .milliseconds(1500))
         #expect(await r.api.dashboardCalls == afterStart + 1)
         r.model.stopLive()
     }
@@ -283,11 +317,129 @@ struct AppModelTests {
         await r.api.set(dashboard: .success([cardA]))
         await r.model.launch()
         r.model.startLive()
-        try await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(for: .milliseconds(400))
         let before = await r.api.dashboardCalls
         await r.api.breakStream()
-        try await Task.sleep(for: .milliseconds(250))
+        try await Task.sleep(for: .milliseconds(700))
         #expect(await r.api.dashboardCalls > before) // it came back and asked for the dashboard again
         r.model.stopLive()
+    }
+}
+
+// MARK: a device that waits for the approval
+
+private let waitingInfo = SessionInfo(csrf: "c2", login: "admin", device: DeviceState(confirm: true, id: 7, status: "pending"))
+private let approvedInfo = SessionInfo(csrf: "c2", login: "admin", device: DeviceState(confirm: true, id: 7, status: "approved"))
+
+@MainActor
+@Suite("AppModel, a device that waits")
+struct AppModelDeviceTests {
+    private func waitUntil(_ what: @MainActor () -> Bool) async {
+        for _ in 0..<100 where !what() { try? await Task.sleep(for: .milliseconds(20)) }
+    }
+
+    @Test func aSignInOfADeviceThatWaitsShowsTheWaitingScreenAndGoesOnWhenApproved() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin))
+        await r.api.set(loginSession: waitingInfo)
+        await r.api.set(me: .success(waitingInfo), dashboard: .success([cardA]))
+        await r.model.launch()
+        #expect(r.model.screen == .login)
+        await r.model.signIn(login: "admin", password: "secret", code: nil)
+        #expect(r.model.screen == .waiting)
+        #expect(await r.api.dashboardCalls == 0) // nothing of the dashboard is asked for while it waits
+        try? await Task.sleep(for: .milliseconds(80))
+        #expect(r.model.screen == .waiting)
+        // an administrator approves
+        await r.api.set(me: .success(approvedInfo))
+        await waitUntil { r.model.screen == .dashboard }
+        #expect(r.model.screen == .dashboard)
+        await waitUntil { r.model.cards.count == 1 }
+        #expect(r.model.cards == [cardA])
+        #expect(r.model.session?.isWaiting == false)
+    }
+
+    @Test func aRefusalSendsTheDeviceBackToTheSignInAndSaysWhy() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin))
+        await r.api.set(loginSession: waitingInfo)
+        await r.api.set(me: .success(waitingInfo))
+        await r.model.launch()
+        await r.model.signIn(login: "admin", password: "secret", code: nil)
+        #expect(r.model.screen == .waiting)
+        await r.api.set(me: .failure(.deviceDenied))
+        await waitUntil { r.model.screen == .login }
+        #expect(r.model.screen == .login)
+        #expect(r.model.loginError == .deviceDenied)
+        #expect(r.model.session == nil)
+    }
+
+    @Test func aRemovedDeviceIsSignedOut() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin))
+        await r.api.set(loginSession: waitingInfo)
+        await r.api.set(me: .success(waitingInfo))
+        await r.model.launch()
+        await r.model.signIn(login: "admin", password: "secret", code: nil)
+        await r.api.set(me: .failure(.unauthorized))
+        await waitUntil { r.model.screen == .login }
+        #expect(r.model.screen == .login && r.model.loginError == .unauthorized)
+        #expect(r.store.load()?.token == nil)
+    }
+
+    @Test func aBrokenConnectionWhileWaitingIsToldAndTriedAgain() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin))
+        await r.api.set(loginSession: waitingInfo)
+        await r.api.set(me: .success(waitingInfo))
+        await r.model.launch()
+        await r.model.signIn(login: "admin", password: "secret", code: nil)
+        await r.api.set(me: .failure(.unreachable("gone")))
+        await waitUntil { r.model.waitingOffline }
+        #expect(r.model.waitingOffline && r.model.screen == .waiting)
+        await r.api.set(me: .success(waitingInfo))
+        await waitUntil { !r.model.waitingOffline }
+        #expect(!r.model.waitingOffline && r.model.screen == .waiting)
+    }
+
+    @Test func signingOutWhileWaitingEndsTheWaiting() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin))
+        await r.api.set(loginSession: waitingInfo)
+        await r.api.set(me: .success(waitingInfo))
+        await r.model.launch()
+        await r.model.signIn(login: "admin", password: "secret", code: nil)
+        await r.model.signOut()
+        #expect(r.model.screen == .login)
+        #expect(await r.api.loggedOut)
+        // it does not come back to life: approved later changes nothing
+        await r.api.set(me: .success(approvedInfo))
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(r.model.screen == .login)
+    }
+
+    @Test func aSavedSessionOfADeviceThatWaitsOpensTheWaitingScreen() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin, login: "admin", token: "tok", csrf: "c"))
+        await r.api.set(me: .success(waitingInfo))
+        await r.model.launch()
+        #expect(r.model.screen == .waiting)
+        #expect(await r.api.dashboardCalls == 0)
+    }
+
+    @Test func theServerThatSaysApprovalPendingToTheDashboardPutsTheDeviceToWaiting() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin, login: "admin", token: "tok", csrf: "c"))
+        await r.api.set(me: .success(approvedInfo), dashboard: .failure(.approvalPending))
+        await r.model.launch()
+        #expect(r.model.screen == .waiting)
+    }
+
+    @Test func aRefusedDeviceFoundWhileTheDashboardIsOpenIsSignedOut() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin, login: "admin", token: "tok", csrf: "c"))
+        await r.api.set(me: .success(approvedInfo), dashboard: .failure(.deviceDenied))
+        await r.model.launch()
+        #expect(r.model.screen == .login && r.model.loginError == .deviceDenied)
+    }
+
+    @Test func aRefusedDeviceIsToldSoAtTheSignIn() async {
+        let r = Rig(profile: Profile(endpoint: ep, fingerprint: pin))
+        await r.api.set(loginError: .deviceDenied)
+        await r.model.launch()
+        await r.model.signIn(login: "admin", password: "secret", code: nil)
+        #expect(r.model.screen == .login && r.model.loginError == .deviceDenied)
     }
 }

@@ -180,6 +180,48 @@ figcaption b { color: #1c1c1e; display: block; font-size: 14px; }
 .big-st { display: flex; align-items: center; gap: 10px; }
 .opt { font-size: 11px; font-weight: 600; background: #ff9500; color: #fff; display: inline-block; border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
 
+/* ---------- terminal ---------- */
+.tscr { position: absolute; left: 0; right: 0; background: #000; color: #e6e6e6; padding: 6px 10px; overflow: hidden; font: 11.5px/14.5px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; white-space: pre; }
+.phone:not(.dark) .tscr { background: #fff; color: #1c1c1e; }
+.tscr .g { color: #32d74b; } .tscr .b { color: #64a8ff; } .tscr .y { color: #ffd60a; } .tscr .d { color: #8e8e93; } .tscr .r { color: #ff453a; }
+.phone:not(.dark) .tscr .g { color: #1f8a3a; } .phone:not(.dark) .tscr .b { color: #1f5fd0; } .phone:not(.dark) .tscr .y { color: #8a6d00; } .phone:not(.dark) .tscr .r { color: #c62820; }
+.tscr .cur { display: inline-block; width: 7px; height: 13px; background: currentColor; vertical-align: -2px; opacity: .85; }
+.tbar { position: absolute; top: 54px; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 20; }
+.tbar .ttl { position: absolute; left: 70px; right: 70px; text-align: center; line-height: 17px; }
+.tbar .ttl b { display: block; font-size: 15px; font-weight: 600; } .tbar .ttl small { display: block; font-size: 11px; color: var(--l2); letter-spacing: 0; }
+.acc { position: absolute; left: 0; right: 0; height: 46px; background: color-mix(in srgb, var(--l1) 6%, var(--bg)); display: flex; align-items: center; gap: 6px; padding: 0 8px; z-index: 12; overflow: hidden; }
+.acc span { flex: none; min-width: 36px; height: 34px; padding: 0 6px; border-radius: 10px; background: color-mix(in srgb, var(--l1) 13%, transparent); display: grid; place-items: center; font: 500 15px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: 0; }
+.acc span.m { font: 500 17px ui-monospace, "SF Mono", Menlo, monospace; padding: 0; }
+.acc span.on { background: var(--blue) !important; color: #fff; }
+.acc span.h { margin-left: auto; padding: 0; position: sticky; right: 0; box-shadow: -14px 0 12px -4px color-mix(in srgb, var(--l1) 6%, var(--bg)); }
+.acc i { flex: none; width: 4px; }
+/* variants of the key bar (the set of keys is the same) */
+.acc.v2 { gap: 6px; padding: 0 4px; }
+.acc.v2 span { height: 40px; min-width: 34px; border-radius: 6px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.28); font-size: 16px; }
+.phone.dark .acc.v2 span { background: #6a6a6c; }
+.acc.v2 span.on { background: var(--blue) !important; }
+.acc.v3 { background: transparent; padding: 0 10px; }
+.acc.v3 .cap { display: flex; align-items: center; gap: 2px; width: 100%; height: 44px; padding: 0 5px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.18); overflow: hidden; }
+.acc.v3 span { background: transparent; height: 34px; border-radius: 17px; min-width: 32px; padding: 0 4px; }
+.acc.v3 span.on { background: var(--blue) !important; }
+.acc.v3 span.h { box-shadow: none; position: static; }
+.acc.v3 .hidecap { flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.18); display: grid; place-items: center; }
+.acc.v3 { gap: 8px; }
+.acc.v3 .sep { flex: none; width: .5px; height: 20px; background: var(--sep); margin: 0 3px; }
+.acc.v4 span { background: transparent; color: var(--l2); border-radius: 17px; min-width: 32px; padding: 0 5px; }
+.acc.v4 span.m { color: var(--l1); }
+.acc.v4 span.on { background: color-mix(in srgb, var(--blue) 20%, transparent) !important; color: var(--blue); }
+.acc.v4 span.h { color: var(--blue); box-shadow: none; }
+.acc.v4 { border-top: .5px solid var(--sep); }
+.kb { position: absolute; left: 0; right: 0; bottom: 0; height: 291px; background: color-mix(in srgb, var(--l1) 6%, var(--bg)); padding: 10px 4px 34px; z-index: 10; display: grid; gap: 11px; grid-template-rows: repeat(4, 1fr); }
+.kb div { display: flex; gap: 6px; justify-content: center; }
+.kb span { flex: 1; max-width: 34px; display: grid; place-items: center; background: #fff; border-radius: 5px; font-size: 22px; box-shadow: 0 1px 0 rgba(0,0,0,.2); letter-spacing: 0; }
+.phone.dark .kb span { background: #6a6a6c; }
+.kb span.w { max-width: none; flex: 1.5; background: #adb3bc; font-size: 15px; } .phone.dark .kb span.w { background: #444446; }
+.kb span.sp { max-width: none; flex: 5; font-size: 15px; background: #fff; } .phone.dark .kb span.sp { background: #6a6a6c; }
+.hud { position: absolute; left: 50%; top: 250px; margin-left: -48px; width: 96px; height: 40px; border-radius: 20px; background: var(--menu); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: grid; place-items: center; font-size: 15px; font-weight: 600; z-index: 30; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+.closedbar { position: absolute; left: 12px; right: 12px; bottom: 36px; background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-radius: 22px; padding: 14px 16px 12px; z-index: 30; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.closedbar b { display: block; font-size: 15px; } .closedbar small { color: var(--l2); font-size: 13px; letter-spacing: -.1px; }
 /* ---------- notes ---------- */
 table { border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; margin-top: 12px; }
 th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid #e5e5ea; vertical-align: top; }
@@ -192,6 +234,7 @@ ul.n { margin: 8px 0 0 20px; max-width: 860px; } ul.n li { margin: 4px 0; }
 <h1>Linager для iOS: макет</h1>
 <p class="lead">Нативное приложение на <b>SwiftUI</b>, не обёртка над вебом. Экраны: подключение, вход, <b>дашборд</b>, учётная запись. Стандартные элементы Apple: <b>NavigationStack</b> с большим заголовком, <b>List</b> в стиле inset grouped, <b>searchable</b>, <b>Menu</b>, <b>Picker</b> (segmented), <b>sheet</b> с детентами, <b>alert</b>, <b>ContentUnavailableView</b>, <b>Gauge</b>/<b>ProgressView</b>, <b>Swift Charts</b>. Шрифт системный (SF Pro), значки SF Symbols, цвета системные (светлая и тёмная тема автоматически), Dynamic Type. Макет показывает вид iOS 26 (стекло на кнопках панели); на iOS 17 и 18 те же элементы рисуются классически без правок кода. Значки здесь заменители, в приложении настоящие SF Symbols.</p>
 
+<p class="lead"><b>Кликабельный макет:</b> <a href="console.html">режим «Консоль» и переключатель режимов внизу</a>, <a href="remote.html">удалённый экран (Помощник и RDP)</a>: поворот в альбомный режим, панель с кнопками, сворачивание в перетаскиваемую кнопку, клавиатура.</p>
 <div id="out"></div>
 
 <h2>Бейджи состояний</h2>
@@ -204,6 +247,7 @@ ul.n { margin: 8px 0 0 20px; max-width: 860px; } ul.n li { margin: 4px 0; }
 <tr><td>Большой заголовок, кнопки справа</td><td><code>NavigationStack</code>, <code>.navigationTitle</code>, <code>.toolbar</code></td></tr>
 <tr><td>Папки со сворачиванием</td><td><code>List</code> + <code>Section(isExpanded:)</code>, стиль <code>.insetGrouped</code></td></tr>
 <tr><td>Бейдж состояния</td><td><code>Label</code> со <code>.labelStyle(.titleAndIcon)</code> в капсуле 18 pt (радиус 5), <code>Image(systemName:)</code> + <code>Text(n)</code> в моноширинном шрифте; подпись для VoiceOver через <code>.accessibilityLabel</code></td></tr>
+<tr><td>Терминал</td><td><code>fullScreenCover</code>, эмулятор SwiftTerm (<code>UIViewRepresentable</code>), панель клавиш в <code>inputAccessoryView</code>, канал <code>URLSessionWebSocketTask</code></td></tr>
 <tr><td>Строка сервера</td><td>строка <code>List</code> без перехода, полоски метрик нарисованы капсулами (<code>Capsule</code>)</td></tr>
 <tr><td>Все / Проблемные / Offline</td><td><code>Picker</code> со стилем <code>.segmented</code></td></tr>
 <tr><td>Поиск по имени или IP</td><td><code>.searchable</code></td></tr>
@@ -227,7 +271,7 @@ ul.n { margin: 8px 0 0 20px; max-width: 860px; } ul.n li { margin: 4px 0; }
 <li>Бейдж высотой 18 pt с 11 pt текстом мелкий: он масштабируется с Dynamic Type, но на крупных размерах строка перестроится, а подпись бейджа читает VoiceOver. Если на устройстве читать трудно, можно поднять до 20 pt, не меняя вида.</li>
 <li>Пороги цвета полосок как в десктопном приложении: оранжевый от 75%, красный от 90%; уровень сервера (плитка «Внимание», фильтр «Проблемные») считается теми же порогами, что в <code>status.ts</code>.</li>
 <li>Страницы сервера нет: строка дашборда не ведёт никуда, у неё есть долгое нажатие (копирование и расшифровка бейджей). Страница сервера будет отдельным этапом.</li>
-<li>Редактирование дашборда, папок, тегов, пользователей и все модули сервера в приложение не входят.</li>
+<li>Редактирование дашборда, папок, тегов, пользователей и остальные модули сервера в приложение не входят. Терминал это второй этап: SwiftTerm, только портрет, оболочка от имени другой учётной записи, вкладки и постоянная оболочка не входят.</li>
 </ul>
 
 <script>
@@ -262,6 +306,8 @@ const P = {
  box: '<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
  spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/>',
  upc: '<circle cx="12" cy="12" r="9.5"/><path d="M12 16.5v-8M8.5 11.5l3.5-3.5 3.5 3.5"/>',
+ code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',
+ term: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12 15h5"/>',
  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'
 };
 const I = (n, s = 22, sw = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
@@ -389,6 +435,49 @@ add('Остальное', '<b>Учётная запись</b> (кнопка с �
 
 const LG = [['failed','crit',1,'triangle-alert','exclamationmark.triangle','Упавшие службы (красный)'],['reboot','warn',0,'power','power','Нужна перезагрузка (оранжевый)'],['updates','info',3,'circle-arrow-up','arrow.up.circle','Обновления пакетов: синий, от 10 оранжевый'],['images','warn',6,'container','shippingbox','Обновления образов Docker: синий, от 5 оранжевый'],['agentUpdate','warn',0,'sparkles','sparkles','Есть новый агент (оранжевый)'],['agentOld','crit',0,'triangle-alert','exclamationmark.triangle','Агент слишком стар (красный)'],['offline','mute',0,'','—','Нет связи (серый, со словом); рядом остаётся число обновлений серым']];
 document.getElementById('legend').innerHTML = `<div class="phone" style="width:auto;height:auto;padding:0;background:none;box-shadow:none;border-radius:0;display:block;color:inherit"><table><tr><th>Бейдж</th><th>Что значит</th><th>Символ SF</th><th>Значок в приложении</th></tr>${LG.map(([id,t,n,li,sf,txt]) => `<tr><td>${mc([id,t,n||undefined])}</td><td>${txt}</td><td><code>${sf}</code></td><td>${li ? '<code>'+li+'</code>' : ''}</td></tr>`).join('')}<tr><td>${tagsHtml({t:[['blue','web'],['green','prod']]})}</td><td>Теги сервера: первая буква на цвете тега; больше двух сворачиваются в «+N»</td><td>—</td><td>—</td></tr></table></div>`;
+
+/* ---- terminal ---- */
+const kb = `<div class="kb"><div>${'qwertyuiop'.split('').map(c => `<span>${c}</span>`).join('')}</div><div>${'asdfghjkl'.split('').map(c => `<span>${c}</span>`).join('')}</div><div><span class="w">⇧</span>${'zxcvbnm'.split('').map(c => `<span>${c}</span>`).join('')}<span class="w">⌫</span></div><div><span class="w">123</span><span class="sp">пробел</span><span class="w">⏎</span></div></div>`;
+const accOld = (ctrl = false) => `<div class="acc" style="bottom:291px"><span>esc</span><span class="${ctrl ? 'on' : ''}">ctrl</span><span>tab</span><i></i><span>${I('chevl', 15, 2.4)}</span><span>${I('dn', 15, 2.4)}</span><span>${I('up', 15, 2.4)}</span><span>${I('chev', 15, 2.4)}</span><i></i><span class="m">~</span><span class="m">|</span><span class="m">/</span><span class="m">-</span><span class="m">\\</span><span class="m">[</span><span class="m">]</span><span class="m">{</span><span class="h">${I('chevd', 15, 2.4)}</span></div>`;
+const accV = (v, ctrl = true) => {
+  const k = [['esc'], ['ctrl', ctrl], ['tab'], '|', [I('chevl', 15, 2.4)], [I('dn', 15, 2.4)], [I('up', 15, 2.4)], [I('chev', 15, 2.4)], '|', ['~', 'm'], ['|', 'm'], ['/', 'm'], ['-', 'm'], ['\\', 'm'], ['[', 'm']];
+  const html = k.map(x => x === '|' ? (v === 'v3' ? '<div class="sep"></div>' : '<i></i>') : `<span class="${x[1] === 'm' ? 'm' : x[1] === true ? 'on' : ''}">${x[0]}</span>`).join('');
+  return v === 'v3'
+    ? `<div class="acc v3" style="bottom:291px;height:54px"><div class="cap">${html}</div><div class="hidecap">${I('chevd', 16, 2.2)}</div></div>`
+    : `<div class="acc ${v}" style="bottom:291px">${html}<span class="h">${I('chevd', 15, 2.4)}</span></div>`;
+};
+const acc = (ctrl = false) => accV('v3', ctrl);
+const tbar = (sub) => `<div class="tbar"><div class="glass"><span class="b">${I('xmark', 22, 2)}</span></div><div class="ttl"><b>web-01</b><small>${sub}</small></div><div class="glass"><span class="b">${I('person', 24, 1.7)}</span><span class="b">${I('code', 22, 1.9)}</span></div></div>`;
+const shell = `<span class="g">debian@web-01</span>:<span class="b">~</span>$ `;
+const termText = (cur = true, tail = '') => `${shell}uptime
+ 17:48:02 up 112 days,  2:14,  1 user,  load 0.42
+${shell}df -h /
+Filesystem      Size  Used Avail Use% Mounted
+/dev/vda1        40G   18G   21G  47% /
+${shell}systemctl status nginx
+<span class="g">●</span> nginx.service - A high performance web server
+     Loaded: loaded (/lib/systemd/system/nginx.service)
+     Active: <span class="g">active (running)</span> since Tue 2026-08-05
+   Main PID: 612 (nginx)
+      Tasks: 3 (limit: 4574)
+${shell}tail -n 3 /var/log/nginx/error.log
+<span class="d">2026/11/25 17:41:07 [warn] upstream response is buffered</span>
+<span class="d">2026/11/25 17:43:30 [notice] signal process started</span>
+${shell}${cur ? '<span class="cur"></span>' : ''}${tail}`;
+add('Терминал', '<b>Меню долгого нажатия получило пункт «Терминал».</b> Он первый в меню; у офлайн-сервера недоступен (серый), у учётной записи без права на терминал его нет совсем. Права те же, что в десктопном приложении: администратор и оператор с модулем «terminal».', 'Меню с терминалом', dash() + `<div class="dim" style="background:rgba(0,0,0,.2)"></div>
+ <div style="position:absolute;left:16px;right:16px;top:453px;z-index:37;transform:scale(1.02);border-radius:22px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.3);background:var(--cell)">${row(SV[1])}</div>
+ <div class="menu" style="top:597px;right:auto;left:16px;width:290px"><div class="mi"><span class="l">Терминал</span>${I('term', 20)}</div><div class="gap mi" style="height:8px"></div><div class="mi"><span class="l">Скопировать имя</span>${I('copy', 20)}</div><div class="mi"><span class="l">Скопировать адрес</span>${I('net', 20)}</div>
+ <div class="mh">Состояние</div><div class="mi"><span class="l">Нужна перезагрузка</span>${I('power', 20)}</div><div class="mi"><span class="l">Обновлений: 12</span>${I('upc', 20)}</div></div>`);
+add('Терминал', '<b>Терминал.</b> Полный экран поверх дашборда. Вверху закрыть (крестик) и имя сервера с учётной записью оболочки; справа точка состояния соединения. Над клавиатурой панель клавиш, которых нет на экранной клавиатуре: Esc, залипающая Ctrl (горит синим, пока нажата), Tab, стрелки, | ~ / -. Панель своя, в стиле верхней панели: плавающая стеклянная капсула с клавишами без собственных фонов и разделителями между группами, справа отдельная круглая капсула «скрыть клавиатуру». Залипающая Ctrl включается акцентной таблеткой, стрелки повторяются при удержании. Прокручивается вбок: дальше идут остальные знаки (` [ ] { } < > & * = + % и другие), Home, End, PgUp, PgDn, Del и F1–F10. Цвета терминала следуют теме системы (тёмная по умолчанию у терминалов).', 'Терминал, тёмная тема', `${sb}${tbar('debian · online')}<div class="tscr" style="top:100px;bottom:337px">${termText()}</div>${acc(true)}${kb}${home}`, true);
+add('Терминал', '<b>Сниппеты и пользователь.</b> Справа вверху две кнопки вместо индикатора: оболочка от имени другой учётной записи (меню с галочкой у текущей; выбор закрывает эту оболочку, очищает экран и открывает новую (её приглашение первая строка), имя видно под заголовком) и сниппеты. В списке сниппетов нажатие вводит команду и выполняет её, смахивание влево только вводит без Enter (чтобы изменить перед запуском). Сниппеты создаются в десктопном приложении. Кнопка пользователя есть, только если у учётной записи есть право видеть пользователей сервера; сниппеты недоступны, пока терминал не подключён.', 'Сниппеты', `${sb}${tbar('debian · 31.56.177.82')}<div class="tscr" style="top:100px;bottom:0">${termText()}</div><div class="dim"></div><div class="sheet" style="top:300px;padding-top:12px"><div class="grab"></div><div style="display:flex;justify-content:space-between;align-items:center;padding:0 2px 12px"><h3 style="font-size:20px">Сниппеты</h3><span class="tint" style="font-weight:600">Готово</span></div>
+ <div class="grp"><div class="cell" style="display:block"><b>Использование диска</b><div class="mono" style="font-size:13px;color:var(--l2)">df -h</div></div><div class="cell" style="display:block"><b>Перезапуск nginx</b><div class="mono" style="font-size:13px;color:var(--l2)">sudo systemctl restart nginx</div></div><div class="cell" style="display:block"><b>Журнал ошибок</b><div class="mono" style="font-size:13px;color:var(--l2)">tail -n 100 /var/log/nginx/error.log</div></div></div>
+ <div class="gf" style="margin-top:-6px">Нажатие вводит команду и выполняет её. Смахните влево, чтобы только ввести без Enter.</div></div>`, true);
+add('Терминал', '<b>Щипок меняет размер шрифта.</b> Меньше шрифт, больше колонок: в портрете при 9 pt помещается около 65. Размер показан на мгновение посередине и запоминается для всех серверов. Двойное нажатие двумя пальцами возвращает размер по умолчанию (11 pt).', 'Щипок: размер шрифта', `${sb}${tbar('debian · online')}<div class="tscr" style="top:100px;bottom:337px;font-size:9.5px;line-height:12px">${termText()}</div><div class="hud">9 pt</div>${acc()}${kb}${home}`, true);
+add('Терминал', '<b>Соединение закрыто.</b> Оболочка закончилась (exit) или связь оборвалась, в том числе после сворачивания приложения дольше чем на 30 секунд: постоянной оболочки на агенте нет, запущенное прервётся. Внизу причина и кнопка «Подключиться снова» (новая оболочка, вывод остаётся на экране для копирования).', 'Соединение закрыто', `${sb}${tbar('соединение закрыто')}<div class="tscr" style="top:100px;bottom:0">${termText(false)}
+<span class="d">[соединение закрыто]</span></div><div class="closedbar"><b>Соединение закрыто</b><small>Приложение было в фоне больше 30 секунд.</small><div class="btn" style="height:44px;margin:12px 0 0">Подключиться снова</div></div>${home}`);
+add('Терминал', '<b>Слишком много терминалов.</b> На сервере открыто предельное число терминалов (лимит сервера, код 4029): системный alert, экран терминала закрывается. Так же показываются «агент офлайн» (503) и «нет права» (403).', 'Лимит терминалов', dash() + `<div class="dim"></div><div class="alert"><div class="t"><h4>Не удалось открыть терминал</h4><p>На сервере web-01 уже открыто максимальное число терминалов. Закройте один из них и попробуйте снова.</p></div><div class="bt b">Понятно</div></div>`);
+
+
 const groups = [...new Set(frames.map(f => f.group))];
 document.getElementById('out').innerHTML = groups.map(g => `<h2>${g}</h2><div class="gal">${frames.filter(f => f.group === g).map(f => `<figure><div class="phone ${f.dark ? 'dark' : ''}"><div class="scr">${f.html}</div></div><figcaption>${f.cap.startsWith('<b>') ? f.cap : `<b>${f.title}</b>${f.cap}`}</figcaption></figure>`).join('')}</div>`).join('');
 </script>

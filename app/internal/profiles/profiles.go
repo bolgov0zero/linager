@@ -119,13 +119,18 @@ func (s *Store) Put(p Profile) (Profile, error) {
 		}
 	}
 	if p.ID == "" {
-		b := make([]byte, 8)
-		_, _ = rand.Read(b)
-		p.ID = hex.EncodeToString(b)
+		p.ID = NewID()
 	}
 	s.f.Profiles = append(s.f.Profiles, p)
 	s.f.Last = p.ID
 	return p, s.save()
+}
+
+// NewID makes the id of a profile.
+func NewID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // SetLogin remembers the login of a profile.

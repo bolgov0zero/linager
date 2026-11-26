@@ -22,6 +22,7 @@ export const KNOWN_ACTIONS: ReadonlySet<string> = new Set([
   'group.create', 'group.rename', 'group.delete', 'group.assign', 'group.move',
   'access.update', 'access.retention', 'access.reset',
   'connection.update', 'connection.close_old',
+  'device.request', 'device.approve', 'device.deny', 'device.remove', 'device.label', 'device.gate.on', 'device.gate.off',
   'assistant.type', 'disk.scan', 'disk.clean', 'docker.check', 'group.reorder', 'join.create', 'join.revoke', 'network.dns', 'server.note', 'server.tags', 'tag.create', 'tag.rename', 'tag.color', 'tag.delete', 'appaccess.update', 'user.access', 'user.password_reset', 'security.fail2ban.ban', 'security.fail2ban.unban', 'security.fail2ban.settings', 'security.key.remove', 'ssh.check', 'ssh.install', 'enroll.join', 'win.users.add', 'win.users.update', 'win.users.passwd', 'win.users.delete', 'win.users.logoff', 'win.network.apply', 'win.network.rollback',
 ]);
 
@@ -53,6 +54,7 @@ export const ACTION_GROUPS: Option[] = [
   { value: 'dashboard.', key: 'st.audit.group.dashboard' },
   { value: 'access.', key: 'st.audit.group.access' },
   { value: 'connection.', key: 'st.audit.group.connection' },
+  { value: 'device.', key: 'st.audit.group.devices' },
 ];
 
 /** Result filter. Denial results (bad_key, locked, rate_limited) are all shown as "denied". */

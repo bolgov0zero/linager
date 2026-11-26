@@ -9,7 +9,18 @@ export interface Session {
   modules?: string[];
   totp_enabled?: boolean;
   recovery_left?: number;
+  /** The device of this application on the server: whether devices are confirmed, and what became of this one. */
+  device?: { confirm: boolean; id?: number; status?: DeviceStatus };
 }
+
+export type DeviceStatus = 'pending' | 'approved' | 'denied';
+export interface DeviceRow {
+  id: number; user_id: number; user: string; platform: string; app_version: string; os_version: string; model: string; label: string;
+  status: DeviceStatus; last_ip: string; last_seen: string; created_at: string; decided_at?: string; decided_by?: string;
+  /** The device of this very application. */
+  current: boolean;
+}
+export interface DevicesState { enabled: boolean; since?: string; pending: number; can_enable: boolean; devices: DeviceRow[] }
 
 export interface Sample {
   ts: number;
@@ -329,6 +340,13 @@ export const api = {
       csrf = '';
     }
   },
+  devices: () => request<DevicesState>('GET', 'api/devices'),
+  /** Turns the confirmation of devices on or off. `keepSessions` (on): the devices that are signed in stay, as approved. */
+  devicesGate: (enabled: boolean, keepSessions: boolean) => request<DevicesState>('PUT', 'api/devices/gate', { enabled, keep_sessions: keepSessions, confirm: true }),
+  deviceApprove: (id: number) => request<{ ok: boolean }>('POST', `api/devices/${id}/approve`, {}),
+  deviceDeny: (id: number) => request<{ ok: boolean }>('POST', `api/devices/${id}/deny`, {}),
+  deviceRemove: (id: number) => request<{ ok: boolean }>('DELETE', `api/devices/${id}`, { confirm: true }),
+  deviceLabel: (id: number, label: string) => request<{ ok: boolean }>('PUT', `api/devices/${id}`, { label }),
   dashboard: () => request<{ items: ServerCard[] }>('GET', 'api/dashboard'),
   groups: () => request<Group[]>('GET', 'api/groups'),
   /** Every server the user may see (the dashboard shows only what was left on it): id, name, address, os, folder. */
@@ -414,14 +432,14 @@ export const api = {
   snippetsOrder: (ids: number[]) => request<{ ok: boolean }>('PUT', 'api/snippets/order', { ids }),
 };
 
-/** The shared stream of live events; `handler` is called for every event and the stream reconnects by itself. */
-export function subscribeLive(handler: () => void): () => void {
+/** The shared stream of live events; `handler` is called for every event of the given kinds (the servers' by default) and the stream reconnects by itself. */
+export function subscribeLive(handler: () => void, types: readonly string[] = ['metrics', 'status', 'dashboard']): () => void {
   let source: EventSource | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   const open = (): void => {
     source = new EventSource('api/live');
-    for (const type of ['metrics', 'status', 'dashboard']) source.addEventListener(type, handler);
+    for (const type of types) source.addEventListener(type, handler);
     source.onerror = () => {
       source?.close();
       source = null;

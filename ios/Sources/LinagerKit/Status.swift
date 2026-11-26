@@ -117,6 +117,9 @@ public func shortOs(_ os: String) -> String {
 
 public func isWindows(_ os: String) -> Bool { os.hasPrefix("Windows") }
 
+/// The Assistant is offered for a Windows computer and for a Linux computer whose agent says it has a graphical console.
+public func assistantOffered(_ c: ServerCard) -> Bool { isWindows(c.os) || c.sample?.gui == true }
+
 /// The first letter of a tag for its badge.
 public func tagLetter(_ name: String) -> String {
     guard let ch = name.trimmingCharacters(in: .whitespaces).first else { return "?" }

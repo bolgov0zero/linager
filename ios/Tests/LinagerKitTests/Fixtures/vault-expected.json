@@ -1,0 +1,86 @@
+{
+ "passphrase": "Ключ-ﬁnal 123!",
+ "normalized": "Ключ-final 123!",
+ "entries": [
+  {
+   "id": "a1",
+   "name": "Office PC admin",
+   "type": "uac",
+   "groups": [
+    {
+     "id": "2",
+     "name": "Продакшен"
+    }
+   ],
+   "servers": [
+    {
+     "id": "srv-a",
+     "name": "web-01"
+    }
+   ],
+   "login": "admin",
+   "domain": "CORP",
+   "password": "s3cret!ё",
+   "note": "main"
+  },
+  {
+   "id": "a2",
+   "name": "Any key",
+   "type": "any",
+   "groups": [],
+   "servers": [],
+   "login": "root",
+   "domain": "",
+   "password": "p@ss w0rd",
+   "note": ""
+  },
+  {
+   "id": "a3",
+   "name": "RDP only",
+   "type": "rdp",
+   "groups": [],
+   "servers": [
+    {
+     "id": "srv-b",
+     "name": "db-01"
+    }
+   ],
+   "login": "u",
+   "domain": "",
+   "password": "x",
+   "note": ""
+  },
+  {
+   "id": "a4",
+   "name": "Folder key",
+   "type": "uac",
+   "groups": [
+    {
+     "id": "3",
+     "name": "Базы"
+    }
+   ],
+   "servers": [],
+   "login": "bob",
+   "domain": "",
+   "password": "folder-pass",
+   "note": ""
+  },
+  {
+   "id": "a5",
+   "name": "Lost binding",
+   "type": "uac",
+   "groups": [],
+   "servers": [
+    {
+     "id": "gone",
+     "name": "old"
+    }
+   ],
+   "login": "ghost",
+   "domain": "X",
+   "password": "boo",
+   "note": ""
+  }
+ ]
+}

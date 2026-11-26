@@ -741,3 +741,56 @@ func TestGitHubTokenEndpoints(t *testing.T) {
 		t.Fatal("deleted")
 	}
 }
+
+// The application is a device of the server: the token is made when the connection opens, kept in the keychain (the same one every
+// time), and the server gets it with what the application says about itself; it is forgotten with the profile.
+func TestTheApplicationIsADeviceOfTheServer(t *testing.T) {
+	var seen []string
+	up := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("X-Linager-Device")+"|"+r.Header.Get("X-Linager-Client"))
+		_, _ = io.WriteString(w, "{}")
+	}))
+	up.TLS = &tls.Config{MinVersion: tls.VersionTLS13}
+	up.StartTLS()
+	t.Cleanup(up.Close)
+	store, _ := profiles.Open(filepath.Join(t.TempDir(), "profiles.json"))
+	secrets := &profiles.Memory{}
+	s, err := New(Options{Assets: fstest.MapFS{"index.html": {Data: []byte("x")}}, Profiles: store, Secrets: secrets, Version: "9.9.9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = s.Serve() }()
+	t.Cleanup(s.Close)
+
+	addr := strings.TrimPrefix(up.URL, "https://")
+	fp := remote.Fingerprint(up.Certificate().Raw)
+	var st struct {
+		Profile struct{ ID string } `json:"profile"`
+	}
+	if code := call(t, "POST", s.URL()+"app/connect", map[string]string{"address": addr, "fingerprint": fp}, &st); code != 200 {
+		t.Fatalf("connect: %d", code)
+	}
+	if len(seen) == 0 {
+		t.Fatal("the server was not asked")
+	}
+	tok, _, _ := strings.Cut(seen[len(seen)-1], "|")
+	if len(tok) < 32 || !strings.Contains(seen[len(seen)-1], "app=9.9.9") {
+		t.Fatalf("what the server got: %q", seen[len(seen)-1])
+	}
+	if kept, err := secrets.Get("device:" + st.Profile.ID); err != nil || kept != tok {
+		t.Fatalf("kept in the keychain: %q %v", kept, err)
+	}
+	// opened again: the same device
+	if code := call(t, "POST", s.URL()+"app/use", map[string]string{"id": st.Profile.ID}, nil); code != 200 {
+		t.Fatalf("use: %d", code)
+	}
+	if again, _, _ := strings.Cut(seen[len(seen)-1], "|"); again != tok {
+		t.Fatal("the same installation is the same device")
+	}
+	if code := call(t, "POST", s.URL()+"app/forget", map[string]string{"id": st.Profile.ID}, nil); code != 200 {
+		t.Fatalf("forget: %d", code)
+	}
+	if _, err := secrets.Get("device:" + st.Profile.ID); err == nil {
+		t.Fatal("a forgotten profile loses its device")
+	}
+}

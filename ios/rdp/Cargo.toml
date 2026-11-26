@@ -1,0 +1,30 @@
+[package]
+name = "linager-rdp"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "RDP client core of Linager for iOS: IronRDP over the RDCleanPath proxy of the server, behind a small C interface"
+
+[lib]
+name = "linager_rdp"
+crate-type = ["staticlib", "lib"]
+
+# IronRDP is pinned to a commit: its 0.x crates change their API between releases, and the released ones on crates.io lag behind.
+[dependencies]
+ironrdp = { git = "https://github.com/Devolutions/IronRDP", rev = "293cb4bee90b", features = ["connector", "session", "graphics", "pdu", "input", "svc", "dvc"] }
+ironrdp-futures = { git = "https://github.com/Devolutions/IronRDP", rev = "293cb4bee90b" }
+ironrdp-rdcleanpath = { git = "https://github.com/Devolutions/IronRDP", rev = "293cb4bee90b" }
+ironrdp-core = { git = "https://github.com/Devolutions/IronRDP", rev = "293cb4bee90b" }
+ironrdp-egfx = { git = "https://github.com/Devolutions/IronRDP", rev = "293cb4bee90b" }
+x509-cert = { version = "0.3", default-features = false, features = ["std"] }
+futures-util = { version = "0.3", features = ["io"] }
+futures-channel = "0.3"
+anyhow = "1"
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

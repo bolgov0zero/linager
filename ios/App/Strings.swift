@@ -30,6 +30,14 @@ enum Fmt {
         L("unit.perSecond", ByteCountFormatter.string(fromByteCount: Int64(max(0, bytesPerSecond)), countStyle: .binary))
     }
 
+    /// "12.4 MB": bytes in the units of the phone.
+    static func bytes(_ n: Int64) -> String { ByteCountFormatter.string(fromByteCount: max(0, n), countStyle: .file) }
+
+    /// A date for a row: the time for today, the day for the rest.
+    static func shortDate(_ date: Date) -> String {
+        Calendar.current.isDateInToday(date) ? date.formatted(date: .omitted, time: .shortened) : date.formatted(date: .abbreviated, time: .omitted)
+    }
+
     static func time(_ date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
     }
@@ -60,6 +68,17 @@ extension LinagerError {
         case .unauthorized: L("err.sessionEnded")
         case .server(let status, _): L("err.server", status)
         case .badResponse: L("err.badResponse")
+        case .noPermission: L("err.noTerminalRight")
+        case .agentOffline: L("err.agentOffline")
+        case .fileChanged: L("err.fileChanged")
+        case .exists: L("err.exists")
+        case .confirmRequired: L("err.confirmRequired")
+        case .tooLarge: L("err.tooLarge")
+        case .notText: L("err.notText")
+        case .notFound: L("err.notFound")
+        case .approvalPending: L("err.approvalPending")
+        case .deviceDenied: L("err.deviceDenied")
+        case .deviceRequired: L("err.deviceRequired")
         }
     }
 }

@@ -14,6 +14,10 @@ struct DashboardView: View {
     @State private var folder: Int64?
     @State private var collapsed: Set<Int64> = []
     @State private var showAccount = false
+    @State private var terminalCard: ServerCard?
+    @State private var remoteCard: ServerCard?
+    /// The page of a server (opened by a tap on its row).
+    @State private var pageCard: ServerCard?
 
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
 
@@ -31,26 +35,33 @@ struct DashboardView: View {
                 .navigationTitle("dash.title")
                 .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .automatic), prompt: Text("dash.search"))
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) { viewMenu }
-                    ToolbarItem(placement: .topBarTrailing) {
+                    // two buttons in one glass capsule, as the system apps do
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        viewMenu
                         Button { showAccount = true } label: { Image(systemName: "person.crop.circle") }
                             .accessibilityLabel(Text("acc.title"))
                     }
                 }
         }
         .sheet(isPresented: $showAccount) { AccountView() }
-        .task { model.startLive() }
+        .fullScreenCover(item: $terminalCard) { TerminalScreen(card: $0) }
+        .fullScreenCover(item: $remoteCard) { RemoteScreen(card: $0) }
+        .fullScreenCover(item: $pageCard) { ServerPageScreen(card: $0) }
     }
 
     // MARK: content
 
     @ViewBuilder private var content: some View {
         if model.cards.isEmpty && model.loading {
-            List {
-                Section {
-                    ForEach(Self.placeholders) { ServerRow(card: $0) }
+            ScrollView {
+                GroupCard {
+                    ForEach(Array(Self.placeholders.enumerated()), id: \.element.id) { i, c in
+                        GroupRow(first: i == 0, minHeight: 60) { ServerRow(card: c).padding(.vertical, 6) }
+                    }
                 }
+                .padding(.top, 8)
             }
+            .background(Color(.systemGroupedBackground))
             .redacted(reason: .placeholder)
             .disabled(true)
         } else if model.cards.isEmpty && model.offline {
@@ -72,66 +83,82 @@ struct DashboardView: View {
         }
     }
 
+    /// All, problems, offline: the system segmented control. It scrolls with the tiles above it and, reaching the bar, stays under it.
+    private var filterBar: some View {
+        GlassSegmented(items: [(tag: DashboardFilter.all, title: "dash.filter.all"), (tag: .problems, title: "dash.filter.bad"), (tag: .offline, title: "dash.filter.off")], selection: $filter)
+    }
+
     private var list: some View {
-        List {
+        PinnedSwitchScroll(above: {
             if model.offline {
-                Section { OfflineBanner(since: model.updatedAt) }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+                OfflineBanner(since: model.updatedAt).padding(.horizontal, groupMargin).padding(.bottom, 12)
             }
             if searching {
-                Section { EmptyView() } header: { Text(L("dash.found", shown.count)).textCase(nil) }
+                Text(L("dash.found", shown.count)).font(.footnote).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, groupMargin + 4).padding(.bottom, 4)
             } else {
-                Section {
-                    VStack(spacing: 14) {
-                        SummaryTiles(totals: summarize(model.cards))
-                        Picker("dash.filter", selection: $filter) {
-                            Text("dash.filter.all").tag(DashboardFilter.all)
-                            Text("dash.filter.bad").tag(DashboardFilter.problems)
-                            Text("dash.filter.off").tag(DashboardFilter.offline)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                }
+                SummaryTiles(totals: summarize(model.cards)).padding(.horizontal, groupMargin)
             }
+        }, bar: {
+            filterBar
+        }, below: {
             if shown.isEmpty {
-                Section {
+                Group {
                     if searching {
                         ContentUnavailableView.search(text: query)
                     } else {
                         ContentUnavailableView("dash.nothing", systemImage: "line.3.horizontal.decrease.circle")
                     }
                 }
-                .listRowBackground(Color.clear)
+                .padding(.top, 24)
             } else {
                 let flat = sections.count == 1 && sections[0].id <= 0
                 ForEach(sections) { sec in
-                    Section {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if !flat { sectionHeader(sec).padding(.horizontal, groupMargin + 16).padding(.top, 12).padding(.bottom, 6) }
                         if flat || !collapsed.contains(sec.id) { rows(sec) }
-                    } header: {
-                        if !flat { sectionHeader(sec) }
                     }
+                    .padding(.bottom, 8)
                 }
             }
-        }
-        .listStyle(.insetGrouped)
-        .refreshable { await model.refresh() }
+        }, refresh: { await model.refresh() })
     }
 
     @ViewBuilder private func rows(_ sec: DashboardSection) -> some View {
         if layout == .rows {
-            ForEach(sec.servers) { ServerRow(card: $0, agent: model.agentFlags[$0.id]) }
-        } else {
-            ForEach(sec.servers) { card in
-                ServerCardView(card: card, agent: model.agentFlags[card.id])
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            GroupCard {
+                ForEach(Array(sec.servers.enumerated()), id: \.element.id) { i, card in
+                    GroupRow(first: i == 0, minHeight: 60) {
+                        Button { pageCard = card } label: {
+                            ServerRow(card: card, agent: model.agentFlags[card.id], onTerminal: openTerminal, onAssistant: openAssistant)
+                                .padding(.vertical, 8)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
+        } else {
+            VStack(spacing: 12) {
+                ForEach(sec.servers) { card in
+                    Button { pageCard = card } label: {
+                        ServerCardView(card: card, agent: model.agentFlags[card.id], onTerminal: openTerminal, onAssistant: openAssistant)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, groupMargin)
         }
+    }
+
+    /// The action of the menu "Terminal", or nil when this account may not open one.
+    private var openTerminal: ((ServerCard) -> Void)? {
+        model.canUseTerminal ? { terminalCard = $0 } : nil
+    }
+
+    /// The action of the menu "Assistant", or nil when this account may not open one.
+    private var openAssistant: ((ServerCard) -> Void)? {
+        model.canUseAssistant ? { remoteCard = $0 } : nil
     }
 
     private func sectionHeader(_ sec: DashboardSection) -> some View {
@@ -216,7 +243,7 @@ struct OfflineBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: boxRadius, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }
@@ -262,7 +289,7 @@ private struct Tile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }

@@ -79,6 +79,8 @@ type Session struct {
 	OnSession func(value string)
 	jar       *cookiejar.Jar
 	tr        *http.Transport
+	rt        http.RoundTripper // tr with the headers of the device
+	dev       deviceHeaders
 	proxy     *httputil.ReverseProxy
 	mu        sync.Mutex
 	closed    bool
@@ -102,10 +104,11 @@ func NewSession(t Target) (*Session, error) {
 		IdleConnTimeout:       90 * time.Second,
 		ForceAttemptHTTP2:     false, // WebSocket upgrades need HTTP/1.1
 	}
+	s.rt = &deviceTransport{base: s.tr, s: s}
 	s.proxy = &httputil.ReverseProxy{
 		Rewrite:        s.rewrite,
 		ModifyResponse: s.modify,
-		Transport:      s.tr,
+		Transport:      s.rt,
 		FlushInterval:  -1, // the live stream and the terminals must not wait for a full buffer
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
 			code, msg := http.StatusBadGateway, "unreachable"
@@ -170,7 +173,7 @@ func (s *Session) Handler() http.Handler { return s.proxy }
 
 // Client is an HTTP client with the pin and the cookies of this session, for calls the application itself makes.
 func (s *Session) Client() *http.Client {
-	return &http.Client{Transport: s.tr, Jar: s.jar, Timeout: 20 * time.Second}
+	return &http.Client{Transport: s.rt, Jar: s.jar, Timeout: 20 * time.Second}
 }
 
 // Fetch makes a GET of a path with its query on the server, with the pin and the cookies of this session and without a
@@ -186,7 +189,7 @@ func (s *Session) Fetch(ctx context.Context, pathQuery string) (*http.Response, 
 	if err != nil {
 		return nil, err
 	}
-	return (&http.Client{Transport: s.tr, Jar: s.jar}).Do(req)
+	return (&http.Client{Transport: s.rt, Jar: s.jar}).Do(req)
 }
 
 // URL is the address of a path on the server.
@@ -209,4 +212,46 @@ func (s *Session) RestoreSession(value string) {
 	}
 	u := s.upstream("/")
 	s.jar.SetCookies(u, []*http.Cookie{{Name: SessionCookie, Value: value, Path: "/", Secure: true, HttpOnly: true}})
+}
+
+// deviceHeaders are what tells the server which installation this is (see server/devices.go).
+type deviceHeaders struct {
+	mu     sync.Mutex
+	token  string // X-Linager-Device
+	client string // X-Linager-Client: platform, version of the application and of the OS, model
+}
+
+// DeviceHeader and ClientHeader are the names of the headers of the device.
+const (
+	DeviceHeader = "X-Linager-Device"
+	ClientHeader = "X-Linager-Client"
+)
+
+// SetDevice sets the token of the device and what the application says about itself; every request of the session carries them.
+func (s *Session) SetDevice(token, client string) {
+	s.dev.mu.Lock()
+	s.dev.token, s.dev.client = token, client
+	s.dev.mu.Unlock()
+}
+
+// deviceTransport puts the headers of the device on every request, whatever the web view sent: the web view never sees the token.
+type deviceTransport struct {
+	base http.RoundTripper
+	s    *Session
+}
+
+func (d *deviceTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	d.s.dev.mu.Lock()
+	tok, client := d.s.dev.token, d.s.dev.client
+	d.s.dev.mu.Unlock()
+	r2 := r.Clone(r.Context())
+	r2.Header.Del(DeviceHeader)
+	r2.Header.Del(ClientHeader)
+	if tok != "" {
+		r2.Header.Set(DeviceHeader, tok)
+	}
+	if client != "" {
+		r2.Header.Set(ClientHeader, client)
+	}
+	return d.base.RoundTrip(r2)
 }

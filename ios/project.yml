@@ -10,12 +10,16 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "55"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_EMIT_LOC_STRINGS: YES
 packages:
   LinagerKit:
     path: .
+  # The emulator of the terminal. The version is pinned: it is code that runs in the application and in the build (a build plugin).
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm.git
+    exactVersion: 1.99.4
 targets:
   Linager:
     type: application
@@ -26,6 +30,7 @@ targets:
           - Info.plist
     dependencies:
       - package: LinagerKit
+      - package: SwiftTerm
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.linager.ios
@@ -35,6 +40,10 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: App/Info.plist
         STRING_CATALOG_GENERATE_SYMBOLS: NO
+        # the RDP core (Rust, ios/rdp; build-ipa.sh builds it first): its C header as a module, and the static library
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/rdp/include
+        LIBRARY_SEARCH_PATHS: $(SRCROOT)/rdp/target/aarch64-apple-ios/release
+        OTHER_LDFLAGS: -llinager_rdp
     info:
       path: App/Info.plist
       properties:
@@ -45,7 +54,8 @@ targets:
         CFBundleLocalizations: [en, ru]
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # portrait everywhere; the remote screen asks for landscape itself (AppDelegate, Orientation.swift)
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         ITSAppUsesNonExemptEncryption: false

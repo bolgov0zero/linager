@@ -58,6 +58,8 @@ type apiClient struct {
 	base string
 	hc   *http.Client
 	csrf string
+	// headers are sent with every request (the device of the client, what it says about itself)
+	headers map[string]string
 }
 
 func (c *apiClient) do(method, path string, body any, out any) int {
@@ -70,6 +72,9 @@ func (c *apiClient) do(method, path string, body any, out any) int {
 	req, _ := http.NewRequest(method, c.base+path, rd)
 	if c.csrf != "" {
 		req.Header.Set("X-CSRF-Token", c.csrf)
+	}
+	for k, v := range c.headers {
+		req.Header.Set(k, v)
 	}
 	resp, err := c.hc.Do(req)
 	if err != nil {

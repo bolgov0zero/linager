@@ -11,6 +11,7 @@
   import SnippetsSection from '../settings/SnippetsSection.svelte';
   import AccessSection from '../settings/AccessSection.svelte';
   import AuditSection from '../settings/AuditSection.svelte';
+  import DevicesSection from '../settings/DevicesSection.svelte';
   import ConnectionSection from '../settings/ConnectionSection.svelte';
   import UpdatesSection from '../settings/UpdatesSection.svelte';
   import UsersSection from '../settings/UsersSection.svelte';
@@ -55,6 +56,7 @@
       {:else if current === 'profile'}<ProfileSection {session} onrefresh={refresh} onauthlost={() => (lost = true)} />
       {:else if current === 'users'}<UsersSection onauthlost={() => (lost = true)} />
       {:else if current === 'access'}<AccessSection onauthlost={() => (lost = true)} />
+      {:else if current === 'devices'}<DevicesSection onauthlost={() => (lost = true)} />
       {:else if current === 'connection'}<ConnectionSection onauthlost={() => (lost = true)} />
       {:else if current === 'updates'}<UpdatesSection />
       {:else if current === 'audit'}<AuditSection />

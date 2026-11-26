@@ -1,0 +1,4 @@
+module CLinagerRdp {
+    header "linager_rdp.h"
+    export *
+}

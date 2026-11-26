@@ -31,6 +31,7 @@ type ctxKey int
 const (
 	keyUser ctxKey = iota
 	keySession
+	keyDevice
 )
 
 // Admin serves the JSON API of the server (the application port).
@@ -50,6 +51,7 @@ type Admin struct {
 	sshL    *ipLimiter
 
 	loginL *ipLimiter
+	gate   deviceGate // the confirmation of devices (devices.go)
 
 	termMu sync.Mutex
 	terms  map[string]int
@@ -97,6 +99,12 @@ func (a *Admin) Handler() http.Handler {
 	a.route(mux, "GET /api/enrollments", "admin", a.listEnrollments)
 	a.route(mux, "POST /api/enrollments/{id}/approve", "admin", a.approve)
 	a.route(mux, "POST /api/enrollments/{id}/reject", "admin", a.reject)
+	a.route(mux, "GET /api/devices", "admin", a.devicesGet)
+	a.route(mux, "PUT /api/devices/gate", "admin", a.devicesGate)
+	a.route(mux, "POST /api/devices/{id}/approve", "admin", a.deviceDecide(store.DeviceApproved, "device.approve"))
+	a.route(mux, "POST /api/devices/{id}/deny", "admin", a.deviceDecide(store.DeviceDenied, "device.deny"))
+	a.route(mux, "PUT /api/devices/{id}", "admin", a.deviceLabel)
+	a.route(mux, "DELETE /api/devices/{id}", "admin", a.deviceRemove)
 	a.route(mux, "GET /api/servers", "any", a.listServers)
 	a.route(mux, "DELETE /api/servers/{id}", "srv:admin", a.deleteServer)
 	a.route(mux, "GET /api/servers/{id}", "srv", a.serverDetail)
@@ -317,7 +325,15 @@ func (a *Admin) auth(next func(http.ResponseWriter, *http.Request, *store.User))
 			jsonErr(w, http.StatusForbidden, "2fa_required")
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), keySession, se)), u)
+		d, ok := a.deviceCheck(w, r, se, u, a.gateSince(r.Context()))
+		if !ok {
+			return
+		}
+		ctx := context.WithValue(r.Context(), keySession, se)
+		if d != nil {
+			ctx = context.WithValue(ctx, keyDevice, d)
+		}
+		next(w, r.WithContext(ctx), u)
 	}
 }
 
@@ -394,7 +410,15 @@ func (a *Admin) finishLogin(w http.ResponseWriter, r *http.Request, u *store.Use
 	token, hash := NewToken()
 	csrf := NewCSRF()
 	ttl, sliding := appSessionTTL, true // seven days, renewed by every request
-	if err := a.DB.CreateSession(r.Context(), hash, u.ID, csrf, clientIP(r), r.UserAgent(), ttl, sliding); err != nil {
+	dev, ok := a.loginDevice(w, r, u)
+	if !ok {
+		return
+	}
+	var devID *int64
+	if dev != nil {
+		devID = &dev.ID
+	}
+	if err := a.DB.CreateSessionFor(r.Context(), hash, u.ID, csrf, clientIP(r), r.UserAgent(), ttl, sliding, devID); err != nil {
 		jsonErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -402,7 +426,9 @@ func (a *Admin) finishLogin(w http.ResponseWriter, r *http.Request, u *store.Use
 		Path: "/", HttpOnly: true, Secure: a.secureCookie(r),
 		SameSite: http.SameSiteStrictMode, MaxAge: int(ttl.Seconds())})
 	a.audit(r, u, "auth.login", "user", "", u.Login, "ok", map[string]any{"method": method})
-	writeJSON(w, http.StatusOK, a.sessionBody(r, u, csrf))
+	body := a.sessionBody(r, u, csrf)
+	body["device"] = a.deviceBody(r, dev)
+	writeJSON(w, http.StatusOK, body)
 }
 
 // sessionBody is the answer of login and me.
@@ -435,7 +461,9 @@ func (a *Admin) logout(w http.ResponseWriter, r *http.Request, u *store.User) {
 
 func (a *Admin) me(w http.ResponseWriter, r *http.Request, u *store.User) {
 	se := r.Context().Value(keySession).(*store.Session)
-	writeJSON(w, http.StatusOK, a.sessionBody(r, u, se.CSRF))
+	body := a.sessionBody(r, u, se.CSRF)
+	body["device"] = a.deviceBody(r, deviceOfRequest(r))
+	writeJSON(w, http.StatusOK, body)
 }
 
 // connectInfo returns what a client needs to connect to this server: the agent port, the fingerprint of the agent-port

@@ -1,0 +1,73 @@
+name: ios-release
+# The iPhone application for the release: an IPA without a signature (Sideloadly, AltStore or SideStore sign it with the Apple ID of the
+# person who installs it), packed as linager-ios_arm64.ipa. Called by the release workflow; can also be run by hand to try the build.
+# The build needs the iOS 27 SDK (Xcode 27): the job picks the newest Xcode of the runner and says so plainly when it has no such SDK. A
+# failure here does not stop the rest of the release (like the Windows agent and the desktop application).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, for example v0.10.0-beta.20
+        default: v0.0.0-dev
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-latest # Apple Silicon
+    env:
+      VERSION: ${{ inputs.version || 'v0.0.0-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app /Applications/Xcode.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$latest" ] || { echo "no Xcode on this runner" >&2; exit 1; }
+          sudo xcode-select -s "$latest/Contents/Developer"
+          xcodebuild -version
+      - name: Check the iOS SDK
+        run: |
+          # the project needs iOS 27 (ios/project.yml: deploymentTarget)
+          want=$(sed -n 's/^ *iOS: *"\{0,1\}\([0-9.]*\)"\{0,1\} *$/\1/p' ios/project.yml | head -1)
+          have=$(xcodebuild -showsdks | sed -n 's/.*-sdk iphoneos\([0-9.]*\).*/\1/p' | head -1)
+          echo "needs iOS $want, the runner has the iOS $have SDK"
+          [ -n "$want" ] && [ -n "$have" ] || { echo "could not read the versions" >&2; exit 1; }
+          [ "$(printf '%s\n%s\n' "$want" "$have" | sort -V | head -1)" = "$want" ] || { echo "the iOS $want SDK is not on this runner (Xcode $want is needed)" >&2; exit 1; }
+      - name: Tools
+        run: |
+          brew install xcodegen
+          rustup toolchain install stable --profile minimal -t aarch64-apple-ios
+          rustup default stable
+          rustup target list --installed
+      - name: Tests of the logic
+        run: make ios-test
+      - name: Build the IPA
+        run: |
+          v="${VERSION#v}"
+          core="${v%%-*}"
+          case "$core" in [0-9]*.[0-9]*.[0-9]*) ;; *) core=0.0.0 ;; esac
+          export IOS_MARKETING_VERSION="$core"
+          export IOS_BUILD_NUMBER="$GITHUB_RUN_NUMBER"
+          make ios-ipa
+          cp ios/build/Linager.ipa ios/build/linager-ios_arm64.ipa
+      - name: Check the IPA
+        run: |
+          cd ios/build
+          unzip -q linager-ios_arm64.ipa -d check
+          app=check/Payload/Linager.app
+          test -d "$app"
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Info.plist"
+          # unsigned on purpose: a signature would have to be removed by the tool that installs it
+          if [ -d "$app/_CodeSignature" ]; then echo "the IPA is signed" >&2; exit 1; fi
+          file "$app/Linager" | grep -q arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ios/build/linager-ios_arm64.ipa

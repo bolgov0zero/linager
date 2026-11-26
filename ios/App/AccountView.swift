@@ -1,13 +1,30 @@
 import LinagerKit
 import SwiftUI
 
+/// The look of the app: the one of the phone, or light or dark whatever the phone is set to. Remembered.
+enum AppTheme: String, CaseIterable {
+    case system, light, dark
+
+    /// nil leaves the choice to the phone.
+    var scheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
 /// Who is signed in on which server, the lock, the sign-out.
 struct AccountView: View {
     @Environment(AppModel.self) private var model
     @Environment(LockModel.self) private var lock
+    @Environment(VaultModel.self) private var vault
     @Environment(\.dismiss) private var dismiss
     @State private var confirm: Confirm?
     @State private var copied = false
+    @State private var showKeys = false
+    @AppStorage("app.theme") private var theme: AppTheme = .system
 
     private enum Confirm: Identifiable { case signOut, forget; var id: Int { self == .signOut ? 0 : 1 } }
 
@@ -38,7 +55,24 @@ struct AccountView: View {
                     LabeledContent("acc.login", value: model.session?.login ?? model.rememberedLogin ?? "—")
                     if let role = model.session?.role { LabeledContent("acc.role", value: roleTitle(role)) }
                 }
+                Section {
+                    Button { showKeys = true } label: {
+                        HStack {
+                            Label("keys.title", systemImage: "key").foregroundStyle(.primary)
+                            Spacer()
+                            Text(vault.state == .unlocked ? "keys.state.unlocked" : (vault.fileName == nil ? "keys.subtitle.none" : "keys.state.locked")).foregroundStyle(.secondary).font(.subheadline)
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                    }
+                }
                 Section("acc.app") {
+                    Picker(selection: $theme) {
+                        Text("acc.theme.system").tag(AppTheme.system)
+                        Text("acc.theme.light").tag(AppTheme.light)
+                        Text("acc.theme.dark").tag(AppTheme.dark)
+                    } label: {
+                        Label("acc.theme", systemImage: "circle.lefthalf.filled")
+                    }
                     Toggle("acc.lock", isOn: Binding(get: { lock.enabled }, set: { on in Task { _ = await lock.setEnabled(on) } }))
                 }
                 Section {
@@ -55,6 +89,7 @@ struct AccountView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("common.done") { dismiss() } }
             }
+            .sheet(isPresented: $showKeys) { KeysView() }
             .confirmationDialog("acc.signout.title", isPresented: Binding(get: { confirm == .signOut }, set: { if !$0 { confirm = nil } }), titleVisibility: .visible) {
                 Button("acc.signout", role: .destructive) { dismiss(); Task { await model.signOut() } }
                 Button("common.cancel", role: .cancel) {}

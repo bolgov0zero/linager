@@ -1,0 +1,42 @@
+[
+ {
+  "password": "password",
+  "salt": "101112131415161718191a1b1c1d1e1f",
+  "t": 1,
+  "m": 8,
+  "p": 1,
+  "tag": "f392d7e7a640b0ab96b612cf6b249c2ff411edceb8cdf10552b31a378e137a4c"
+ },
+ {
+  "password": "password",
+  "salt": "101112131415161718191a1b1c1d1e1f",
+  "t": 2,
+  "m": 64,
+  "p": 1,
+  "tag": "2a7b261a036a1dcd8f06099b229faf824d4ae0fb9a200021183f377d89b35507"
+ },
+ {
+  "password": "Ключ-final 123!",
+  "salt": "101112131415161718191a1b1c1d1e1f",
+  "t": 2,
+  "m": 8192,
+  "p": 2,
+  "tag": "4d3c3f8bfda326e97f27d55424f77b92a4f3a464de83503f07d81027a3b1d8ad"
+ },
+ {
+  "password": "x",
+  "salt": "101112131415161718191a1b1c1d1e1f",
+  "t": 3,
+  "m": 65536,
+  "p": 1,
+  "tag": "5d8d6a7564c09b5622223b685aba15bb574881817b6a75d114293ff138ac1e72"
+ },
+ {
+  "password": "pw",
+  "salt": "101112131415161718191a1b1c1d1e1f",
+  "t": 3,
+  "m": 256,
+  "p": 4,
+  "tag": "d5c583563824e447aaa266e5691df4d99bc8ca5170d656e257c1d3e993c17d66"
+ }
+]

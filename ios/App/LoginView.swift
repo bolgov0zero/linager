@@ -173,10 +173,10 @@ struct CodeField: View {
                     Text(i < chars.count ? String(chars[i]) : "")
                         .font(.system(.title, design: .rounded).weight(.semibold))
                         .frame(width: 46, height: 56)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: boxRadius, style: .continuous))
                         .overlay {
                             if focused && i == min(chars.count, 5) {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2)
+                                RoundedRectangle(cornerRadius: boxRadius, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2)
                             }
                         }
                 }

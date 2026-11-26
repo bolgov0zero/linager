@@ -67,7 +67,7 @@ func main() {
 		secrets = &profiles.Memory{} // development runs must not touch the keychain of the person
 	}
 
-	opts := local.Options{Assets: assets, Profiles: store, Prefs: profiles.OpenPrefs(profiles.PrefsPath(path)), Secrets: secrets, VaultMemo: filepath.Join(filepath.Dir(path), "vault-last.json"), Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
+	opts := local.Options{Assets: assets, Profiles: store, Prefs: profiles.OpenPrefs(profiles.PrefsPath(path)), Secrets: secrets, VaultMemo: filepath.Join(filepath.Dir(path), "vault-last.json"), ConfigDir: filepath.Dir(path), Version: version, Debug: os.Getenv("LINAGER_DEBUG") != ""}
 	var wins *windows
 	var ctl *trayCtl
 	prefs := opts.Prefs

@@ -56,8 +56,23 @@ final class FakeServer: @unchecked Sendable {
 
     var endpoint: Endpoint { Endpoint(host: "127.0.0.1", port: port) }
 
-    func client(pin: String? = nil, credentials: Credentials = Credentials()) -> LinagerClient {
-        LinagerClient(endpoint: endpoint, fingerprint: pin ?? fingerprint, credentials: credentials)
+    func client(pin: String? = nil, credentials: Credentials = Credentials(), device: DeviceIdentity? = nil) -> LinagerClient {
+        LinagerClient(endpoint: endpoint, fingerprint: pin ?? fingerprint, credentials: credentials, device: device)
+    }
+
+    /// What the stand-in saw of the devices: the token and the description of the client of every request that came with a session.
+    func seen() async throws -> [[String]] {
+        let session = URLSession(configuration: .ephemeral, delegate: PinDelegate(mode: .pinned(fingerprint)), delegateQueue: nil)
+        let (data, _) = try await session.data(from: try #require(endpoint.url(path: "/api/test/seen")))
+        return try JSONDecoder().decode([[String]].self, from: data)
+    }
+
+    func approveDevices() async throws {
+        let session = URLSession(configuration: .ephemeral, delegate: PinDelegate(mode: .pinned(fingerprint)), delegateQueue: nil)
+        var req = URLRequest(url: try #require(endpoint.url(path: "/api/test/approve")))
+        req.httpMethod = "POST"
+        req.httpBody = Data("{}".utf8)
+        _ = try await session.data(for: req)
     }
 
     deinit {

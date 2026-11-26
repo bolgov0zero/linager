@@ -64,6 +64,10 @@ How it works and what to expect:
 
 The format `.lvault`: a header (the mark `LGRK`, the version, the parameters, a salt, a nonce) and the encrypted content. The encryption key comes from the passphrase with **Argon2id** (64 MiB of memory, 3 passes, 1 lane; the parameters are written in the file), the content is encrypted with **AES-256-GCM**, and the header is authenticated: a changed byte anywhere in the file gives an error, not garbled data. The passphrase is brought to one Unicode form (NFKC), so the same word typed on another keyboard opens the file. The file is at most 1 MB and has at most 500 keys; a file with foreign parameters that ask for too much memory is not opened. The cryptography (`@noble/hashes`, `@noble/ciphers`) is plain JavaScript: it works over HTTP, where `crypto.subtle` is not available, and needs no WebAssembly.
 
+## The iOS application
+
+The same file opens on an iPhone too ([ios.md](ios.md)): read only, and signing in with a key in the Assistant; the keys are made and edited in the desktop application.
+
 ## What is not included
 
 "Browser to agent" encryption of the password when it is typed into UAC, typing on the usual desktop, syncing the file between devices (the file can be put in iCloud, Syncthing and the like; two copies edited at once are not merged), a shared team file with access control, history and attachments.

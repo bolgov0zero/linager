@@ -50,9 +50,13 @@ public struct Sample: Codable, Hashable, Sendable {
     public var securityUpdates: Int
     /// -1 = unknown or no Docker
     public var imageUpdates: Int
+    /// A Linux agent with a graphical console the Assistant can show.
+    public var gui: Bool
+    /// A Windows agent whose remote desktop (RDP) is off or the edition has none.
+    public var desktopOff: Bool
 
     public init(ts: Int64 = 0, cpu: Double = 0, memPct: Double = 0, diskPct: Double = 0, rxBps: Double = 0, txBps: Double = 0, uptime: Int64 = 0,
-                failedServices: Int = 0, rebootRequired: Bool = false, updates: Int = 0, securityUpdates: Int = 0, imageUpdates: Int = 0) {
+                failedServices: Int = 0, rebootRequired: Bool = false, updates: Int = 0, securityUpdates: Int = 0, imageUpdates: Int = 0, gui: Bool = false, desktopOff: Bool = false) {
         self.ts = ts
         self.cpu = cpu
         self.memPct = memPct
@@ -65,6 +69,8 @@ public struct Sample: Codable, Hashable, Sendable {
         self.updates = updates
         self.securityUpdates = securityUpdates
         self.imageUpdates = imageUpdates
+        self.gui = gui
+        self.desktopOff = desktopOff
     }
 
     enum CodingKeys: String, CodingKey {
@@ -77,6 +83,8 @@ public struct Sample: Codable, Hashable, Sendable {
         case rebootRequired = "reboot_required"
         case securityUpdates = "security_updates"
         case imageUpdates = "image_updates"
+        case gui
+        case desktopOff = "desktop_off"
     }
 
     public init(from decoder: Decoder) throws {
@@ -93,6 +101,8 @@ public struct Sample: Codable, Hashable, Sendable {
         updates = try c.decodeIfPresent(Int.self, forKey: .updates) ?? 0
         securityUpdates = try c.decodeIfPresent(Int.self, forKey: .securityUpdates) ?? 0
         imageUpdates = try c.decodeIfPresent(Int.self, forKey: .imageUpdates) ?? 0
+        gui = try c.decodeIfPresent(Bool.self, forKey: .gui) ?? false
+        desktopOff = try c.decodeIfPresent(Bool.self, forKey: .desktopOff) ?? false
     }
 }
 
@@ -190,16 +200,34 @@ public struct SessionInfo: Decodable, Hashable, Sendable {
     /// "admin", "operator" or "auditor"
     public let role: String
     public let totpEnabled: Bool
+    /// The modules an operator may use (an administrator has all of them, an auditor none).
+    public let modules: [String]
+    /// What the server says of this device (nil: an older server that does not know devices).
+    public let device: DeviceState?
 
-    public init(csrf: String, login: String, role: String = "admin", totpEnabled: Bool = false) {
+    public init(csrf: String, login: String, role: String = "admin", totpEnabled: Bool = false, modules: [String] = [], device: DeviceState? = nil) {
         self.csrf = csrf
         self.login = login
         self.role = role
         self.totpEnabled = totpEnabled
+        self.modules = modules
+        self.device = device
     }
 
+    /// The device waits for an administrator to approve it: nothing but "who am I" and the sign-out is allowed until then.
+    public var isWaiting: Bool { device?.confirm == true && device?.status == "pending" }
+
+    /// The terminal is for an administrator and for an operator who was given the module "terminal".
+    public var canUseTerminal: Bool { role == "admin" || (role == "operator" && modules.contains("terminal")) }
+
+    /// The Assistant is for an administrator and for an operator who was given the module "assistant".
+    public var canUseAssistant: Bool { role == "admin" || (role == "operator" && modules.contains("assistant")) }
+
+    /// The remote desktop is for an administrator and for an operator who was given the module "desktop".
+    public var canUseDesktop: Bool { role == "admin" || (role == "operator" && modules.contains("desktop")) }
+
     enum CodingKeys: String, CodingKey {
-        case csrf, login, role
+        case csrf, login, role, modules, device
         case totpEnabled = "totp_enabled"
     }
 
@@ -209,6 +237,45 @@ public struct SessionInfo: Decodable, Hashable, Sendable {
         login = try c.decode(String.self, forKey: .login)
         role = try c.decodeIfPresent(String.self, forKey: .role) ?? "admin"
         totpEnabled = try c.decodeIfPresent(Bool.self, forKey: .totpEnabled) ?? false
+        modules = try c.decodeIfPresent([String].self, forKey: .modules) ?? []
+        device = try c.decodeIfPresent(DeviceState.self, forKey: .device)
+    }
+}
+
+/// The device of this phone as the server sees it (the answer of the sign-in and of `api/me`).
+public struct DeviceState: Decodable, Hashable, Sendable {
+    /// The confirmation of devices is on.
+    public let confirm: Bool
+    public let id: Int64?
+    /// "pending", "approved" or "denied"; with the confirmation off nothing waits, and the server says "approved".
+    public let status: String?
+
+    public init(confirm: Bool, id: Int64? = nil, status: String? = nil) {
+        self.confirm = confirm
+        self.id = id
+        self.status = status
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        confirm = try c.decodeIfPresent(Bool.self, forKey: .confirm) ?? false
+        id = try c.decodeIfPresent(Int64.self, forKey: .id)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+    }
+
+    enum CodingKeys: String, CodingKey { case confirm, id, status }
+}
+
+/// A command saved on the server (Settings, Snippets of the desktop application): it can be typed into a terminal.
+public struct Snippet: Codable, Hashable, Sendable, Identifiable {
+    public let id: Int64
+    public let name: String
+    public let command: String
+
+    public init(id: Int64, name: String, command: String) {
+        self.id = id
+        self.name = name
+        self.command = command
     }
 }
 

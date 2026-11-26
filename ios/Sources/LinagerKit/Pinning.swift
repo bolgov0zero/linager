@@ -39,7 +39,11 @@ public struct Endpoint: Codable, Hashable, Sendable {
         c.scheme = "https"
         c.host = host.contains(":") ? "[\(host)]" : host
         c.port = port
-        c.path = path.hasPrefix("/") ? path : "/" + path
+        // a path may carry its query ("api/x?period=7d", the values already percent-encoded): it goes into the query, not into the path
+        let parts = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        let only = String(parts.first ?? "")
+        c.path = only.hasPrefix("/") ? only : "/" + only
+        if parts.count == 2 { c.percentEncodedQuery = String(parts[1]) }
         return c.url
     }
 
@@ -83,13 +87,53 @@ enum PinPolicy {
 
 /// Judges the certificate of the server in the TLS handshake of every connection of a session, before any byte of the request
 /// is sent. A refused certificate leaves a trace here, so the error can say "the certificate changed" instead of "failed".
-final class PinDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate, @unchecked Sendable {
+final class PinDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate, URLSessionWebSocketDelegate, @unchecked Sendable {
     let mode: PinMode
     private let lock = NSLock()
     private var _seen: String?
     private var _mismatch = false
 
     init(mode: PinMode) { self.mode = mode }
+
+    // MARK: web sockets: the end of the handshake. A web socket task only reads from the connection while a `receive` is waiting, so
+    // neither a ping nor anything else tells that the upgrade is done: the delegate does.
+    private var opened: Set<Int> = []
+    private var failed: [Int: Error] = [:]
+    private var waiters: [Int: CheckedContinuation<Void, Error>] = [:]
+
+    /// Returns when the upgrade of the task is done, or throws why it was not.
+    func waitUntilOpen(_ task: URLSessionWebSocketTask) async throws {
+        let id = task.taskIdentifier
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+            let ready: Result<Void, Error>? = lock.withLock {
+                if opened.contains(id) { return .success(()) }
+                if let e = failed[id] { return .failure(e) }
+                waiters[id] = c
+                return nil
+            }
+            if let ready { c.resume(with: ready) }
+        }
+    }
+
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
+        let id = webSocketTask.taskIdentifier
+        let waiter: CheckedContinuation<Void, Error>? = lock.withLock {
+            opened.insert(id)
+            return waiters.removeValue(forKey: id)
+        }
+        waiter?.resume()
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error else { return }
+        let id = task.taskIdentifier
+        let waiter: CheckedContinuation<Void, Error>? = lock.withLock {
+            if opened.contains(id) { return nil }
+            failed[id] = error
+            return waiters.removeValue(forKey: id)
+        }
+        waiter?.resume(throwing: error)
+    }
 
     var seenFingerprint: String? { lock.withLock { _seen } }
     var mismatched: Bool { lock.withLock { _mismatch } }

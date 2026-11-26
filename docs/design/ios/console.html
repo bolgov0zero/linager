@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linager для iOS: режим «Консоль» (кликабельный макет)</title>
+<style>
+/* Mockup of the native iOS client (SwiftUI). Demo data only. Fonts: the system ones (SF Pro on Apple devices).
+   Icons here are stand-ins drawn in SVG; the app uses SF Symbols (names are in the table at the bottom). */
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; margin: 0; }
+body { font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; background: #e9eaee; color: #1c1c1e; padding: 32px 28px 80px; }
+h1 { font-size: 28px; letter-spacing: -.3px; }
+h2 { font-size: 20px; margin: 44px 0 4px; }
+.lead { max-width: 860px; color: #555; margin-top: 8px; }
+.lead b { color: #1c1c1e; }
+.gal { display: grid; grid-template-columns: repeat(auto-fill, 413px); gap: 28px 30px; margin-top: 18px; }
+figure { width: 413px; }
+figcaption { font-size: 13px; color: #555; margin-top: 10px; padding: 0 6px; line-height: 1.4; }
+figcaption b { color: #1c1c1e; display: block; font-size: 14px; }
+
+/* ---------- device ---------- */
+.phone { width: 413px; height: 872px; padding: 10px; border-radius: 66px; background: #111; box-shadow: 0 0 0 2px #3a3a3c inset, 0 18px 40px rgba(0,0,0,.25); position: relative;
+  --bg: #f2f2f7; --cell: #fff; --sheet: #f2f2f7; --sep: rgba(60,60,67,.18); --l1: #000; --l2: rgba(60,60,67,.6); --l3: rgba(60,60,67,.3); --fill: rgba(120,120,128,.12); --fill2: rgba(120,120,128,.2);
+  --blue: #007aff; --green: #34c759; --orange: #ff9500; --red: #ff3b30; --teal: #30b0c7; --pink: #ff2d55; --gray: #8e8e93; --glass: rgba(255,255,255,.72); --menu: rgba(250,250,252,.82); }
+.phone.dark { --bg: #000; --cell: #1c1c1e; --sheet: #1c1c1e; --sep: rgba(84,84,88,.55); --l1: #fff; --l2: rgba(235,235,245,.6); --l3: rgba(235,235,245,.3); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.36);
+  --blue: #0a84ff; --green: #30d158; --orange: #ff9f0a; --red: #ff453a; --teal: #40c8e0; --pink: #ff375f; --gray: #98989d; --glass: rgba(60,60,64,.7); --menu: rgba(44,44,46,.82); }
+.scr { width: 393px; height: 852px; border-radius: 56px; overflow: hidden; position: relative; background: var(--bg); color: var(--l1); font: 17px/22px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.4px; }
+.island { position: absolute; top: 11px; left: 50%; width: 124px; height: 36px; margin-left: -62px; background: #000; border-radius: 20px; z-index: 50; }
+.home { position: absolute; bottom: 8px; left: 50%; width: 138px; height: 5px; margin-left: -69px; background: var(--l1); border-radius: 3px; z-index: 60; }
+.sb { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; justify-content: space-between; align-items: center; padding: 6px 34px 0 52px; z-index: 40; font-weight: 600; font-size: 17px; }
+.sb .r { display: flex; gap: 6px; align-items: center; }
+.ic { flex: none; vertical-align: middle; }
+
+/* ---------- navigation ---------- */
+.nav { position: absolute; top: 54px; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 20; }
+.glass { display: flex; align-items: center; height: 44px; border-radius: 22px; background: var(--glass); box-shadow: 0 0 0 .5px var(--sep), 0 2px 10px rgba(0,0,0,.08); padding: 0 4px; color: var(--l1); }
+.glass .b { width: 44px; height: 44px; display: grid; place-items: center; }
+.glass.t { padding: 0 14px 0 8px; gap: 2px; color: var(--blue); }
+.glass.t span { font-size: 17px; }
+.nt { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; font-size: 17px; }
+.lt { position: absolute; top: 98px; left: 16px; right: 16px; font-weight: 700; font-size: 34px; line-height: 41px; letter-spacing: .4px; }
+.lt small { display: block; font-size: 15px; font-weight: 400; color: var(--l2); letter-spacing: -.2px; line-height: 20px; margin-top: 2px; }
+.body { position: absolute; top: 148px; left: 0; right: 0; bottom: 0; overflow: hidden; padding: 0 16px; }
+.body.nolt { top: 98px; }
+
+/* ---------- lists ---------- */
+.grp { background: var(--cell); border-radius: 22px; overflow: hidden; margin-bottom: 20px; }
+.cell { display: flex; align-items: center; gap: 12px; padding: 11px 16px; min-height: 44px; position: relative; }
+.cell + .cell::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
+.cell .k { flex: none; }
+.cell .v { margin-left: auto; color: var(--l2); text-align: right; min-width: 0; }
+.cell .v.mono, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 15px; letter-spacing: 0; }
+.gh { font-size: 13px; color: var(--l2); padding: 0 16px 7px 20px; letter-spacing: -.1px; text-transform: none; }
+.gf { font-size: 13px; line-height: 18px; color: var(--l2); padding: 0 20px; margin: -12px 0 20px; letter-spacing: -.1px; }
+.ph { color: var(--l3); }
+.tint { color: var(--blue); }
+.btn { display: grid; place-items: center; height: 50px; border-radius: 25px; background: var(--blue); color: #fff; font-weight: 600; margin: 8px 0; }
+.btn.g { background: var(--fill); color: var(--blue); }
+.btn.dst { background: var(--cell); color: var(--red); font-weight: 400; border-radius: 22px; margin: 0; height: 50px; }
+.ok { color: var(--green); } .wn { color: var(--orange); } .cr { color: var(--red); }
+
+/* ---------- dashboard ---------- */
+.sum { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.tile { background: var(--cell); border-radius: 20px; padding: 11px 14px 12px; }
+.tile .h { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--l2); letter-spacing: -.1px; }
+.tile .n { font: 700 28px/34px ui-rounded, -apple-system, "SF Pro Rounded", system-ui, sans-serif; letter-spacing: .2px; margin-top: 1px; }
+.tile .n small { font-size: 17px; color: var(--l2); font-weight: 600; }
+.tile .s { font-size: 12px; line-height: 16px; color: var(--l2); letter-spacing: 0; }
+.seg { display: flex; background: var(--fill); border-radius: 18px; padding: 2px; height: 36px; margin-bottom: 16px; font-size: 14px; font-weight: 500; letter-spacing: -.2px; }
+.seg span { flex: 1; display: grid; place-items: center; border-radius: 16px; }
+.seg span.on { background: var(--cell); box-shadow: 0 1px 4px rgba(0,0,0,.14); font-weight: 600; }
+.phone.dark .seg span.on { background: #636366; }
+.sh { display: flex; align-items: center; gap: 6px; padding: 0 12px 7px 14px; font-size: 15px; font-weight: 600; color: var(--l2); letter-spacing: -.2px; }
+.sh .cnt { font-weight: 400; color: var(--l3); }
+.sh .sp { flex: 1; }
+.row { padding: 12px 16px 12px; position: relative; }
+.row + .row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
+.r1 { display: flex; align-items: center; gap: 8px; }
+.r1 .nm { font-weight: 600; font-size: 17px; }
+.r1 .sp { flex: 1; }
+.r2 { font-size: 13px; line-height: 18px; color: var(--l2); margin: 1px 0 9px 18px; letter-spacing: -.1px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--green); } .dot.warn { background: var(--orange); } .dot.crit { background: var(--red); } .dot.off { background: var(--gray); }
+.ms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-left: 18px; }
+.m .mt { display: flex; justify-content: space-between; font-size: 12px; line-height: 15px; color: var(--l2); letter-spacing: -.1px; }
+.m .mt b { color: var(--l1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar { height: 5px; border-radius: 3px; background: var(--fill2); margin-top: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+.bar i.orange { background: var(--orange); } .bar i.red { background: var(--red); } .bar i.green { background: var(--green); }
+.chips { display: flex; align-items: center; gap: 3px; flex: none; }
+/* The compact badges of the desktop app (mchip): an icon and a number, no words; only "offline" has a word. The tone says how much:
+   info something is there, warn a lot or it needs an action, crit a failure, mute no answer. */
+.mc { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 5px; border-radius: 5px; font: 500 11px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; white-space: nowrap; }
+.mc.txt { font: 500 11.5px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.1px; padding: 0 6px; }
+.mc.info { color: var(--blue); background: color-mix(in srgb, var(--blue) 15%, transparent); }
+.mc.warn { color: var(--orange); background: color-mix(in srgb, var(--orange) 17%, transparent); }
+.mc.crit { color: var(--red); background: color-mix(in srgb, var(--red) 15%, transparent); }
+.mc.ok { color: var(--green); background: color-mix(in srgb, var(--green) 15%, transparent); }
+.mc.mute, .mc.more { color: var(--l2); background: var(--fill); }
+/* The letter badge of a tag (tbs/tb): the first letter on the colour of the tag. */
+.tb { flex: none; width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; font: 600 11px/1 -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: 0;
+  border: 1px solid color-mix(in srgb, var(--tg) 38%, transparent); background: color-mix(in srgb, var(--tg) 18%, var(--cell)); color: color-mix(in srgb, var(--tg) 55%, var(--l1)); }
+.tb.more { --tg: var(--gray); font: 500 10.5px ui-monospace, "SF Mono", Menlo, monospace; }
+.tbs { display: inline-flex; gap: 3px; }
+.tc-blue { --tg: #3b6fe6; } .tc-green { --tg: #3fa356; } .tc-teal { --tg: #0e9aa7; } .tc-orange { --tg: #f0803c; } .tc-pink { --tg: #e0568f; } .tc-gray { --tg: #8a919d; }
+.row .r1 .chips { margin-right: 2px; }
+.row .r1 .tbs { margin-right: 2px; }
+.foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; min-height: 20px; }
+.offl { margin-left: 18px; font-size: 13px; color: var(--l2); display: flex; align-items: center; gap: 6px; }
+.row.off .nm { color: var(--l2); }
+.chev { color: var(--l3); }
+/* cards */
+.card { background: var(--cell); border-radius: 22px; padding: 14px 16px 14px; margin-bottom: 12px; }
+.card .top { display: flex; align-items: center; gap: 8px; }
+.card .st { font-size: 13px; color: var(--l2); margin-left: auto; }
+.card .sub { font-size: 13px; color: var(--l2); margin: 1px 0 10px 18px; line-height: 18px; }
+.card .cpu { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.card .cpu .bg { font: 700 34px/38px ui-rounded, -apple-system, system-ui, sans-serif; letter-spacing: .3px; }
+.card .cpu .bg small { display: block; font: 500 12px/14px -apple-system, system-ui, sans-serif; color: var(--l2); letter-spacing: 0; }
+.card svg.sp { flex: 1; height: 44px; }
+.card .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+.card .net { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--l2); font-variant-numeric: tabular-nums; letter-spacing: -.1px; }
+.card .net span { display: inline-flex; align-items: center; gap: 3px; }
+.card .chips { margin-left: 0; }
+.skel { background: var(--fill2); border-radius: 6px; color: transparent !important; }
+.row.skel { background: none; }
+.row.skel .nm, .row.skel .r2, .row.skel .m { background: var(--fill2); border-radius: 6px; color: transparent !important; }
+.row.skel .m * { color: transparent !important; } .row.skel .bar { background: transparent; } .row.skel .bar i { background: transparent; }
+.row.skel .mc, .row.skel .tb { background: var(--fill2); color: transparent; border-color: transparent; } .row.skel .mc svg { display: none; } .row.skel .r2 { width: 150px; } .row.skel .dot { background: var(--fill2); } .row.skel .chev { opacity: 0; }
+.banner { display: flex; align-items: center; gap: 10px; background: color-mix(in srgb, var(--orange) 16%, var(--cell)); border-radius: 18px; padding: 10px 14px; font-size: 14px; line-height: 19px; margin-bottom: 14px; letter-spacing: -.2px; }
+.banner b { display: block; font-weight: 600; }
+.banner small { font-size: 13px; color: var(--l2); letter-spacing: -.1px; }
+/* search */
+.sf { display: flex; align-items: center; gap: 6px; background: var(--fill); border-radius: 12px; height: 36px; padding: 0 8px; color: var(--l2); flex: 1; }
+.sf .t { color: var(--l1); } .sf .caret { width: 2px; height: 20px; background: var(--blue); margin-left: -4px; }
+/* overlays */
+.dim { position: absolute; inset: 0; background: rgba(0,0,0,.36); z-index: 30; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--sheet); border-radius: 38px 38px 0 0; z-index: 35; padding: 14px 20px 34px; }
+.sheet.full { top: 62px; border-radius: 38px 38px 0 0; overflow: hidden; }
+.sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--l3); margin: -4px auto 14px; }
+.sheet h3 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .3px; }
+.sheet p { color: var(--l2); font-size: 15px; line-height: 20px; margin-top: 6px; letter-spacing: -.2px; }
+.fp { background: var(--cell); border-radius: 16px; padding: 12px 16px; margin: 16px 0 6px; display: grid; gap: 3px; }
+.fp div { font: 15px/20px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; }
+.fp small { font: 12px/16px -apple-system, system-ui, sans-serif; color: var(--l2); letter-spacing: 0; }
+.menu { position: absolute; top: 106px; right: 16px; width: 262px; background: var(--menu); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); border-radius: 18px; z-index: 36; box-shadow: 0 10px 40px rgba(0,0,0,.28); overflow: hidden; }
+.menu .mi { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 44px; font-size: 17px; }
+.menu .mi + .mi { border-top: .5px solid var(--sep); }
+.menu .mi .l { display: flex; align-items: center; gap: 10px; }
+.menu .mi .l i { width: 18px; display: inline-block; font-style: normal; }
+.menu .gap { height: 8px; background: var(--fill); border-top: 0 !important; }
+.menu .mh { font-size: 13px; color: var(--l2); padding: 8px 16px 2px; border-top: .5px solid var(--sep); }
+.alert { position: absolute; left: 50%; top: 50%; width: 270px; margin: -120px 0 0 -135px; background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-radius: 26px; z-index: 36; text-align: center; overflow: hidden; }
+.alert .t { padding: 20px 18px 16px; } .alert h4 { font-size: 17px; line-height: 22px; font-weight: 600; } .alert p { font-size: 13px; line-height: 18px; margin-top: 4px; letter-spacing: -.1px; }
+.alert .bt { display: grid; place-items: center; height: 44px; border-top: .5px solid var(--sep); color: var(--blue); font-size: 17px; }
+.alert .bt.b { font-weight: 600; } .alert .bt.d { color: var(--red); }
+.empty { text-align: center; padding-top: 150px; }
+.empty .big { width: 74px; height: 74px; margin: 0 auto 14px; color: var(--l3); }
+.empty h3 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .3px; }
+.empty p { color: var(--l2); font-size: 15px; line-height: 20px; margin: 6px 30px 0; letter-spacing: -.2px; }
+.empty .code { display: inline-block; margin-top: 14px; padding: 8px 12px; background: var(--fill); border-radius: 10px; font: 14px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; }
+/* one-time code */
+.otp { display: flex; gap: 8px; justify-content: center; margin: 24px 0 8px; }
+.otp b { width: 48px; height: 58px; border-radius: 14px; background: var(--cell); display: grid; place-items: center; font: 600 28px ui-rounded, -apple-system, system-ui, sans-serif; letter-spacing: 0; }
+.otp b.cur { box-shadow: 0 0 0 2px var(--blue) inset; }
+.pad { position: absolute; left: 0; right: 0; bottom: 0; height: 300px; background: color-mix(in srgb, var(--l1) 6%, var(--bg)); padding: 8px 6px 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; z-index: 10; }
+.pad span { display: grid; place-items: center; background: var(--cell); border-radius: 6px; font-size: 25px; line-height: 26px; box-shadow: 0 1px 0 rgba(0,0,0,.2); letter-spacing: 0; text-align: center; }
+.phone:not(.dark) .pad span { background: #fff; }
+.phone.dark .pad span { background: #6a6a6c; }
+.pad span small { display: block; font-size: 9px; letter-spacing: 2px; line-height: 10px; font-weight: 600; }
+.pad span.k { background: transparent !important; box-shadow: none; }
+.logo { width: 88px; height: 88px; border-radius: 20px; margin: 0 auto 14px; display: block; box-shadow: 0 6px 18px rgba(0,0,0,.2); image-rendering: pixelated; }
+.hero { text-align: center; padding-top: 60px; margin-bottom: 26px; }
+.hero h1 { font-size: 34px; line-height: 41px; letter-spacing: .4px; }
+.hero p { color: var(--l2); margin-top: 4px; font-size: 17px; letter-spacing: -.3px; }
+.sw { width: 51px; height: 31px; border-radius: 16px; background: var(--green); position: relative; flex: none; margin-left: auto; }
+.sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.25); }
+.ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; }
+.big-st { display: flex; align-items: center; gap: 10px; }
+.opt { font-size: 11px; font-weight: 600; background: #ff9500; color: #fff; display: inline-block; border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+
+/* ---------- terminal ---------- */
+.tscr { position: absolute; left: 0; right: 0; background: #000; color: #e6e6e6; padding: 6px 10px; overflow: hidden; font: 11.5px/14.5px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; white-space: pre; }
+.phone:not(.dark) .tscr { background: #fff; color: #1c1c1e; }
+.tscr .g { color: #32d74b; } .tscr .b { color: #64a8ff; } .tscr .y { color: #ffd60a; } .tscr .d { color: #8e8e93; } .tscr .r { color: #ff453a; }
+.phone:not(.dark) .tscr .g { color: #1f8a3a; } .phone:not(.dark) .tscr .b { color: #1f5fd0; } .phone:not(.dark) .tscr .y { color: #8a6d00; } .phone:not(.dark) .tscr .r { color: #c62820; }
+.tscr .cur { display: inline-block; width: 7px; height: 13px; background: currentColor; vertical-align: -2px; opacity: .85; }
+.tbar { position: absolute; top: 54px; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 20; }
+.tbar .ttl { position: absolute; left: 70px; right: 70px; text-align: center; line-height: 17px; }
+.tbar .ttl b { display: block; font-size: 15px; font-weight: 600; } .tbar .ttl small { display: block; font-size: 11px; color: var(--l2); letter-spacing: 0; }
+.acc { position: absolute; left: 0; right: 0; height: 46px; background: color-mix(in srgb, var(--l1) 6%, var(--bg)); display: flex; align-items: center; gap: 6px; padding: 0 8px; z-index: 12; overflow: hidden; }
+.acc span { flex: none; min-width: 36px; height: 34px; padding: 0 6px; border-radius: 10px; background: color-mix(in srgb, var(--l1) 13%, transparent); display: grid; place-items: center; font: 500 15px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: 0; }
+.acc span.m { font: 500 17px ui-monospace, "SF Mono", Menlo, monospace; padding: 0; }
+.acc span.on { background: var(--blue) !important; color: #fff; }
+.acc span.h { margin-left: auto; padding: 0; position: sticky; right: 0; box-shadow: -14px 0 12px -4px color-mix(in srgb, var(--l1) 6%, var(--bg)); }
+.acc i { flex: none; width: 4px; }
+/* variants of the key bar (the set of keys is the same) */
+.acc.v2 { gap: 6px; padding: 0 4px; }
+.acc.v2 span { height: 40px; min-width: 34px; border-radius: 6px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.28); font-size: 16px; }
+.phone.dark .acc.v2 span { background: #6a6a6c; }
+.acc.v2 span.on { background: var(--blue) !important; }
+.acc.v3 { background: transparent; padding: 0 10px; }
+.acc.v3 .cap { display: flex; align-items: center; gap: 2px; width: 100%; height: 44px; padding: 0 5px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.18); overflow: hidden; }
+.acc.v3 span { background: transparent; height: 34px; border-radius: 17px; min-width: 32px; padding: 0 4px; }
+.acc.v3 span.on { background: var(--blue) !important; }
+.acc.v3 span.h { box-shadow: none; position: static; }
+.acc.v3 .hidecap { flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 .5px var(--sep), 0 4px 14px rgba(0,0,0,.18); display: grid; place-items: center; }
+.acc.v3 { gap: 8px; }
+.acc.v3 .sep { flex: none; width: .5px; height: 20px; background: var(--sep); margin: 0 3px; }
+.acc.v4 span { background: transparent; color: var(--l2); border-radius: 17px; min-width: 32px; padding: 0 5px; }
+.acc.v4 span.m { color: var(--l1); }
+.acc.v4 span.on { background: color-mix(in srgb, var(--blue) 20%, transparent) !important; color: var(--blue); }
+.acc.v4 span.h { color: var(--blue); box-shadow: none; }
+.acc.v4 { border-top: .5px solid var(--sep); }
+.kb { position: absolute; left: 0; right: 0; bottom: 0; height: 291px; background: color-mix(in srgb, var(--l1) 6%, var(--bg)); padding: 10px 4px 34px; z-index: 10; display: grid; gap: 11px; grid-template-rows: repeat(4, 1fr); }
+.kb div { display: flex; gap: 6px; justify-content: center; }
+.kb span { flex: 1; max-width: 34px; display: grid; place-items: center; background: #fff; border-radius: 5px; font-size: 22px; box-shadow: 0 1px 0 rgba(0,0,0,.2); letter-spacing: 0; }
+.phone.dark .kb span { background: #6a6a6c; }
+.kb span.w { max-width: none; flex: 1.5; background: #adb3bc; font-size: 15px; } .phone.dark .kb span.w { background: #444446; }
+.kb span.sp { max-width: none; flex: 5; font-size: 15px; background: #fff; } .phone.dark .kb span.sp { background: #6a6a6c; }
+.hud { position: absolute; left: 50%; top: 250px; margin-left: -48px; width: 96px; height: 40px; border-radius: 20px; background: var(--menu); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: grid; place-items: center; font-size: 15px; font-weight: 600; z-index: 30; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+.closedbar { position: absolute; left: 12px; right: 12px; bottom: 36px; background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-radius: 22px; padding: 14px 16px 12px; z-index: 30; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.closedbar b { display: block; font-size: 15px; } .closedbar small { color: var(--l2); font-size: 13px; letter-spacing: -.1px; }
+/* ---------- notes ---------- */
+table { border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; margin-top: 12px; }
+th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid #e5e5ea; vertical-align: top; }
+th { background: #f5f5f7; font-weight: 600; }
+td code { font: 13px ui-monospace, "SF Mono", Menlo, monospace; background: #f2f2f7; padding: 1px 5px; border-radius: 5px; }
+ul.n { margin: 8px 0 0 20px; max-width: 860px; } ul.n li { margin: 4px 0; }
+/* ---------- console mockup ---------- */
+body { padding: 24px 28px 60px; }
+.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: start; max-width: 1400px; }
+.stage { background: #dfe1e6; border-radius: 24px; padding: 14px 14px 28px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+@media (max-width: 1000px) { .wrap { grid-template-columns: 1fr; } }
+.ctl { align-self: stretch; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; z-index: 5; }
+.ctl button { font: 13px -apple-system, system-ui, sans-serif; padding: 5px 11px; border-radius: 14px; border: 0; background: #fff; color: #1c1c1e; cursor: pointer; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+.ctl button.on { background: #1c1c1e; color: #fff; }
+aside { font-size: 14px; }
+aside h2 { font-size: 16px; margin: 0 0 6px; }
+aside section { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+aside ul { margin: 6px 0 0 18px; } aside li { margin: 4px 0; }
+aside pre { font: 12px/1.5 ui-monospace, Menlo, monospace; background: #f2f2f7; padding: 8px 10px; border-radius: 8px; margin-top: 8px; white-space: pre-wrap; }
+aside button { font: 13px -apple-system, system-ui, sans-serif; padding: 6px 12px; border-radius: 14px; border: 0; background: #e9eaee; cursor: pointer; margin: 8px 6px 0 0; }
+.scroll { position: absolute; left: 0; right: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding: 0 16px 130px; }
+.scroll::-webkit-scrollbar { display: none; }
+
+/* the connection-type switch (a segmented Picker) */
+.kind { display: flex; background: var(--fill); border-radius: 18px; padding: 2px; height: 36px; margin: 0 16px; position: absolute; top: 148px; left: 0; right: 0; z-index: 5; font-size: 13.5px; font-weight: 500; letter-spacing: -.2px; }
+.kind span { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 16px; cursor: pointer; }
+.kind span.on { background: var(--cell); box-shadow: 0 1px 4px rgba(0,0,0,.14); font-weight: 600; }
+.phone.dark .kind span.on { background: #636366; }
+.kind span.soon { color: var(--l3); }
+.fdot { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 2px var(--glass-solid, #fff); }
+.phone.dark .fdot { box-shadow: 0 0 0 2px #2c2c2e; }
+.menu .mi .ck { width: 18px; color: var(--blue); font-weight: 600; text-align: right; }
+.sfw { margin: 0 0 14px; display: flex; }
+
+/* the tree: one inset group, indent by depth */
+.tree { background: var(--cell); border-radius: 22px; overflow: hidden; }
+.tr { position: relative; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px 0 calc(14px + var(--d, 0) * 22px); cursor: pointer; }
+.tr + .tr::before { content: ""; position: absolute; top: 0; right: 0; left: calc(14px + var(--d, 0) * 22px + 34px); border-top: .5px solid var(--sep); }
+.tr:active { background: var(--fill); }
+.tr .cv { width: 14px; flex: none; color: var(--l3); display: grid; place-items: center; transition: transform .18s; }
+.tr.open .cv { transform: rotate(90deg); }
+.tr .fi { flex: none; color: var(--blue); }
+.tr .nm { font-size: 17px; letter-spacing: -.4px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr.fold .nm { font-weight: 600; }
+.tr .ct { color: var(--l2); font-size: 15px; font-variant-numeric: tabular-nums; }
+.tr.srv { padding-left: calc(14px + var(--d, 0) * 22px + 24px); }
+.tr.srv::before { left: calc(14px + var(--d, 0) * 22px + 24px + 20px) !important; }
+.tr.srv .nm { font-weight: 400; }
+.tr.off .nm { color: var(--l2); }
+.tr.nope { opacity: .38; }
+.path { font-size: 12px; color: var(--l2); letter-spacing: -.1px; display: block; line-height: 14px; margin-top: 1px; }
+.osb { flex: none; display: inline-grid; place-items: center; width: 28px; height: 20px; border-radius: 6px; }
+/* as in the desktop app: Linux green, Windows blue (the accent), a tinted fill and a thin border of the same colour */
+.osb.lin { color: var(--green); background: color-mix(in srgb, var(--green) 15%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--green) 40%, transparent) inset; }
+.osb.win { color: var(--blue); background: color-mix(in srgb, var(--blue) 15%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 40%, transparent) inset; }
+.osb svg { flex: none; }
+
+/* the tab bar of iOS 26: a floating glass capsule */
+.tabbar { position: absolute; left: 21px; right: 21px; bottom: 26px; height: 62px; border-radius: 31px; background: var(--glass); backdrop-filter: blur(28px) saturate(1.5); -webkit-backdrop-filter: blur(28px) saturate(1.5); box-shadow: 0 0 0 .5px var(--sep), 0 6px 24px rgba(0,0,0,.16); z-index: 25; display: flex; padding: 4px; gap: 2px; }
+.tabbar .tab { flex: 1; border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: var(--l2); cursor: pointer; font-size: 10.5px; font-weight: 500; letter-spacing: 0; }
+.tabbar .tab.on { color: var(--blue); background: color-mix(in srgb, var(--l1) 9%, transparent); }
+.tabbar.nolabel .tab span { display: none; }
+.toast { position: absolute; left: 16px; right: 16px; top: 104px; z-index: 40; background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-radius: 20px; padding: 12px 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25); display: flex; gap: 10px; align-items: center; font-size: 15px; line-height: 20px; animation: tin .2s ease-out; }
+.toast small { display: block; color: var(--l2); font-size: 13px; letter-spacing: -.1px; }
+@keyframes tin { from { opacity: 0; transform: translateY(-8px); } }
+.menu .mi { cursor: pointer; } .menu .mi:active { background: var(--fill); }
+.menu .mi.dis { opacity: .38; }
+.empty2 { text-align: center; color: var(--l2); padding: 60px 20px; }
+
+</style>
+</head>
+<body>
+<h1>Linager для iOS: режим «Консоль»</h1>
+<p class="lead">Кликабельный макет. Внизу переключатель режимов «Консоль» и «Дашборд»: только значки, узкая плавающая капсула по центру (<b>своя панель</b> со стеклом iOS 26). В «Консоли» только дерево папок и серверов: точка состояния, имя, бейдж системы. Над списком переключатель типа подключения (Терминал, RDP, Помощник): нажатие на сервер открывает его выбранным способом. <b>Режим, тип подключения и свёрнутые папки запоминаются</b>: нажмите «Перезапустить приложение» справа. Долгое нажатие на сервер (или правый клик): открыть другим способом. Данные вымышлены, ничего никуда не отправляется. <a href="index.html">Все экраны дашборда</a>.</p>
+<div class="wrap">
+<div class="stage"><div class="ctl" id="ctl"><button data-theme="light" class="on">Светлая</button><button data-theme="dark">Тёмная</button><button data-rdp="0" class="on">RDP: ещё нет</button><button data-rdp="1">RDP: готов (для просмотра)</button></div>
+<div class="phone" id="phone"><div class="scr" id="scr"></div></div></div>
+<aside>
+<section><h2>Что запоминается</h2><p>Всё хранится на телефоне (<code>UserDefaults</code>, <code>@AppStorage</code> / <code>@SceneStorage</code>), на сервер ничего не уходит.</p><pre id="state"></pre>
+<button id="relaunch">Перезапустить приложение</button><button id="reset">Сбросить</button></section>
+<section><h2>Правила</h2><ul>
+<li>Режим «Консоль»: список без метрик, только папки (любой вложенности), точка состояния и бейдж системы.</li>
+<li>Меню «…» сверху: фильтр по системе (Все, Windows, Linux) и по статусу (Все, В сети, Не в сети), с галочкой у выбранного. Фильтры складываются с типом подключения; папки без подходящих серверов скрываются. Пока фильтр включён, на кнопке «…» синяя точка. Фильтры тоже запоминаются.</li>
+<li>Нажатие на папку сворачивает и разворачивает её, число справа это серверы внутри (с вложенными).</li>
+<li>Поиск плоский: показывает путь папок под именем; по имени, папке и системе.</li>
+<li>Нет связи: серый сервер, нажатие объясняет, что подключиться нельзя.</li>
+<li>Переключатель типа подключения фильтрует список: серверы без такого подключения (RDP и Помощник на Linux) не показываются, папки без подходящих серверов тоже (на любой глубине). Число у папки считает только видимые серверы. Серверы без связи остаются в списке серыми.</li>
+<li>Правила как в приложении для компьютера: Терминал у любого сервера в сети; Помощник у Windows и у Linux с графической консолью (<code>dev-desktop</code> в макете); RDP у Windows, если удалённый рабочий стол не выключен (у <code>file-srv</code> он выключен).</li>
+<li>Бейдж системы: только значок (Windows синий, Linux зелёный, как в приложении для компьютера), без подписи; VoiceOver читает «Windows» или «Linux».</li>
+<li>RDP пока не готов: вкладка серая, нажатие объясняет «RDP появится позже» и не переключает. Кнопка «RDP: готов» вверху показывает, как будет выглядеть список потом.</li>
+<li>Терминал, RDP и Помощник открываются теми же экранами, что уже есть (RDP позже).</li>
+</ul></section>
+<section><h2>Соответствие SwiftUI</h2><table>
+<tr><td>Режимы внизу</td><td>стандартный <code>TabView</code> с двумя <code>Tab</code> (значок и подпись), <code>@AppStorage</code> для выбранной вкладки; на iOS 26 панель плавающая, стеклянная, без своего кода</td></tr>
+<tr><td>Запомнить режим</td><td><code>@AppStorage("mode")</code></td></tr>
+<tr><td>Тип подключения</td><td><code>Picker</code> со стилем <code>.segmented</code>, <code>@AppStorage("kind")</code></td></tr>
+<tr><td>Дерево папок</td><td><code>List(children:)</code> / <code>OutlineGroup</code> или <code>DisclosureGroup</code>; свёрнутые папки в <code>@AppStorage</code></td></tr>
+<tr><td>Бейдж системы</td><td>капсула как бейджи состояний, <code>Text</code> / <code>Label</code></td></tr>
+<tr><td>Фильтры в меню</td><td><code>Menu</code> с двумя <code>Picker</code> (стиль меню даёт галочку), <code>@AppStorage</code></td></tr>
+<tr><td>Поиск</td><td><code>.searchable</code></td></tr>
+<tr><td>Долгое нажатие</td><td><code>.contextMenu</code></td></tr></table></section>
+<section><h2>Решено</h2><ul><li>Внизу нативная панель вкладок (TabView) со значком и подписью; свой переключатель отвергнут.</li><li>Адрес в строке не показывается.</li><li>Учётная запись и ключи: кнопка справа вверху, как сейчас; ключи используются только при подключении в Помощнике.</li></ul></section>
+</aside></div>
+<script>
+const P = {
+ server: '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/>',
+ more: '<circle cx="12" cy="12" r="9.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.6"/>',
+ person: '<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.5c1.2-2.4 3.2-3.5 5.5-3.5s4.3 1.1 5.5 3.5"/>',
+ search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>',
+ chev: '<path d="M9 5l7 7-7 7"/>', chevd: '<path d="M5 9l7 7 7-7"/>', chevl: '<path d="M15 5l-7 7 7 7"/>',
+ folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+ wifioff: '<path d="M2 8.8a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0"/><path d="M12 19.5h.01" stroke-width="2.6"/><path d="M3 3l18 18"/>',
+ shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+ warn: '<path d="M12 3.5l10 17.5H2z"/><path d="M12 10v5M12 18h.01"/>',
+ down: '<circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v8M8.5 12.5l3.5 3.5 3.5-3.5"/>',
+ reboot: '<path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/>',
+ cpu: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+ check: '<path d="M5 12.5l4.5 4.5L19 7"/>', xmark: '<path d="M6 6l12 12M18 6L6 18"/>',
+ copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+ net: '<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c3 3 3 16 0 19M12 2.5c-3 3-3 16 0 19"/>',
+ out: '<path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9"/>',
+ grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+ list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+ sort: '<path d="M7 20V4M3.5 7.5L7 4l3.5 3.5M17 4v16M13.5 16.5L17 20l3.5-3.5"/>',
+ lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+ faceid: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 9v2M15 9v2M12 9v4h-1M9 16c1.5 1.5 4.5 1.5 6 0"/>',
+ up: '<path d="M12 19V5M6 11l6-6 6 6"/>', dn: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+ tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><path d="M8 8h.01" stroke-width="2.6"/>',
+ globe: '<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c3 3 3 16 0 19M12 2.5c-3 3-3 16 0 19"/>',
+ gauge: '<path d="M4 17a9 9 0 1 1 16 0"/><path d="M12 14l4-5"/>',
+ key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+ power: '<path d="M12 3v9M6.3 6.8a8 8 0 1 0 11.4 0"/>',
+ box: '<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
+ spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/>',
+ upc: '<circle cx="12" cy="12" r="9.5"/><path d="M12 16.5v-8M8.5 11.5l3.5-3.5 3.5 3.5"/>',
+ code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',
+ term: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12 15h5"/>',
+ trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'
+};
+const I = (n, s = 22, sw = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+
+const sb = `<div class="island"></div><div class="sb"><span>9:41</span><span class="r">
+<svg width="19" height="12" viewBox="0 0 19 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+<svg width="17" height="12" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 4.2a10 10 0 0 1 15 0M3.5 7a6.5 6.5 0 0 1 10 0"/><circle cx="8.5" cy="10.3" r="1" fill="currentColor" stroke="none"/></svg>
+<svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="22" height="12" rx="3.8" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="19" height="9" rx="2.5" fill="currentColor"/><path d="M24 4.5v4c.9-.3 1.5-1.2 1.5-2s-.6-1.7-1.5-2z" fill="currentColor" opacity=".45"/></svg>
+</span></div>`;
+
+const SV = [
+ { n: 'web-01', ip: '10.0.1.21', os: 'Debian 12', f: 0, cpu: 41, ram: 53, disk: 41, st: 'ok', c: [['updates','info',3]], t: [['blue', 'web'], ['green', 'prod']], up: '40д 4ч', rx: '924 КБ/с', tx: '408 КБ/с', seed: 3 },
+ { n: 'web-02', ip: '10.0.1.22', os: 'Debian 12', f: 0, cpu: 32, ram: 50, disk: 44, st: 'warn', c: [['reboot','warn'],['updates','warn',12]], t: [['blue', 'web'], ['green', 'prod']], up: '112д 2ч', rx: '597 КБ/с', tx: '393 КБ/с', seed: 5 },
+ { n: 'proxy-01', ip: '10.0.1.20', os: 'Debian 12', f: 0, cpu: 14, ram: 25, disk: 29, st: 'ok', c: [], t: [['green', 'prod']], up: '40д 4ч', rx: '312 КБ/с', tx: '290 КБ/с', seed: 8 },
+ { n: 'db-primary', ip: '10.0.1.14', os: 'Debian 12', f: 1, cpu: 51, ram: 79, disk: 63, st: 'ok', c: [['images','warn',6]], t: [['teal', 'db'], ['green', 'prod']], up: '67д 19ч', rx: '624 КБ/с', tx: '2,4 МБ/с', seed: 11 },
+ { n: 'db-replica', ip: '10.0.1.15', os: 'Debian 12', f: 1, cpu: 25, ram: 72, disk: 63, st: 'crit', c: [['failed','crit',1],['updates','info',5]], t: [['teal', 'db']], up: '67д 19ч', rx: '1,8 МБ/с', tx: '116 КБ/с', seed: 14 },
+ { n: 'mail-01', ip: '10.0.4.2', os: 'Debian 12', f: 2, st: 'off', c: [['offline','mute'],['updates','mute',2]], t: [['orange', 'mail']], seed: 2 },
+ { n: 'build-runner', ip: '10.0.1.12', os: 'Debian 12', f: 2, cpu: 93, ram: 86, disk: 72, st: 'crit', c: [['updates','info',8]], t: [['pink', 'ci']], up: '9д 1ч', rx: '4,4 МБ/с', tx: '713 КБ/с', seed: 17 },
+ { n: 'backup-nas', ip: '10.0.1.11', os: 'Debian 11', f: 2, cpu: 4, ram: 31, disk: 91, st: 'crit', c: [['updates','info',1],['agentUpdate','warn']], t: [['gray', 'backup']], up: '330д 7ч', rx: '61 КБ/с', tx: '2,7 МБ/с', seed: 20 },
+ { n: 'office-pc', ip: '10.0.1.19', os: 'Windows 11 Pro', f: 3, cpu: 22, ram: 58, disk: 49, st: 'ok', c: [], t: [], up: '4д 6ч', rx: '40 КБ/с', tx: '12 КБ/с', seed: 23 },
+];
+const FOLDERS = ['Продакшен', 'Продакшен › Базы данных', 'Инфраструктура', 'Без папки'];
+
+const lvl = v => v >= 90 ? 'red' : v >= 75 ? 'orange' : '';
+const bar = (l, v) => `<div class="m"><div class="mt"><span>${l}</span><b>${v}%</b></div><div class="bar"><i class="${lvl(v)}" style="width:${v}%"></i></div></div>`;
+const CI = { failed: 'warn', reboot: 'power', updates: 'upc', images: 'box', agentUpdate: 'spark', agentOld: 'warn', offline: '' };
+const CT = { failed: 'Упавшие службы', reboot: 'Нужна перезагрузка', updates: 'Обновления', images: 'Обновления образов Docker', agentUpdate: 'Есть новый агент', agentOld: 'Агент устарел', offline: 'Нет связи' };
+const mc = ([id, tone, n]) => id === 'offline' ? `<span class="mc txt ${tone}">Нет связи</span>` : `<span class="mc ${tone}">${I(CI[id], 11, 2.2)}${n ? n : ''}</span>`;
+const chipsHtml = (s, max = 4) => { const c = s.c || []; if (!c.length) return ''; const sh = c.slice(0, max), rest = c.slice(max); return `<span class="chips">${sh.map(mc).join('')}${rest.length ? `<span class="mc more">+${rest.length}</span>` : ''}</span>`; };
+const tagsHtml = (s, max = 2) => { const t = s.t || []; if (!t.length) return ''; const sh = t.slice(0, max), rest = t.slice(max); return `<span class="tbs">${sh.map(([c, n]) => `<span class="tb tc-${c}">${n[0].toUpperCase()}</span>`).join('')}${rest.length ? `<span class="tb more">+${rest.length}</span>` : ''}</span>`; };
+const row = (s, o = {}) => {
+  const off = s.st === 'off';
+  return `<div class="row ${off ? 'off' : ''} ${o.skel ? 'skel' : ''}">
+  <div class="r1"><span class="dot ${s.st}"></span><span class="nm">${s.n}</span><span class="sp"></span>${chipsHtml(s)}${tagsHtml(s)}</div>
+  <div class="r2" ${off ? 'style="margin-bottom:0"' : ''}>${s.ip} · ${s.os}${off ? ' · нет связи 12 мин' : ''}</div>
+  ${off ? '' : `<div class="ms">${bar('CPU', s.cpu)}${bar('ОЗУ', s.ram)}${bar('Диск', s.disk)}</div>`}</div>`;
+};
+const sec = (title, list, o = {}) => `<div class="sh">${I('folder', 15, 2)}${title}<span class="cnt">${list.length}</span><span class="sp"></span>${I(o.closed ? 'chev' : 'chevd', 13, 2.6)}</div>` +
+  (o.closed ? '<div style="height:14px"></div>' : `<div class="grp">${list.map(s => row(s, o)).join('')}</div>`);
+const byF = f => SV.filter(s => s.f === f);
+const tiles = `<div class="sum">
+ <div class="tile"><div class="h"><span class="ok">${I('shield', 16, 2)}</span>Онлайн</div><div class="n">8<small> из 9</small></div><div class="s">нет связи: 1</div></div>
+ <div class="tile"><div class="h"><span class="wn">${I('warn', 16, 2)}</span>Внимание</div><div class="n">4</div><div class="s">критичных: 3</div></div>
+ <div class="tile"><div class="h"><span class="tint">${I('upc', 16, 2)}</span>Обновления</div><div class="n">29</div><div class="s">ждут перезагрузки: 1</div></div>
+ <div class="tile"><div class="h"><span class="tint">${I('cpu', 16, 2)}</span>CPU средн.</div><div class="n">35<small>%</small></div><div class="s">по серверам online</div></div></div>`;
+const seg = i => `<div class="seg">${['Все', 'Проблемные', 'Offline'].map((t, k) => `<span class="${k === i ? 'on' : ''}">${t}</span>`).join('')}</div>`;
+const navBtns = `<div class="glass"><span class="b">${I('more', 24, 1.7)}</span><span class="b">${I('person', 24, 1.7)}</span></div>`;
+const nav = (right = navBtns, left = '') => `<div class="nav"><div>${left}</div>${right}</div>`;
+const back = t => `<div class="glass t">${I('chevl', 22, 2.3)}<span>${t}</span></div>`;
+const home = '<div class="home"></div>';
+
+function spark(seed, w = 190, h = 44, hot = false) {
+  let x = seed * 9301 + 49297, v = 40, pts = [];
+  for (let i = 0; i < 28; i++) { x = (x * 9301 + 49297) % 233280; v = Math.max(8, Math.min(92, v + (x / 233280 - .5) * 34)); pts.push(v); }
+  const xy = pts.map((p, i) => [i * w / 27, h - 3 - p / 100 * (h - 6)]);
+  const d = xy.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+  const c = hot ? 'var(--red)' : 'var(--blue)';
+  return `<svg class="sp" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d}L${w} ${h}L0 ${h}Z" fill="${c}" opacity=".16"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+const stText = s => ({ ok: 'в порядке', warn: 'внимание', crit: 'критично', off: 'нет связи' })[s.st];
+const card = s => s.st === 'off'
+  ? `<div class="card"><div class="top"><span class="dot off"></span><span class="nm" style="font-weight:600;color:var(--l2)">${s.n}</span><span class="st">${stText(s)}</span></div><div class="sub">${s.ip} · ${s.os} · нет связи 12 мин</div><div class="foot" style="margin-top:2px">${chipsHtml(s)}${tagsHtml(s, 3)}</div></div>`
+  : `<div class="card"><div class="top"><span class="dot ${s.st}"></span><span class="nm" style="font-weight:600">${s.n}</span><span class="st">${stText(s)}</span></div><div class="sub">${s.ip} · ${s.os} · ${s.up}</div>
+  <div class="cpu"><div class="bg">${s.cpu}%<small>CPU, последние 2 минуты</small></div>${spark(s.seed, 190, 44, s.cpu >= 90)}</div>
+  <div class="two">${bar('ОЗУ', s.ram)}${bar('Диск', s.disk)}</div>
+  <div class="net"><span>${I('dn', 12, 2.4)}${s.rx}</span><span>${I('up', 12, 2.4)}${s.tx}</span></div>
+  <div class="foot">${chipsHtml(s) || '<span></span>'}${tagsHtml(s, 3)}</div></div>`;
+
+const dash = (o = {}) => `${o.sb ?? sb}${nav()}<div class="lt">Дашборд</div><div class="body">${o.banner || ''}${tiles}${seg(o.seg || 0)}
+ ${[0, 1, 2, 3].map(f => sec(FOLDERS[f], byF(f), { closed: f === 2 && o.fold })).join('')}</div>${home}`;
+
+/* ===================== Console mode ===================== */
+// demo tree; the real one comes from the groups API (parent_id makes the tree, any depth)
+const OSK = { debian: 'Debian', ubuntu: 'Ubuntu', win: 'Windows', rpi: 'Raspberry Pi OS' };
+const TREE = [
+  { id: 1, n: 'Продакшен', ch: [
+    { id: 2, n: 'Веб', ch: [], sv: [['web-01','debian','ok'],['web-02','debian','ok'],['proxy-01','debian','ok']] },
+    { id: 3, n: 'Базы данных', ch: [
+      { id: 4, n: 'Реплики', ch: [], sv: [['db-replica','debian','ok'],['db-replica-2','ubuntu','off']] }
+    ], sv: [['db-primary','debian','ok']] }
+  ], sv: [] },
+  { id: 5, n: 'Инфраструктура', ch: [], sv: [['build-runner','ubuntu','ok'],['dev-desktop','ubuntu','ok',{gui:1}],['backup-nas','debian','ok'],['mail-01','debian','off']] },
+  { id: 6, n: 'Офис', ch: [
+    { id: 7, n: 'Рабочие места', ch: [], sv: [['office-pc','win','ok'],['ws-ivanov','win','ok'],['ws-petrova','win','off']] }
+  ], sv: [['file-srv','win','ok',{rdpOff:1}]] },
+];
+const ROOT_SV = [['pi-garage','rpi','ok']];
+// what each kind of connection needs: the terminal works on every online server, the Assistant only where there is a Windows
+// desktop, RDP on Windows (and on Linux with xrdp; here: Windows only, to be confirmed)
+const KINDS = [
+  { id: 'terminal', t: 'Терминал', ic: 'term', ok: s => true },
+  // as in the desktop app: RDP on Windows while the remote desktop is not turned off; the Assistant on Windows and on Linux with a graphical console
+  { id: 'rdp', t: 'RDP', ic: 'display', ok: s => s.os === 'win' && !s.rdpOff, soon: true },
+  { id: 'assistant', t: 'Помощник', ic: 'cursor', ok: s => s.os === 'win' || !!s.gui },
+];
+P.display = '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>';
+P.cursor = '<path d="M5 3l14 7-6 2-2 6z"/>';
+P.winlogo = '<path d="M3 5.5l7.5-1v7H3zM12 4.3L21 3v8.5h-9zM3 13h7.5v7L3 18.8zM12 13h9v8l-9-1.3z" fill="currentColor" stroke="none"/>';
+P.tux = '<path fill="currentColor" fill-rule="evenodd" stroke="none" d="M12 2.5c-2.6 0-3.6 2.1-3.6 4.3 0 1.4-.4 2.2-1.1 3.4C6 12.3 4.8 14.2 4.8 16.8c0 2.2 1.4 3.2 2.8 3.5.7.9 2.2 1.2 4.4 1.2s3.7-.3 4.4-1.2c1.4-.3 2.8-1.3 2.8-3.5 0-2.6-1.2-4.5-2.5-6.6-.7-1.2-1.1-2-1.1-3.4 0-2.2-1-4.3-3.6-4.3zM12 9.6c-2.1 0-3.8 2.4-3.8 5.6 0 2.8 1.6 4.4 3.8 4.4s3.8-1.6 3.8-4.4c0-3.2-1.7-5.6-3.8-5.6zM10.4 5.1a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm3.2 0a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zM10.5 7.7c.4.9 2.6.9 3 0-.8-.5-2.2-.5-3 0z"/>';
+P.cons = '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12 15h5"/>';
+
+const mem = {};   // a fallback for a browser that blocks localStorage (the state still survives "Перезапустить приложение")
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('lgr.ios.' + k); if (v != null) return JSON.parse(v); } catch (e) {} return k in mem ? mem[k] : d; },
+  set(k, v) { mem[k] = v; try { localStorage.setItem('lgr.ios.' + k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { delete mem[k]; try { localStorage.removeItem('lgr.ios.' + k); } catch (e) {} },
+};
+const S = {
+  mode: store.get('mode', 'console'), kind: store.get('kind', 'terminal') === 'rdp' ? 'terminal' : store.get('kind', 'terminal'),
+  closed: new Set(store.get('closed', [5])), rdpReady: false, fos: store.get('fos', 'all'), fst: store.get('fst', 'all'), q: '', dark: false, labels: true, menu: null, alert: null, toast: null,
+};
+const save = () => { store.set('mode', S.mode); store.set('kind', S.kind); store.set('closed', [...S.closed]); store.set('fos', S.fos); store.set('fst', S.fst); renderState(); };
+
+const flat = [];   // every server with its path
+(function walk(list, path) {
+  for (const f of list) { for (const [n, os, st, x] of f.sv) flat.push({ n, os, st, ...x, path: [...path, f.n] }); walk(f.ch, [...path, f.n]); }
+})(TREE, []);
+ROOT_SV.forEach(([n, os, st]) => flat.push({ n, os, st, path: [] }));
+const kindOf = () => KINDS.find(k => k.id === S.kind);
+// a server without the chosen kind of connection is not shown, and a folder without such servers (at any depth) is not shown either
+// the menu filters (system, status) stack on top of the connection type
+const pass = s => kindOf().ok(s) && (S.fos === 'all' || (S.fos === 'win') === (s.os === 'win')) && (S.fst === 'all' || (S.fst === 'off') === (s.st === 'off'));
+const filtered = () => S.fos !== 'all' || S.fst !== 'all';
+const shown = n => pass(srvObj(n));
+const count = f => f.sv.filter(([n]) => shown(n)).length + f.ch.reduce((a, c) => a + count(c), 0);
+
+const osb = s => s.os === 'win' ? `<span class="osb win" aria-label="Windows">${I('winlogo', 13, 0)}</span>` : `<span class="osb lin" aria-label="Linux">${I('tux', 17, 0)}</span>`;
+const srvRow = (s, d, withPath) => {
+  const off = s.st === 'off';
+  return `<div class="tr srv ${off ? 'off' : ''}" style="--d:${d}" data-srv="${s.n}">
+    <span class="dot ${off ? 'off' : 'ok'}"></span>
+    <span class="nm">${s.n}${withPath && s.path.length ? `<span class="path">${s.path.join(' › ')}</span>` : ''}</span>${osb(s)}</div>`;
+};
+const srvObj = (n) => flat.find(s => s.n === n);
+function folderRows(f, d) {
+  if (!count(f)) return '';
+  const open = !S.closed.has(f.id);
+  let h = `<div class="tr fold ${open ? 'open' : ''}" style="--d:${d}" data-fold="${f.id}"><span class="cv">${I('chev', 13, 2.6)}</span><span class="fi">${I('folder', 20, 1.7)}</span><span class="nm">${f.n}</span><span class="ct">${count(f)}</span></div>`;
+  if (open) {
+    for (const c of f.ch) h += folderRows(c, d + 1);
+    for (const [n] of f.sv) if (shown(n)) h += srvRow(srvObj(n), d + 1);
+  }
+  return h;
+}
+function consoleList() {
+  const q = S.q.trim().toLowerCase();
+  if (q) {
+    const r = flat.filter(s => pass(s) && (s.n + ' ' + s.path.join(' ') + ' ' + (s.os === 'win' ? 'windows' : 'linux ' + OSK[s.os])).toLowerCase().includes(q));
+    return r.length ? `<div class="tree">${r.map(s => srvRow(s, 0, true)).join('')}</div>` : `<div class="empty2">${I('search', 40, 1.5)}<br>Ничего не найдено</div>`;
+  }
+  const body = TREE.map(f => folderRows(f, 0)).join('') + ROOT_SV.filter(([n]) => shown(n)).map(([n]) => srvRow(srvObj(n), 0)).join('');
+  if (!body) return `<div class="empty2">${I('server', 40, 1.5)}<br>${filtered() ? 'Нет серверов по выбранным фильтрам' : `Нет серверов с подключением «${kindOf().t}»`}</div>`;
+  return `<div class="tree">${TREE.map(f => folderRows(f, 0)).join('')}${ROOT_SV.filter(([n]) => shown(n)).map(([n]) => srvRow(srvObj(n), 0)).join('')}</div>`;
+}
+const kindBar = () => `<div class="kind">${KINDS.map(k => `<span class="${k.id === S.kind ? 'on' : ''} ${k.soon && !S.rdpReady ? 'soon' : ''}" data-kind="${k.id}">${I(k.ic, 15, 1.9)}${k.t}</span>`).join('')}</div>`;
+const search = () => `<div class="sfw"><div class="sf">${I('search', 16, 2)}<input id="q" value="${S.q.replace(/"/g, '&quot;')}" placeholder="Имя, папка или система" style="all:unset;flex:1;color:var(--l1);font-size:17px;letter-spacing:-.4px"></div></div>`;
+const tabbar = () => `<div class="tabbar" role="tablist">
+  <div class="tab ${S.mode === 'console' ? 'on' : ''}" data-mode="console" aria-label="Консоль">${I('cons', 26, 1.7)}<span>Консоль</span></div>
+  <div class="tab ${S.mode === 'dash' ? 'on' : ''}" data-mode="dash" aria-label="Дашборд">${I('gauge', 26, 1.7)}<span>Дашборд</span></div></div>`;
+const consNav = () => `<div class="glass"><span class="b" data-act="more" style="position:relative">${I('more', 24, 1.7)}${filtered() ? '<i class="fdot"></i>' : ''}</span><span class="b">${I('person', 24, 1.7)}</span></div>`;
+
+function overlays() {
+  let h = '';
+  if (S.toast) h += `<div class="toast"><span class="tint">${I(S.toast.ic, 26, 1.7)}</span><div><b>${S.toast.t}</b><small>${S.toast.s}</small></div></div>`;
+  if (S.menu) {
+    const m = S.menu;
+    h += `<div class="dim" style="background:transparent" data-act="close"></div><div class="menu" style="top:${m.top}px;right:${m.right ?? 16}px;width:${m.w || 250}px">${m.items.map(i => i === '-' ? '<div class="gap"></div>' : i.h ? `<div class="mh">${i.h}</div>` : `<div class="mi ${i.dis ? 'dis' : ''}" data-m="${i.id}"><span class="l"><i>${i.ic ? I(i.ic, 17, 1.9) : ''}</i>${i.t}</span>${'on' in i ? `<span class="ck">${i.on ? I('check', 16, 2.6) : ''}</span>` : ''}</div>`).join('')}</div>`;
+  }
+  if (S.alert) h += `<div class="dim"></div><div class="alert"><div class="t"><h4>${S.alert.t}</h4><p>${S.alert.s}</p></div><div class="bt b" data-act="close">OK</div></div>`;
+  return h;
+}
+
+function screen() {
+  let h = sb;
+  if (S.mode === 'console') {
+    h += nav(consNav()) + `<div class="lt">Консоль</div>` + kindBar();
+    h += `<div class="scroll" id="sc" style="top:196px;bottom:0">${search()}${consoleList()}</div>`;
+  } else {
+    h += nav() + `<div class="lt">Дашборд</div>`;
+    h += `<div class="scroll" id="sc" style="top:148px;bottom:0">${tiles}${seg(0)}${sec('Продакшен', byF(0))}${sec('Продакшен › Базы данных', byF(1))}${sec('Инфраструктура', byF(2))}</div>`;
+  }
+  return h + tabbar() + overlays() + home;
+}
+
+let scTop = 0;
+function render() {
+  const el = document.getElementById('sc'); if (el) scTop = el.scrollTop;
+  const hadFocus = document.activeElement && document.activeElement.id === 'q', pos = hadFocus ? document.activeElement.selectionStart : 0;
+  document.getElementById('scr').innerHTML = screen();
+  const sc = document.getElementById('sc'); if (sc) sc.scrollTop = scTop;
+  if (hadFocus) { const q = document.getElementById('q'); q.focus(); q.setSelectionRange(pos, pos); }
+  renderState();
+}
+function renderState() {
+  document.getElementById('state').textContent = JSON.stringify({ mode: S.mode, connection: S.kind, system: S.fos, status: S.fst, collapsedFolders: [...S.closed] }, null, 1);
+}
+let toastT;
+function toast(ic, t, s) { S.toast = { ic, t, s }; render(); clearTimeout(toastT); toastT = setTimeout(() => { S.toast = null; render(); }, 2600); }
+
+function openServer(s, kindId) {
+  const k = KINDS.find(x => x.id === (kindId || S.kind));
+  if (s.st === 'off') { S.alert = { t: 'Нет связи', s: `Сервер ${s.n} сейчас не отвечает. Подключиться нельзя.` }; return render(); }
+  if (!k.ok(s)) { S.alert = { t: k.t + ' недоступен', s: `${k.why} Сервер ${s.n}: ${OSK[s.os]}.` }; return render(); }
+  toast(k.ic, `${k.t}: ${s.n}`, k.id === 'terminal' ? 'Откроется экран терминала' : k.id === 'rdp' ? 'Откроется удалённый экран по RDP (альбомный режим)' : 'Откроется удалённый экран Помощника (альбомный режим)');
+}
+
+const scr = document.getElementById('scr');
+scr.addEventListener('click', e => {
+  const t = e.target.closest('[data-mode],[data-kind],[data-fold],[data-srv],[data-act],[data-m]'); if (!t) return;
+  if (suppress) { suppress = false; return; }
+  const d = t.dataset;
+  if (d.mode) { S.mode = d.mode; S.menu = null; S.q = ''; save(); render(); }
+  else if (d.kind) {
+    const k = KINDS.find(x => x.id === d.kind);
+    if (k.soon && !S.rdpReady) { S.alert = { t: 'RDP появится позже', s: 'Подключение по RDP ещё не готово. Пока доступны терминал и Помощник.' }; return render(); }
+    S.kind = d.kind; save(); render();
+  }
+  else if (d.fold) { const id = +d.fold; S.closed.has(id) ? S.closed.delete(id) : S.closed.add(id); save(); render(); }
+  else if (d.srv) openServer(srvObj(d.srv));
+  else if (d.act === 'more') { S.menu = { top: 106, w: 270, items: [
+      { h: 'Система' }, ...[['all', 'Все'], ['win', 'Windows'], ['lin', 'Linux']].map(([v, t]) => ({ id: 'os:' + v, t, on: S.fos === v })),
+      { h: 'Статус' }, ...[['all', 'Все'], ['on', 'В сети'], ['off', 'Не в сети']].map(([v, t]) => ({ id: 'st:' + v, t, on: S.fst === v })), '-',
+      { id: 'exp', t: 'Развернуть все папки', ic: 'chevd' }, { id: 'col', t: 'Свернуть все папки', ic: 'chev' }] }; render(); }
+  else if (d.act === 'close') { S.menu = null; S.alert = null; render(); }
+  else if (d.m) {
+    const m = d.m;
+    if (m === 'exp') { S.closed.clear(); save(); }
+    else if (m === 'col') { const ids = []; (function w(l) { l.forEach(f => { ids.push(f.id); w(f.ch); }); })(TREE); S.closed = new Set(ids); save(); }
+    else if (m.startsWith('os:')) { S.fos = m.slice(3); save(); }
+    else if (m.startsWith('st:')) { S.fst = m.slice(3); save(); }
+    else if (m.startsWith('open:')) { const [, k, n] = m.split(':'); S.menu = null; render(); openServer(srvObj(n), k); return; }
+    else if (m.startsWith('copy:')) { S.menu = null; toast('copy', 'Имя скопировано', m.slice(5)); return; }
+    S.menu = null; render();
+  }
+});
+scr.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; render(); } });
+// long press (or a right click) on a server: open it in a connection type other than the chosen one
+let lp, suppress = false;
+function ctxMenu(row, ev) {
+  const s = srvObj(row.dataset.srv), r = scr.getBoundingClientRect(), rr = row.getBoundingClientRect();
+  const top = Math.min(rr.bottom - r.top + 4, 540);
+  S.menu = { top, right: 16, w: 250, items: [{ h: s.n },
+    ...KINDS.filter(k => k.ok(s)).map(k => ({ id: `open:${k.id}:${s.n}`, t: `Открыть: ${k.t}`, ic: k.ic, dis: s.st === 'off' })), '-',
+    { id: 'copy:' + s.n, t: 'Скопировать имя', ic: 'copy' }] };
+  suppress = true; setTimeout(() => suppress = false, 400); render();
+}
+scr.addEventListener('contextmenu', e => { const row = e.target.closest('[data-srv]'); if (row) { e.preventDefault(); ctxMenu(row, e); } });
+scr.addEventListener('pointerdown', e => { const row = e.target.closest('[data-srv]'); if (!row) return; clearTimeout(lp); lp = setTimeout(() => ctxMenu(row, e), 520); });
+['pointerup', 'pointerleave', 'pointermove'].forEach(ev => scr.addEventListener(ev, () => clearTimeout(lp)));
+
+const ctl = document.getElementById('ctl');
+ctl.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.theme) { S.dark = b.dataset.theme === 'dark'; document.getElementById('phone').classList.toggle('dark', S.dark); }
+  if (b.dataset.rdp) { S.rdpReady = b.dataset.rdp === '1'; if (!S.rdpReady && S.kind === 'rdp') { S.kind = 'terminal'; save(); } }
+  ctl.querySelectorAll('button').forEach(x => { if (x.dataset.theme) x.classList.toggle('on', (x.dataset.theme === 'dark') === S.dark); if (x.dataset.rdp) x.classList.toggle('on', (x.dataset.rdp === '1') === S.rdpReady); });
+  render();
+});
+document.getElementById('relaunch').onclick = () => {
+  S.mode = store.get('mode', 'console'); S.kind = store.get('kind', 'terminal'); S.closed = new Set(store.get('closed', [5])); S.fos = store.get('fos', 'all'); S.fst = store.get('fst', 'all'); S.q = ''; S.menu = S.alert = S.toast = null; render();
+};
+document.getElementById('reset').onclick = () => { ['mode', 'kind', 'closed', 'fos', 'fst'].forEach(k => store.del(k)); S.mode = 'console'; S.kind = 'terminal'; S.closed = new Set([5]); S.fos = S.fst = 'all'; S.q = ''; render(); };
+render();
+
+</script>
+</body>
+</html>

@@ -64,6 +64,8 @@ type Options struct {
 	// VaultMemo is the file that remembers the chosen vault file for seven days; empty keeps nothing.
 	VaultMemo string
 	Version   string
+	// ConfigDir is the folder of the configuration (profiles, the token of a device when the keychain cannot keep it); empty: none.
+	ConfigDir string
 }
 
 // Server is the local server.
@@ -71,8 +73,10 @@ type Server struct {
 	o     Options
 	vault *vaultMemo
 	token string
-	ln    net.Listener
-	srv   *http.Server
+	// client is what the application says about itself to every server (X-Linager-Client)
+	client string
+	ln     net.Listener
+	srv    *http.Server
 
 	mu   sync.Mutex
 	sess *remote.Session
@@ -92,7 +96,7 @@ func New(o Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{o: o, token: hex.EncodeToString(b), ln: ln, vault: newVaultMemo(o.VaultMemo)}
+	s := &Server{o: o, token: hex.EncodeToString(b), ln: ln, vault: newVaultMemo(o.VaultMemo), client: clientHeader(o.Version)}
 	if o.Update != nil {
 		// the checks use the GitHub token of the person when there is one
 		o.Update.Token = func() string {
@@ -295,11 +299,17 @@ func (s *Server) probe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"fingerprint": fp})
 }
 
+func (s *Server) configDir() string { return s.o.ConfigDir }
+
 // open pins a session to a profile and checks that the server answers over the pin.
 func (s *Server) open(r *http.Request, p profiles.Profile) error {
 	sess, err := remote.NewSession(remote.Target{Addr: p.Address, Fingerprint: p.Fingerprint})
 	if err != nil {
 		return err
+	}
+	// the device: the server knows this installation by its token, and may keep it out until an administrator approves it
+	if tok, err := profiles.DeviceToken(s.o.Secrets, s.configDir(), p.ID); err == nil {
+		sess.SetDevice(tok, s.client)
 	}
 	// the session of an earlier run (the server renews it with every request and ends it after seven idle days)
 	if old, err := s.o.Secrets.Get(sessionKey(p)); err == nil {
@@ -367,6 +377,13 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 	if p.Name == "" {
 		p.Name = req.Address
 	}
+	// the profile has its id before the connection opens: the device of the application is kept under it
+	p.ID = profiles.NewID()
+	for _, old := range s.o.Profiles.List() {
+		if old.Address == p.Address {
+			p.ID = old.ID
+		}
+	}
 	if err := s.open(r, p); err != nil {
 		s.openError(w, err)
 		return
@@ -423,6 +440,7 @@ func (s *Server) forget(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.o.Secrets.Delete(req.ID)
 	_ = s.o.Secrets.Delete("session:" + req.ID)
+	profiles.ForgetDeviceToken(s.o.Secrets, s.configDir(), req.ID)
 	if err := s.o.Profiles.Delete(req.ID); err != nil {
 		fail(w, http.StatusInternalServerError, "profiles")
 		return

@@ -4,7 +4,7 @@
   import { native, type AppState, type ProfileView } from './native';
   import { t } from './i18n.svelte';
 
-  let { profile, onsignedin, onchange }: { profile: ProfileView; onsignedin: (s: Session) => void; onchange: (s: AppState) => void } = $props();
+  let { profile, onsignedin, onchange, notice = '' }: { profile: ProfileView; onsignedin: (s: Session) => void; onchange: (s: AppState) => void; notice?: string } = $props();
 
   type Step = 'password' | 'totp';
 
@@ -16,7 +16,8 @@
   let recovery = $state(false);
   let remember = $state(false);
   let busy = $state(false);
-  let error = $state('');
+  // svelte-ignore state_referenced_locally
+  let error = $state(notice);
   let codeEl = $state<HTMLInputElement | null>(null);
 
   /** What is sent as the code: an authenticator shows "123 456", so a one-time code is reduced to its digits;
@@ -50,6 +51,10 @@
         if (second) code = '';
       } else if (e instanceof ApiError && e.status === 429) {
         error = t('login.err.locked');
+      } else if (e instanceof ApiError && e.status === 403 && e.code === 'device_denied') {
+        error = t('login.err.deviceDenied');
+      } else if (e instanceof ApiError && e.status === 403 && e.code === 'device_required') {
+        error = t('login.err.deviceRequired');
       } else {
         // the status and the code of the server, so that a failure can be told apart (503 not connected, 403 refused, ...)
         const why = e instanceof ApiError ? `HTTP ${e.status}${e.code ? `: ${e.code}` : ''}` : e instanceof Error ? e.message : String(e);

@@ -33,6 +33,7 @@ agent.yaml
 
 # iOS client (ios/): the project is generated from ios/project.yml, the builds are local
 /ios/Linager.xcodeproj/
+/ios/Linager [0-9]*.xcodeproj/
 /ios/App/Info.plist
 /ios/build/
 /ios/.build/

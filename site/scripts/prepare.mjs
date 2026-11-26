@@ -12,7 +12,7 @@ const out = path.join(site, 'content');
 
 const REPO_URL = 'https://github.com/bolgov0zero/linager';
 // docs pages that become site pages (README.md files are indexes of the folders and are replaced by the sidebar)
-const PAGES = ['install', 'proxy', 'access', 'connection', 'app', 'modules', 'menu', 'console', 'keys', 'windows', 'updates', 'security', 'architecture'];
+const PAGES = ['install', 'proxy', 'access', 'devices', 'connection', 'app', 'ios', 'modules', 'menu', 'console', 'keys', 'windows', 'updates', 'security', 'architecture'];
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'ru'), { recursive: true });

@@ -127,6 +127,59 @@ func newServerCmd() *cobra.Command {
 	}
 	cmd.AddCommand(appPort)
 
+	devices := &cobra.Command{Use: "devices", Short: "Devices of the applications (the way back in when the only approved device is lost)"}
+	withDB := func(run func(c *cobra.Command, db *store.Store, args []string) error) func(c *cobra.Command, args []string) error {
+		return func(c *cobra.Command, args []string) error {
+			cfg, err := config.LoadServer(cfgPath)
+			if err != nil {
+				return err
+			}
+			db, err := store.Open(c.Context(), cfg.Database.DSN)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			return run(c, db, args)
+		}
+	}
+	devices.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List the devices and tell whether the confirmation of devices is on",
+		Args:  cobra.NoArgs,
+		RunE: withDB(func(c *cobra.Command, db *store.Store, _ []string) error {
+			return server.DevicesList(c.Context(), db, c.OutOrStdout())
+		}),
+	})
+	devices.AddCommand(&cobra.Command{
+		Use:   "approve <id>",
+		Short: "Approve a device by its id (see: devices list)",
+		Args:  cobra.ExactArgs(1),
+		RunE: withDB(func(c *cobra.Command, db *store.Store, args []string) error {
+			id, perr := strconv.ParseInt(args[0], 10, 64)
+			if perr != nil {
+				return fmt.Errorf("%q is not a device id", args[0])
+			}
+			if err := server.DeviceApproveCLI(c.Context(), db, id); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintln(c.OutOrStdout(), "The device is approved.")
+			return err
+		}),
+	})
+	devices.AddCommand(&cobra.Command{
+		Use:   "off",
+		Short: "Turn the confirmation of devices off (every device may sign in; turn it on again in the application)",
+		Args:  cobra.NoArgs,
+		RunE: withDB(func(c *cobra.Command, db *store.Store, _ []string) error {
+			if err := server.DevicesGateOff(c.Context(), db); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintln(c.OutOrStdout(), "The confirmation of devices is off.")
+			return err
+		}),
+	})
+	cmd.AddCommand(devices)
+
 	var rLogin, rPwFile string
 	reset := &cobra.Command{
 		Use:   "reset-password",

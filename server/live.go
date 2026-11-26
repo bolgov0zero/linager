@@ -20,6 +20,8 @@ type Live struct {
 type liveMsg struct {
 	server string
 	b      []byte
+	// admin: only administrators get it (the devices waiting for approval and the like).
+	admin bool
 }
 
 // NewLive creates an empty fan-out.
@@ -41,6 +43,26 @@ func (l *Live) PublishServer(serverID, event string, data any) {
 		select {
 		case ch <- msg:
 		default: // subscriber is too slow; the browser reloads state on reconnect
+		}
+	}
+}
+
+// PublishAdmin sends an event that only administrators may get.
+func (l *Live) PublishAdmin(event string, data any) {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	l.send(liveMsg{b: []byte(fmt.Sprintf("event: %s\ndata: %s\n\n", event, b)), admin: true})
+}
+
+func (l *Live) send(msg liveMsg) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for ch := range l.subs {
+		select {
+		case ch <- msg:
+		default:
 		}
 	}
 }
@@ -95,6 +117,9 @@ func (a *Admin) liveHandler(w http.ResponseWriter, r *http.Request, u *store.Use
 		case <-r.Context().Done():
 			return
 		case m := <-ch:
+			if m.admin && u.Role != store.RoleAdmin {
+				continue
+			}
 			if m.server != "" && !allow(m.server) {
 				continue
 			}

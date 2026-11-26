@@ -33,3 +33,6 @@ export function tabVisible(key: string, agentModules: readonly string[]): boolea
   if (agentModules.length === 0) return !['docker', 'security', 'disk', 'users', 'assistant', 'programs', 'manage'].includes(key);
   return agentModules.includes(module);
 }
+
+/** Devices that wait for an administrator's decision (the mark on the button of the settings, the toast). */
+export const devs = $state({ pending: 0 });

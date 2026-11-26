@@ -20,7 +20,7 @@ public struct PendingTrust: Equatable, Sendable, Identifiable {
 @Observable
 public final class AppModel {
     public enum Screen: Equatable, Sendable {
-        case launching, connect, login, dashboard
+        case launching, connect, login, waiting, dashboard
     }
 
     // MARK: what the screens read
@@ -40,6 +40,10 @@ public final class AppModel {
     public private(set) var needsCode = false
     public private(set) var loginError: LinagerError?
     public private(set) var rememberedLogin: String?
+
+    // waiting for the approval of this device
+    /// The server cannot be asked while the device waits (the screen says so; it asks again by itself).
+    public private(set) var waitingOffline = false
 
     // dashboard
     public private(set) var cards: [ServerCard] = []
@@ -63,21 +67,34 @@ public final class AppModel {
     /// How long to wait after a live event before the dashboard is asked again (a server sends one per server every few seconds).
     private let liveDelay: Duration
     private let retryDelay: Duration
+    /// How often a device that waits for the approval asks whether it was approved.
+    private let waitDelay: Duration
+    private let deviceTokens: any DeviceTokenStore
 
     private var client: (any LinagerAPI)?
     private var liveTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
+    private var waitTask: Task<Void, Never>?
 
     public init(store: ProfileStore = KeychainProfileStore(),
                 snapshots: SnapshotStore = FileSnapshotStore(),
-                makeClient: @escaping @Sendable (Profile) -> any LinagerAPI = { LinagerClient(endpoint: $0.endpoint, fingerprint: $0.fingerprint, credentials: $0.credentials) },
+                deviceTokens: any DeviceTokenStore = KeychainDeviceTokenStore(),
+                clientInfo: ClientInfo = .current,
+                makeClient: (@Sendable (Profile) -> any LinagerAPI)? = nil,
                 probe: @escaping @Sendable (Endpoint) async throws -> String = { try await Probe.fingerprint(of: $0) },
                 now: @escaping @Sendable () -> Date = Date.init,
                 liveDelay: Duration = .seconds(1),
-                retryDelay: Duration = .seconds(3)) {
+                retryDelay: Duration = .seconds(3),
+                waitDelay: Duration = .seconds(3)) {
         self.store = store
         self.snapshots = snapshots
-        self.makeClient = makeClient
+        self.deviceTokens = deviceTokens
+        self.waitDelay = waitDelay
+        // every request of the client carries the device: this phone's secret token for this server, and what it says about itself
+        self.makeClient = makeClient ?? { profile in
+            LinagerClient(endpoint: profile.endpoint, fingerprint: profile.fingerprint, credentials: profile.credentials,
+                          device: DeviceIdentity(token: deviceTokens.token(for: profile.endpoint), info: clientInfo))
+        }
         self.probe = probe
         self.now = now
         self.liveDelay = liveDelay
@@ -106,8 +123,14 @@ public final class AppModel {
         loading = cards.isEmpty
         guard let client else { return }
         do {
-            session = try await client.me()
+            let info = try await client.me()
+            session = info
             persist(from: client)
+            if info.isWaiting {
+                loading = false
+                becomeWaiting()
+                return
+            }
             await refresh()
         } catch let e as LinagerError {
             loading = false
@@ -176,6 +199,11 @@ public final class AppModel {
             needsCode = false
             rememberedLogin = info.login
             persist(from: client, login: info.login)
+            if info.isWaiting {
+                // signed in, but an administrator has not approved this device: it may only wait and sign out
+                becomeWaiting()
+                return
+            }
             screen = .dashboard
             loading = true
             await refresh()
@@ -248,14 +276,20 @@ public final class AppModel {
             let problem = PinProblem(pinned: fingerprint ?? "", seen: seen)
             if problem != dismissedPin { pinProblem = problem }
         case .unauthorized: endSession()
+        case .approvalPending: becomeWaiting()
+        case .deviceDenied: endSession(.deviceDenied)
+        case .deviceRequired: endSession(.deviceRequired)
         case .accessDenied: offline = true
-        case .invalidCredentials, .totpRequired, .twoFactorSetupRequired: break
+        case .invalidCredentials, .totpRequired, .twoFactorSetupRequired, .noPermission, .agentOffline,
+             .fileChanged, .exists, .confirmRequired, .tooLarge, .notText, .notFound: break
         }
     }
 
-    /// The server no longer knows the session: the sign-in again, on the same server.
-    private func endSession() {
+    /// The server no longer knows the session: the sign-in again, on the same server. `notice` is why, when the sign-in screen should say it
+    /// (an administrator refused or removed this device).
+    private func endSession(_ notice: LinagerError? = nil) {
         stopLive()
+        stopWaiting()
         if var p = store.load() {
             p.token = nil
             p.csrf = nil
@@ -264,6 +298,57 @@ public final class AppModel {
         }
         session = nil
         screen = .login
+        loginError = notice
+    }
+
+    // MARK: waiting for the approval of the device
+
+    private func becomeWaiting() {
+        guard screen != .waiting else { return }
+        stopLive()
+        screen = .waiting
+        startWaiting()
+    }
+
+    /// Asks "who am I" every few seconds (the one thing a device that waits may ask) until the answer says the device is approved.
+    private func startWaiting() {
+        waitTask?.cancel()
+        waitTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, let client = self.client else { return }
+                do {
+                    let info = try await client.me()
+                    if Task.isCancelled { return }
+                    self.waitingOffline = false
+                    if !info.isWaiting {
+                        self.session = info
+                        self.persist(from: client)
+                        self.waitTask = nil
+                        self.screen = .dashboard
+                        self.loading = true
+                        await self.refresh()
+                        return
+                    }
+                } catch LinagerError.deviceDenied {
+                    if !Task.isCancelled { self.endSession(.deviceDenied) }
+                    return
+                } catch LinagerError.unauthorized {
+                    // an administrator removed the device (and with it the session)
+                    if !Task.isCancelled { self.endSession(.unauthorized) }
+                    return
+                } catch {
+                    if Task.isCancelled { return }
+                    self.waitingOffline = true
+                }
+                try? await Task.sleep(for: self.waitDelay)
+            }
+        }
+    }
+
+    private func stopWaiting() {
+        waitTask?.cancel()
+        waitTask = nil
+        waitingOffline = false
     }
 
     // MARK: live
@@ -308,11 +393,114 @@ public final class AppModel {
         liveTask = nil
     }
 
+    // MARK: terminal
+
+    /// Whether the account may open a terminal (an administrator, or an operator who was given that module).
+    public var canUseTerminal: Bool { session?.canUseTerminal ?? false }
+
+    /// Opens a shell on a server. A session that has ended or a certificate that changed is dealt with here, as for every other call.
+    public func openTerminal(serverID: String, cols: Int, rows: Int, user: String? = nil) async throws -> TerminalConnection {
+        guard let client else { throw LinagerError.unauthorized }
+        do {
+            return try await client.openTerminal(serverID: serverID, cols: cols, rows: rows, user: user)
+        } catch let e as LinagerError {
+            switch e {
+            case .unauthorized, .pinMismatch, .approvalPending, .deviceDenied: handle(e)
+            default: break
+            }
+            throw e
+        }
+    }
+
+    /// Whether the account may open the Assistant (an administrator, or an operator who was given that module).
+    public var canUseAssistant: Bool { session?.canUseAssistant ?? false }
+
+    public func openAssistant(serverID: String, session: String = "console") async throws -> AssistantConnection {
+        guard let client else { throw LinagerError.unauthorized }
+        do {
+            return try await client.openAssistant(serverID: serverID, session: session)
+        } catch let e as LinagerError {
+            switch e {
+            case .unauthorized, .pinMismatch, .approvalPending, .deviceDenied: handle(e)
+            default: break
+            }
+            throw e
+        }
+    }
+
+    /// Whether the account may open the remote desktop (an administrator, or an operator who was given that module).
+    public var canUseDesktop: Bool { session?.canUseDesktop ?? false }
+
+    public func openDesktop(serverID: String, params: RdpParams, engine: RdpEngine) async throws -> RdpConnection {
+        guard let client else { throw LinagerError.unauthorized }
+        do {
+            return try await client.openDesktop(serverID: serverID, params: params, engine: engine)
+        } catch let e as LinagerError {
+            switch e {
+            case .unauthorized, .pinMismatch, .approvalPending, .deviceDenied: handle(e)
+            default: break
+            }
+            throw e
+        }
+    }
+
+    // MARK: the page of a server
+
+    /// Runs a call of the page of a server: a session that has ended or a certificate that changed is handled like anywhere else.
+    private func page<T>(_ call: (any LinagerAPI) async throws -> T) async throws -> T {
+        guard let client else { throw LinagerError.unauthorized }
+        do {
+            return try await call(client)
+        } catch let e as LinagerError {
+            switch e {
+            case .unauthorized, .pinMismatch, .approvalPending, .deviceDenied: handle(e)
+            default: break
+            }
+            throw e
+        }
+    }
+
+    public func serverDetail(serverID: String) async throws -> ServerDetail { try await page { try await $0.serverDetail(serverID: serverID) } }
+    public func history(serverID: String, period: HistoryPeriod) async throws -> History { try await page { try await $0.history(serverID: serverID, period: period) } }
+    public func files(serverID: String, path: String) async throws -> FileList { try await page { try await $0.files(serverID: serverID, path: path) } }
+    public func downloadFile(serverID: String, path: String) async throws -> URL { try await page { try await $0.downloadFile(serverID: serverID, path: path) } }
+    public func fileContent(serverID: String, path: String) async throws -> FileContent { try await page { try await $0.fileContent(serverID: serverID, path: path) } }
+    public func saveFile(serverID: String, path: String, content: String, mtime: Int64) async throws -> Int64 { try await page { try await $0.saveFile(serverID: serverID, path: path, content: content, mtime: mtime) } }
+    public func createFile(serverID: String, path: String) async throws { try await page { try await $0.createFile(serverID: serverID, path: path) } }
+    public func createFolder(serverID: String, path: String) async throws { try await page { try await $0.createFolder(serverID: serverID, path: path) } }
+    public func deleteEntry(serverID: String, path: String) async throws { try await page { try await $0.deleteEntry(serverID: serverID, path: path) } }
+    public func renameEntry(serverID: String, path: String, name: String) async throws { try await page { try await $0.renameEntry(serverID: serverID, path: path, name: name) } }
+    public func transferEntry(serverID: String, path: String, to dir: String, move: Bool, mode: TransferMode) async throws { try await page { try await $0.transferEntry(serverID: serverID, path: path, to: dir, move: move, mode: mode) } }
+    public func stat(serverID: String, path: String) async throws -> FileStat { try await page { try await $0.stat(serverID: serverID, path: path) } }
+    public func setPermissions(serverID: String, path: String, mode: String, recursive: Bool) async throws { try await page { try await $0.setPermissions(serverID: serverID, path: path, mode: mode, recursive: recursive) } }
+    public func setOwner(serverID: String, path: String, owner: String, group: String, recursive: Bool) async throws { try await page { try await $0.setOwner(serverID: serverID, path: path, owner: owner, group: group, recursive: recursive) } }
+    public func uploadFile(serverID: String, to path: String, from file: URL, progress: @escaping @Sendable (Double) -> Void) async throws { try await page { try await $0.uploadFile(serverID: serverID, to: path, from: file, progress: progress) } }
+
+    public func assistantSettings(serverID: String) async throws -> AssistSettings {
+        guard let client else { throw LinagerError.unauthorized }
+        return try await client.assistantSettings(serverID: serverID)
+    }
+
+    public func setAssistantSettings(serverID: String, _ settings: AssistSettings) async throws {
+        guard let client else { throw LinagerError.unauthorized }
+        try await client.setAssistantSettings(serverID: serverID, settings)
+    }
+
+    public func snippets() async throws -> [Snippet] {
+        guard let client else { throw LinagerError.unauthorized }
+        return try await client.snippets()
+    }
+
+    public func snippetRan(id: Int64, serverID: String) async { await client?.snippetRan(id: id, serverID: serverID) }
+
+    public func terminalUsers(serverID: String) async -> [String] { await client?.terminalUsers(serverID: serverID) ?? [] }
+
     // MARK: leaving
 
     /// Ends the session on the server and on the phone, and keeps the server: the sign-in follows.
     public func signOut() async {
         stopLive()
+        stopWaiting()
         await client?.logout()
         endSession()
         cards = []
@@ -323,7 +511,10 @@ public final class AppModel {
     /// Forgets the server: the pin, the session and the cached dashboard are erased, the connect screen follows.
     public func forgetServer() async {
         stopLive()
+        stopWaiting()
         await client?.logout()
+        // the device is forgotten with the server: if it is added again the server sees a new device
+        if let endpoint { deviceTokens.forget(endpoint) }
         store.clear()
         snapshots.clear()
         client = nil
