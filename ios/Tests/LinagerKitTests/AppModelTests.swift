@@ -317,11 +317,16 @@ struct AppModelTests {
         await r.api.set(dashboard: .success([cardA]))
         await r.model.launch()
         r.model.startLive()
-        try await Task.sleep(for: .milliseconds(400))
+        // wait for the things themselves, not for a fixed time: a busy machine (a runner of CI) may take long
+        for _ in 0..<250 where !(await r.api.liveUp) { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(await r.api.liveUp)
         let before = await r.api.dashboardCalls
         await r.api.breakStream()
-        try await Task.sleep(for: .milliseconds(700))
-        #expect(await r.api.dashboardCalls > before) // it came back and asked for the dashboard again
+        #expect(!(await r.api.liveUp))
+        // it comes back: the stream is open again and the dashboard is asked for again
+        for _ in 0..<250 where !(await r.api.liveUp) { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(await r.api.liveUp)
+        #expect(await r.api.dashboardCalls > before)
         r.model.stopLive()
     }
 }
