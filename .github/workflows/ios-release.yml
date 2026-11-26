@@ -67,7 +67,7 @@ jobs:
           # unsigned on purpose: a signature would have to be removed by the tool that installs it
           if [ -d "$app/_CodeSignature" ]; then echo "the IPA is signed" >&2; exit 1; fi
           file "$app/Linager" | grep -q arm64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ios-ipa
           path: ios/build/linager-ios_arm64.ipa
