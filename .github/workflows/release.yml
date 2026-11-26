@@ -40,20 +40,20 @@ jobs:
         run: make build VERSION="${GITHUB_REF_NAME}"
       - name: Windows agent
         if: needs.windows.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows
           path: bin
       - name: Desktop application
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: app-*
           path: bin
           merge-multiple: true
       - name: iPhone application
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ios-ipa
           path: bin
