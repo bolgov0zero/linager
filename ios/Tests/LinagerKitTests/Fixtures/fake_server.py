@@ -116,7 +116,10 @@ class H(BaseHTTPRequestHandler):
         self.close_connection = True
         if sid == 'full':
             w.write(ws_frame(8, struct.pack('>H', 4029) + b'too many open terminals')); w.flush(); time.sleep(0.2); return
-        w.write(ws_frame(2, ('opened %sx%s kind=%s user=%s\n' % (q.get('cols', ['?'])[0], q.get('rows', ['?'])[0], q.get('kind', ['?'])[0], q.get('user', [''])[0])).encode())); w.flush()
+        if q.get('kind', [''])[0] in ('logs', 'apt', 'winupdate'):
+            w.write(ws_frame(2, ('stream kind=%s unit=%s priority=%s kernel=%s lines=%s mode=%s names=%s ids=%s\n' % tuple(q.get(k, [''])[0] for k in ('kind', 'unit', 'priority', 'kernel', 'lines', 'mode', 'names', 'ids'))).encode())); w.flush()
+        else:
+          w.write(ws_frame(2, ('opened %sx%s kind=%s user=%s\n' % (q.get('cols', ['?'])[0], q.get('rows', ['?'])[0], q.get('kind', ['?'])[0], q.get('user', [''])[0])).encode())); w.flush()
         try:
             while True:
                 op, data = ws_read(r)
@@ -160,6 +163,29 @@ class H(BaseHTTPRequestHandler):
             if path == '/': ents = [{'name': 'var', 'type': 'dir', 'size': 4096, 'mode_str': 'drwxr-xr-x', 'owner': 'root', 'group': 'root', 'mtime': 1700000000}, {'name': 'a.txt', 'type': 'file', 'size': 12, 'mode_str': '-rw-r--r--', 'owner': 'root', 'group': 'root', 'mtime': 1700000100}, {'name': 'Docs', 'type': 'dir', 'size': 4096, 'mode_str': 'drwxr-xr-x', 'owner': 'root', 'group': 'root', 'mtime': 1700000200}, {'name': 'link', 'type': 'link', 'size': 3, 'mode_str': 'lrwxrwxrwx', 'owner': 'root', 'group': 'root', 'mtime': 1, 'link_target': '/var'}]
             else: ents = [{'name': 'b & c=d.txt', 'type': 'file', 'size': 5, 'mode_str': '-rw-r--r--', 'owner': 'u', 'group': 'g', 'mtime': 2}]
             return ok(self.send, 200, json.dumps({'path': path, 'entries': ents}).encode())
+        if len(parts) == 5 and parts[4] == 'services':
+            return ok(self.send, 200, json.dumps({'services': [
+                {'name': 'nginx.service', 'description': 'A high performance web server', 'active': 'active', 'sub': 'running', 'enabled': 'enabled'},
+                {'name': 'sshd.service', 'description': 'OpenBSD Secure Shell server', 'active': 'active', 'sub': 'running', 'enabled': 'enabled'},
+                {'name': 'cron.service', 'description': 'Regular background program processing daemon', 'active': 'failed', 'sub': 'failed', 'enabled': 'enabled'},
+                {'name': 'old.service', 'description': '', 'active': 'inactive', 'sub': 'dead', 'enabled': 'disabled'}]}).encode())
+        if len(parts) == 5 and parts[4] == 'processes':
+            sort = q.get('sort', ['cpu'])[0]
+            procs = [{'pid': 10, 'user': 'root', 'cpu': 1.5, 'mem_pct': 40.0, 'rss': 3000000, 'state': 'S', 'cmd': '/usr/sbin/nginx -g daemon off;'},
+                     {'pid': 20, 'user': 'www', 'cpu': 9.5, 'mem_pct': 2.0, 'rss': 100000, 'state': 'R', 'cmd': 'python3 app.py'},
+                     {'pid': 30, 'user': 'root', 'cpu': 0.1, 'mem_pct': 0.5, 'rss': 5000, 'state': 'S', 'cmd': 'bash'}]
+            key = {'cpu': lambda p: -p['cpu'], 'mem': lambda p: -p['mem_pct'], 'name': lambda p: p['cmd']}.get(sort, lambda p: -p['cpu'])
+            return ok(self.send, 200, json.dumps({'processes': sorted(procs, key=key), 'total': 212}).encode())
+        if len(parts) == 5 and parts[4] == 'apt':
+            return ok(self.send, 200, json.dumps({'packages': [{'name': 'openssl', 'current': '3.0.1', 'candidate': '3.0.2', 'security': True}, {'name': 'vim', 'current': '9.0', 'candidate': '9.1', 'ignored': True}, {'name': 'linux-image', 'current': '6.1.0', 'candidate': '6.1.1', 'reboot': True}], 'reboot_required': True, 'last_check': 1700000000}).encode())
+        if len(parts) == 5 and parts[4] == 'docker':
+            if parts[3] == 'nodocker': return ok(self.send, 200, b'{"available":false}')
+            return ok(self.send, 200, json.dumps({'available': True, 'containers': [
+                {'id': 'abc123', 'name': 'web', 'image': 'nginx:1.25', 'state': 'running', 'status': 'Up 2 days', 'ports': ['80->8080/tcp'], 'cpu': 1.2, 'mem_used': 50000000, 'mem_limit': 500000000, 'upd': 'new'},
+                {'id': 'def456', 'name': 'db', 'image': 'postgres:16', 'state': 'exited', 'status': 'Exited (0) 3 hours ago', 'ports': [], 'cpu': 0, 'mem_used': 0, 'mem_limit': 0}],
+                'images': [{'id': 'sha256:aaa', 'repo_tags': ['nginx:1.25'], 'size': 190000000, 'used': True}, {'id': 'sha256:bbbbbbbbbbbbbbbb', 'repo_tags': [], 'size': 5000, 'used': False}]}).encode())
+        if len(parts) == 5 and parts[4] == 'disk':
+            return ok(self.send, 200, json.dumps({'filesystems': [{'mount': '/', 'device': '/dev/sda1', 'fs': 'ext4', 'total': 100000000000, 'used': 41000000000, 'avail': 59000000000, 'pct': 41, 'days_left': 120, 'per_day': 500000000}], 'cleanup': [{'kind': 'journal', 'size': 800000000, 'frees': 700000000}, {'kind': 'apt', 'size': 200000000, 'frees': 200000000}]}).encode())
         if len(parts) == 6 and parts[4] == 'files' and parts[5] == 'content':
             path = q.get('path', [''])[0]
             if path == '/denied': return ok(self.err, 403, 'forbidden')
@@ -241,6 +267,47 @@ class H(BaseHTTPRequestHandler):
         except EOFError:
             return
 
+    def mgmt_post(self, parts, body):
+        if not self.authed(): return self.err(401, 'unauthorized')
+        if self.headers.get('X-CSRF-Token') != CSRF: return self.err(403, 'bad csrf token')
+        def need(): return self.send(409, json.dumps({'error': 'confirmation required', 'dangerous': True}).encode())
+        kind = parts[4]
+        if kind == 'win' and parts[5] == 'winupdate' and parts[6] == 'list':
+            return self.send(200, json.dumps({'updates': [{'id': '11111111-1111-1111-1111-111111111111', 'title': '2024-05 Cumulative Update (KB5037771)', 'kb': 'KB5037771', 'size': 650000000, 'security': True, 'downloaded': False, 'need_reboot': True}, {'id': '22222222-2222-2222-2222-222222222222', 'title': 'Defender definition update', 'kb': 'KB2267602', 'size': 2000000, 'security': False, 'downloaded': True}], 'reboot_pending': True}).encode())
+        if kind == 'reboot':
+            if not body.get('confirm'): return need()
+            OPS.append(['reboot', parts[3]])
+            return self.send(200, b'{"ok":true}')
+        if kind == 'services':
+            unit, action = parts[5], parts[6]
+            if unit == 'sshd.service' and action == 'stop' and not body.get('confirm'): return need()
+            OPS.append(['service', unit, action, bool(body.get('confirm'))])
+            return self.send(200, b'{"ok":true}')
+        if kind == 'processes':
+            if int(parts[5]) <= 1: return self.err(400, 'invalid pid')
+            OPS.append(['kill', int(parts[5]), body.get('signal')])
+            return self.send(200, b'{"ok":true}')
+        if kind == 'disk':
+            OPS.append(['clean', body.get('kind')])
+            return self.send(200, json.dumps({'ok': True, 'freed': 700000000, 'output': 'done'}).encode())
+        if kind == 'docker':
+            cid, action = parts[6], parts[7]
+            if action == 'remove' and not body.get('confirm'): return need()
+            OPS.append(['docker', cid, action, bool(body.get('confirm'))])
+            return self.send(200, b'{"ok":true}')
+
+    def do_DELETE(self):
+        n = int(self.headers.get('Content-Length') or 0)
+        body = json.loads(self.rfile.read(n) or b'{}')
+        if not self.authed(): return self.err(401, 'unauthorized')
+        if self.headers.get('X-CSRF-Token') != CSRF: return self.err(403, 'bad csrf token')
+        parts = self.path.split('/')
+        if len(parts) == 4 and parts[1] == 'api' and parts[2] == 'servers':
+            if body.get('name') != 'web-01': return self.err(422, 'confirmation name does not match')
+            OPS.append(['delete', parts[3], body.get('name'), bool(body.get('uninstall'))])
+            return self.send(200, json.dumps({'deleted': True, 'uninstall_sent': False, 'was_online': True}).encode())
+        self.err(404, 'not found')
+
     def do_PUT(self):
         n = int(self.headers.get('Content-Length') or 0)
         body = json.loads(self.rfile.read(n) or b'{}')
@@ -282,6 +349,8 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, b'{"ok":true}')
         body = json.loads(raw or b'{}')
         parts = self.path.split('/')
+        if self.path.startswith('/api/servers/') and len(parts) >= 6 and parts[4] in ('services', 'processes', 'disk', 'docker', 'win') or (len(parts) == 5 and parts[4] == 'reboot' and self.path.startswith('/api/servers/')):
+            return self.mgmt_post(parts, body)
         if self.path.startswith('/api/servers/') and len(parts) == 6 and parts[4] == 'files' and parts[5] in ('create', 'mkdir', 'delete', 'rename', 'copy', 'move', 'chmod', 'chown'):
             return self.files_post(parts[5], body)
         if self.path == '/api/login':

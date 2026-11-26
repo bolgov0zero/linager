@@ -958,3 +958,19 @@ body.sorting,body.sorting *{cursor:grabbing!important}
 /* a folded sidebar has no room for the counters: they become dots on the icon, of the colour of the counter (amber: updates and images, red: failed services) */
 .sp.collapsed .si{position:relative}
 .sp.collapsed .si .cnt{position:absolute;top:4px;right:10px;width:8px;height:8px;min-width:0;padding:0;border-radius:50%;font-size:0;line-height:0;overflow:hidden;box-shadow:0 0 0 2px var(--surface)}
+
+/* Settings, "Devices": one compact row for each device, the buttons always in view */
+.dev-h{display:flex;align-items:center;gap:8px}
+.dev-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.dev-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--panel-bg)}
+.dev-row.wait{border-color:var(--warn);background:var(--warn-s)}
+.dev-ic{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:var(--bg2);color:var(--text2)}
+.dev-row.wait .dev-ic{background:transparent;color:var(--warn-t)}
+.dev-main{min-width:0}
+.dev-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.dev-t b{font-weight:600}
+.dev-m{display:flex;flex-wrap:wrap;gap:1px 12px;margin-top:2px;font-size:12px;color:var(--text3)}
+.dev-m span{white-space:nowrap}
+.dev-act{display:flex;align-items:center;gap:6px}
+.dev-act .btn svg{margin-right:4px}.dev-act .btn.icon svg{margin:0}
+@media (max-width:900px){.dev-row{grid-template-columns:auto minmax(0,1fr)}.dev-act{grid-column:1/-1;justify-content:flex-end}}

@@ -46,6 +46,25 @@ public protocol LinagerAPI: Sendable {
     func setOwner(serverID: String, path: String, owner: String, group: String, recursive: Bool) async throws
     /// Sends a file of the phone to a path of the server (the whole path, with the name).
     func uploadFile(serverID: String, to path: String, from file: URL, progress: @escaping @Sendable (Double) -> Void) async throws
+    /// The services of the server (systemd) and what can be done with one. `confirm` answers the server that wants a dangerous action confirmed (`.confirmRequired`).
+    func services(serverID: String) async throws -> [ServiceUnit]
+    func serviceAction(serverID: String, unit: String, action: ServiceAction, confirm: Bool) async throws
+    func processes(serverID: String, sort: ProcessSort, count: Int) async throws -> ProcessList
+    /// `signal`: "TERM" (asks the program to end) or "KILL" (ends it at once).
+    func killProcess(serverID: String, pid: Int, signal: String) async throws
+    func apt(serverID: String) async throws -> AptList
+    func docker(serverID: String) async throws -> DockerInfo
+    func dockerAction(serverID: String, containerID: String, action: DockerAction) async throws
+    func disk(serverID: String) async throws -> DiskState
+    func diskClean(serverID: String, kind: String) async throws -> DiskCleanResult
+    /// Restarts the server itself. The server asks for it with a confirmation; the application confirms with Face ID or the name of the server first.
+    func reboot(serverID: String) async throws
+    /// Removes the server from Linager. `name` is the name of the server (the server compares it), `uninstall` also removes the agent from the computer.
+    func deleteServer(serverID: String, name: String, uninstall: Bool) async throws
+    /// The updates Windows Update has for a Windows computer. The search can take minutes.
+    func winUpdates(serverID: String) async throws -> WinUpdateList
+    /// Opens a stream of text of a server: the journal, or the output of a job of the updates.
+    func openStream(serverID: String, stream: ServerStream) async throws -> TerminalConnection
     /// The picture settings of the computer, kept on the server (one set per computer).
     func assistantSettings(serverID: String) async throws -> AssistSettings
     func setAssistantSettings(serverID: String, _ settings: AssistSettings) async throws
@@ -328,6 +347,75 @@ public actor LinagerClient: LinagerAPI {
         }
     }
 
+    // MARK: management of a server
+
+    public func services(serverID: String) async throws -> [ServiceUnit] {
+        struct Reply: Decodable { let services: [ServiceUnit]? }
+        let r: Reply = try await send("GET", "api/servers/\(try Self.escaped(serverID))/services")
+        return r.services ?? []
+    }
+
+    public func serviceAction(serverID: String, unit: String, action: ServiceAction, confirm: Bool) async throws {
+        struct Body: Encodable { let confirm: Bool }
+        _ = try await send("POST", "api/servers/\(try Self.escaped(serverID))/services/\(try Self.escaped(unit))/\(action.rawValue)", body: Body(confirm: confirm)) as Done
+    }
+
+    public func processes(serverID: String, sort: ProcessSort, count: Int) async throws -> ProcessList {
+        try await send("GET", "api/servers/\(try Self.escaped(serverID))/processes?sort=\(sort.rawValue)&n=\(min(max(count, 1), 200))")
+    }
+
+    public func killProcess(serverID: String, pid: Int, signal: String) async throws {
+        struct Body: Encodable { let signal: String; let confirm = true }
+        guard pid > 1 else { throw LinagerError.server(status: 400, message: "invalid pid") }
+        _ = try await send("POST", "api/servers/\(try Self.escaped(serverID))/processes/\(pid)/kill", body: Body(signal: signal == "KILL" ? "KILL" : "TERM")) as Done
+    }
+
+    public func apt(serverID: String) async throws -> AptList {
+        try await send("GET", "api/servers/\(try Self.escaped(serverID))/apt")
+    }
+
+    public func docker(serverID: String) async throws -> DockerInfo {
+        try await send("GET", "api/servers/\(try Self.escaped(serverID))/docker")
+    }
+
+    public func dockerAction(serverID: String, containerID: String, action: DockerAction) async throws {
+        struct Body: Encodable { let confirm: Bool }
+        _ = try await send("POST", "api/servers/\(try Self.escaped(serverID))/docker/containers/\(try Self.escaped(containerID))/\(action.rawValue)", body: Body(confirm: action == .remove)) as Done
+    }
+
+    public func disk(serverID: String) async throws -> DiskState {
+        try await send("GET", "api/servers/\(try Self.escaped(serverID))/disk")
+    }
+
+    public func diskClean(serverID: String, kind: String) async throws -> DiskCleanResult {
+        struct Body: Encodable { let kind: String; let confirm = true }
+        return try await send("POST", "api/servers/\(try Self.escaped(serverID))/disk/clean", body: Body(kind: kind))
+    }
+
+    public func reboot(serverID: String) async throws {
+        struct Body: Encodable { let confirm = true }
+        _ = try await send("POST", "api/servers/\(try Self.escaped(serverID))/reboot", body: Body()) as Done
+    }
+
+    public func deleteServer(serverID: String, name: String, uninstall: Bool) async throws {
+        struct Body: Encodable { let name: String; let uninstall: Bool }
+        _ = try await send("DELETE", "api/servers/\(try Self.escaped(serverID))", body: Body(name: name, uninstall: uninstall)) as Done
+    }
+
+    public func winUpdates(serverID: String) async throws -> WinUpdateList {
+        struct Empty: Encodable {}
+        // Windows Update searches for a long time (the server waits up to six minutes), so the phone waits as long
+        return try await send("POST", "api/servers/\(try Self.escaped(serverID))/win/winupdate/list", body: Empty(), timeout: 400)
+    }
+
+    public func openStream(serverID: String, stream: ServerStream) async throws -> TerminalConnection {
+        guard let query = stream.query else { throw LinagerError.server(status: 400, message: "invalid stream") }
+        let task = try await openSocket(path: "api/servers/\(try Self.escaped(serverID))/stream", query: query)
+        let connection = TerminalConnection(task: task, owner: self)
+        connection.start()
+        return connection
+    }
+
     public func assistantSettings(serverID: String) async throws -> AssistSettings {
         try await send("GET", "api/servers/\(try Self.escaped(serverID))/assistant/settings")
     }
@@ -399,11 +487,11 @@ public actor LinagerClient: LinagerAPI {
 
     // MARK: transport
 
-    private func makeRequest(_ method: String, _ path: String, body: (any Encodable)?) throws -> URLRequest {
+    private func makeRequest(_ method: String, _ path: String, body: (any Encodable)?, timeout: TimeInterval = 20) throws -> URLRequest {
         guard let url = endpoint.url(path: path) else { throw LinagerError.unreachable("bad address") }
         var r = URLRequest(url: url)
         r.httpMethod = method
-        r.timeoutInterval = 20
+        r.timeoutInterval = timeout
         r.cachePolicy = .reloadIgnoringLocalCacheData
         if let token { r.setValue("\(Self.cookieName)=\(token)", forHTTPHeaderField: "Cookie") }
         device?.apply(to: &r)
@@ -415,8 +503,8 @@ public actor LinagerClient: LinagerAPI {
         return r
     }
 
-    private func send<T: Decodable>(_ method: String, _ path: String, body: (any Encodable)? = nil) async throws -> T {
-        let request = try makeRequest(method, path, body: body)
+    private func send<T: Decodable>(_ method: String, _ path: String, body: (any Encodable)? = nil, timeout: TimeInterval = 20) async throws -> T {
+        let request = try makeRequest(method, path, body: body, timeout: timeout)
         let data: Data
         let response: URLResponse
         do {

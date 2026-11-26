@@ -217,6 +217,9 @@ public struct SessionInfo: Decodable, Hashable, Sendable {
     /// The device waits for an administrator to approve it: nothing but "who am I" and the sign-out is allowed until then.
     public var isWaiting: Bool { device?.confirm == true && device?.status == "pending" }
 
+    /// A module of the server ("services", "processes", "docker", "logs", "disk", "apt"...): for an administrator, and for an operator who was given it. An auditor has none.
+    public func can(_ module: String) -> Bool { role == "admin" || (role == "operator" && modules.contains(module)) }
+
     /// The terminal is for an administrator and for an operator who was given the module "terminal".
     public var canUseTerminal: Bool { role == "admin" || (role == "operator" && modules.contains("terminal")) }
 

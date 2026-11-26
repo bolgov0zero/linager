@@ -14,6 +14,7 @@ actor FakeAPI: LinagerAPI {
     var flags: [String: AgentFlag] = [:]
     private(set) var dashboardCalls = 0
     private(set) var loggedOut = false
+    private(set) var deleted: [String] = []
     private(set) var tokenNow: String? = "tok"
     private var liveContinuation: AsyncThrowingStream<LiveEvent, Error>.Continuation?
 
@@ -76,6 +77,19 @@ actor FakeAPI: LinagerAPI {
     func setPermissions(serverID: String, path: String, mode: String, recursive: Bool) async throws { throw LinagerError.agentOffline }
     func setOwner(serverID: String, path: String, owner: String, group: String, recursive: Bool) async throws { throw LinagerError.agentOffline }
     func uploadFile(serverID: String, to path: String, from file: URL, progress: @escaping @Sendable (Double) -> Void) async throws { throw LinagerError.agentOffline }
+    func services(serverID: String) async throws -> [ServiceUnit] { throw LinagerError.agentOffline }
+    func serviceAction(serverID: String, unit: String, action: ServiceAction, confirm: Bool) async throws { throw LinagerError.agentOffline }
+    func processes(serverID: String, sort: ProcessSort, count: Int) async throws -> ProcessList { throw LinagerError.agentOffline }
+    func killProcess(serverID: String, pid: Int, signal: String) async throws { throw LinagerError.agentOffline }
+    func apt(serverID: String) async throws -> AptList { throw LinagerError.agentOffline }
+    func docker(serverID: String) async throws -> DockerInfo { throw LinagerError.agentOffline }
+    func dockerAction(serverID: String, containerID: String, action: DockerAction) async throws { throw LinagerError.agentOffline }
+    func disk(serverID: String) async throws -> DiskState { throw LinagerError.agentOffline }
+    func diskClean(serverID: String, kind: String) async throws -> DiskCleanResult { throw LinagerError.agentOffline }
+    func reboot(serverID: String) async throws { throw LinagerError.agentOffline }
+    func deleteServer(serverID: String, name: String, uninstall: Bool) async throws { deleted.append(name) }
+    func winUpdates(serverID: String) async throws -> WinUpdateList { throw LinagerError.agentOffline }
+    func openStream(serverID: String, stream: ServerStream) async throws -> TerminalConnection { throw LinagerError.agentOffline }
     func assistantSettings(serverID: String) async throws -> AssistSettings { AssistSettings() }
     func setAssistantSettings(serverID: String, _ settings: AssistSettings) async throws {}
     func snippets() async throws -> [Snippet] { [] }

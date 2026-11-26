@@ -476,6 +476,24 @@ public final class AppModel {
     public func setOwner(serverID: String, path: String, owner: String, group: String, recursive: Bool) async throws { try await page { try await $0.setOwner(serverID: serverID, path: path, owner: owner, group: group, recursive: recursive) } }
     public func uploadFile(serverID: String, to path: String, from file: URL, progress: @escaping @Sendable (Double) -> Void) async throws { try await page { try await $0.uploadFile(serverID: serverID, to: path, from: file, progress: progress) } }
 
+    public func services(serverID: String) async throws -> [ServiceUnit] { try await page { try await $0.services(serverID: serverID) } }
+    public func serviceAction(serverID: String, unit: String, action: ServiceAction, confirm: Bool) async throws { try await page { try await $0.serviceAction(serverID: serverID, unit: unit, action: action, confirm: confirm) } }
+    public func processes(serverID: String, sort: ProcessSort, count: Int = 40) async throws -> ProcessList { try await page { try await $0.processes(serverID: serverID, sort: sort, count: count) } }
+    public func killProcess(serverID: String, pid: Int, signal: String) async throws { try await page { try await $0.killProcess(serverID: serverID, pid: pid, signal: signal) } }
+    public func apt(serverID: String) async throws -> AptList { try await page { try await $0.apt(serverID: serverID) } }
+    public func docker(serverID: String) async throws -> DockerInfo { try await page { try await $0.docker(serverID: serverID) } }
+    public func dockerAction(serverID: String, containerID: String, action: DockerAction) async throws { try await page { try await $0.dockerAction(serverID: serverID, containerID: containerID, action: action) } }
+    public func disk(serverID: String) async throws -> DiskState { try await page { try await $0.disk(serverID: serverID) } }
+    public func diskClean(serverID: String, kind: String) async throws -> DiskCleanResult { try await page { try await $0.diskClean(serverID: serverID, kind: kind) } }
+    public func reboot(serverID: String) async throws { try await page { try await $0.reboot(serverID: serverID) } }
+    /// Removes the server; the dashboard is asked again at once (the server is gone from it).
+    public func deleteServer(serverID: String, name: String, uninstall: Bool) async throws {
+        try await page { try await $0.deleteServer(serverID: serverID, name: name, uninstall: uninstall) }
+        await refresh()
+    }
+    public func winUpdates(serverID: String) async throws -> WinUpdateList { try await page { try await $0.winUpdates(serverID: serverID) } }
+    public func openStream(serverID: String, stream: ServerStream) async throws -> TerminalConnection { try await page { try await $0.openStream(serverID: serverID, stream: stream) } }
+
     public func assistantSettings(serverID: String) async throws -> AssistSettings {
         guard let client else { throw LinagerError.unauthorized }
         return try await client.assistantSettings(serverID: serverID)

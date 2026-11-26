@@ -128,7 +128,7 @@ struct FolderPage: View {
         .toolbar {
             if isRoot {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(action: close) { Image(systemName: "chevron.backward") }.accessibilityLabel(Text("srv.back"))
+                    Button(action: close) { Image(systemName: "xmark") }.accessibilityLabel(Text("common.close"))
                 }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {

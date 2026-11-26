@@ -126,79 +126,52 @@
       {/if}
     </section>
 
-    {#if pending.length}
-      <h4 class="ph">{t('st.dev.waiting', { n: pending.length })}</h4>
-      <ul class="set-list col">
-        {#each pending as d (d.id)}
-          <li>
-            <div class="urow">
-              <div class="info">
-                <Icon name={isMobile(d.platform) ? 'smartphone' : 'monitor'} size={15} />
-                <b>{name(d)}</b>
-                <span class="badge b-warn">{t('st.dev.status.pending')}</span>
-                <span class="dim">{t('st.dev.requestLine', { user: d.user, version: versions(d) || '—', ip: d.last_ip || '—', time: when(d.created_at) })}</span>
-              </div>
-              <div class="row">
-                <button class="btn sm primary" type="button" disabled={busy} onclick={() => void approve(d)}>{t('st.dev.approve')}</button>
-                <button class="btn sm danger" type="button" disabled={busy} onclick={() => void deny(d)}>{t('st.dev.deny')}</button>
-              </div>
+    <h4 class="ph dev-h">
+      {t('st.dev.all')}
+      {#if pending.length}<span class="badge b-warn">{t('st.dev.waiting', { n: pending.length })}</span>{/if}
+    </h4>
+    {#if rows.length === 0}
+      <p class="dim">{t('st.dev.empty')}</p>
+    {:else}
+      <ul class="dev-list">
+        {#each rows as d (d.id)}
+          <li class="dev-row" class:wait={d.status === 'pending'}>
+            <span class="dev-ic"><Icon name={isMobile(d.platform) ? 'smartphone' : 'monitor'} size={17} /></span>
+            <div class="dev-main">
+              {#if renaming && renaming.id === d.id}
+                <form class="row" onsubmit={(e) => { e.preventDefault(); void saveLabel(); }}>
+                  <span class="field"><input bind:value={renaming.label} maxlength="64" placeholder={d.model || t(platformKey(d.platform))} aria-label={t('st.dev.name')} /></span>
+                  <button class="btn sm primary" type="submit">{t('common.save')}</button>
+                  <button class="btn sm" type="button" onclick={() => (renaming = null)}>{t('common.cancel')}</button>
+                </form>
+              {:else}
+                <div class="dev-t">
+                  <b>{name(d)}</b>
+                  {#if d.current}<span class="badge b-info">{t('st.dev.thisOne')}</span>{/if}
+                  <span class="badge {d.status === 'approved' ? 'b-ok' : d.status === 'pending' ? 'b-warn' : 'b-crit'}">{t(`st.dev.status.${d.status}`)}</span>
+                </div>
+                <div class="dev-m">
+                  <span>{t(platformKey(d.platform))}{d.label && d.model ? ` · ${d.model}` : ''}</span>
+                  <span>{d.user}</span>
+                  {#if versions(d)}<span>{versions(d)}</span>{/if}
+                  {#if d.last_ip}<span class="mono">{d.last_ip}</span>{/if}
+                  <span title={t('st.dev.col.seen')}>{when(d.last_seen)}</span>
+                </div>
+              {/if}
+            </div>
+            <div class="dev-act">
+              {#if d.status === 'pending'}
+                <button class="btn sm primary" type="button" disabled={busy} onclick={() => void approve(d)}><Icon name="check" size={14} />{t('st.dev.approve')}</button>
+                <button class="btn sm danger" type="button" disabled={busy} onclick={() => void deny(d)}><Icon name="x" size={14} />{t('st.dev.deny')}</button>
+              {:else if d.status === 'denied'}
+                <button class="btn sm" type="button" disabled={busy} onclick={() => void approve(d)}><Icon name="check" size={14} />{t('st.dev.approve')}</button>
+              {/if}
+              <button class="btn sm icon" type="button" title={t('st.dev.rename')} aria-label={t('st.dev.rename')} onclick={() => (renaming = { id: d.id, label: d.label })}><Icon name="pencil" size={14} /></button>
+              <button class="btn sm icon danger" type="button" disabled={busy} title={t('st.dev.remove')} aria-label={t('st.dev.remove')} onclick={() => void remove(d)}><Icon name="trash-2" size={14} /></button>
             </div>
           </li>
         {/each}
       </ul>
-    {/if}
-
-    <h4 class="ph">{t('st.dev.all')}</h4>
-    {#if rows.length === 0}
-      <p class="dim">{t('st.dev.empty')}</p>
-    {:else}
-      <div class="tbl-wrap">
-        <table class="tbl dev-tbl">
-          <thead>
-            <tr>
-              <th>{t('st.dev.col.device')}</th><th>{t('st.dev.col.user')}</th><th>{t('st.dev.col.app')}</th><th>{t('st.dev.col.os')}</th>
-              <th>{t('st.dev.col.ip')}</th><th>{t('st.dev.col.seen')}</th><th>{t('st.dev.col.status')}</th><th class="r"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each rows as d (d.id)}
-              <tr>
-                <td>
-                  {#if renaming && renaming.id === d.id}
-                    <form class="row" onsubmit={(e) => { e.preventDefault(); void saveLabel(); }}>
-                      <span class="field"><input bind:value={renaming.label} maxlength="64" placeholder={d.model || t(platformKey(d.platform))} aria-label={t('st.dev.name')} /></span>
-                      <button class="btn sm primary" type="submit">{t('common.save')}</button>
-                      <button class="btn sm" type="button" onclick={() => (renaming = null)}>{t('common.cancel')}</button>
-                    </form>
-                  {:else}
-                    <Icon name={isMobile(d.platform) ? 'smartphone' : 'monitor'} size={14} />
-                    <b>{name(d)}</b>
-                    {#if d.current}<span class="badge b-info">{t('st.dev.thisOne')}</span>{/if}
-                    <div class="dim">{t(platformKey(d.platform))}{d.label && d.model ? ` · ${d.model}` : ''}</div>
-                  {/if}
-                </td>
-                <td>{d.user}</td>
-                <td>{d.app_version || '—'}</td>
-                <td>{d.os_version || '—'}</td>
-                <td class="mono">{d.last_ip || '—'}</td>
-                <td class="nowrap">{when(d.last_seen)}</td>
-                <td><span class="badge {d.status === 'approved' ? 'b-ok' : d.status === 'pending' ? 'b-warn' : 'b-crit'}">{t(`st.dev.status.${d.status}`)}</span></td>
-                <td class="r">
-                  <div class="row end">
-                    {#if d.status === 'pending'}
-                      <button class="btn sm primary" type="button" disabled={busy} onclick={() => void approve(d)}>{t('st.dev.approve')}</button>
-                    {:else if d.status === 'denied'}
-                      <button class="btn sm" type="button" disabled={busy} onclick={() => void approve(d)}>{t('st.dev.approve')}</button>
-                    {/if}
-                    <button class="btn sm icon ghost" type="button" title={t('st.dev.rename')} aria-label={t('st.dev.rename')} onclick={() => (renaming = { id: d.id, label: d.label })}><Icon name="pencil" size={14} /></button>
-                    <button class="btn sm icon ghost" type="button" disabled={busy} title={t('st.dev.remove')} aria-label={t('st.dev.remove')} onclick={() => void remove(d)}><Icon name="trash-2" size={14} /></button>
-                  </div>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
     {/if}
   {/if}
 </div>

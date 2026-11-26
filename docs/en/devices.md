@@ -6,7 +6,7 @@ Settings in the application → **Devices**: the list of the applications (the d
 
 At its first start the application makes a random secret token (256 bits) and keeps it in a protected store: the Keychain on an iPhone, the key store of the system on a computer. The token goes to the server in the header `X-Linager-Device`; the server keeps only its hash. The header `X-Linager-Client` tells what the application is (`platform=ios&app=0.1.0&os=27.1&model=iPhone18%2C1`). A device belongs to one user: one phone under two accounts is two devices. Installing the application again makes a new device.
 
-The table shows the device (the model and your own name for it), the user, the version of the application, the version of the OS, the last IP, the time of the last activity and the state. The server takes the last IP from the requests themselves, not from what the application says. The list is kept always, with the confirmation off too.
+The list shows the device (the model and your own name for it), the user, the versions of the application and of the OS, the last IP, the time of the last activity and the state. A device takes one compact row and the buttons are always in view: a device that waits has "Approve" and "Deny" (its row is highlighted and stands first), every device has "Name" and "Remove". The server takes the last IP from the requests themselves, not from what the application says. The list is kept always, with the confirmation off too.
 
 ## The confirmation
 
