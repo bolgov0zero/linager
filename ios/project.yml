@@ -3,7 +3,7 @@ name: Linager
 options:
   bundleIdPrefix: app.linager
   deploymentTarget:
-    iOS: "27.0"
+    iOS: "26.0"
   developmentLanguage: en
   createIntermediateGroups: true
 settings:

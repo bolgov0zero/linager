@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "LinagerKit",
-    platforms: [.iOS("27.0"), .macOS("14.0")],
+    platforms: [.iOS("26.0"), .macOS("14.0")],
     products: [.library(name: "LinagerKit", targets: ["LinagerKit"])],
     targets: [
         .target(name: "LinagerKit"),

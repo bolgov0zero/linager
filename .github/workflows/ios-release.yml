@@ -1,7 +1,8 @@
 name: ios-release
 # The iPhone application for the release: an IPA without a signature (Sideloadly, AltStore or SideStore sign it with the Apple ID of the
 # person who installs it), packed as linager-ios_arm64.ipa. Called by the release workflow; can also be run by hand to try the build.
-# The build needs the iOS 27 SDK (Xcode 27): the job picks the newest Xcode of the runner and says so plainly when it has no such SDK. A
+# The build needs the SDK of the minimum iOS of the project (ios/project.yml, deploymentTarget; iOS 26 now): the job picks the newest Xcode of the
+# runner and says so plainly when it has no such SDK. A
 # failure here does not stop the rest of the release (like the Windows agent and the desktop application).
 on:
   workflow_dispatch:
@@ -33,7 +34,7 @@ jobs:
           xcodebuild -version
       - name: Check the iOS SDK
         run: |
-          # the project needs iOS 27 (ios/project.yml: deploymentTarget)
+          # the project needs the SDK of its minimum iOS (ios/project.yml: deploymentTarget)
           want=$(sed -n 's/^ *iOS: *"\{0,1\}\([0-9.]*\)"\{0,1\} *$/\1/p' ios/project.yml | head -1)
           have=$(xcodebuild -showsdks | sed -n 's/.*-sdk iphoneos\([0-9.]*\).*/\1/p' | head -1)
           echo "needs iOS $want, the runner has the iOS $have SDK"

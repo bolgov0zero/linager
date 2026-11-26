@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Change (iOS): **the minimum iOS is 26.0** (it was 27.0). The application uses nothing that only iOS 27 has, so it is built with Xcode 26 too: the macOS runner of GitHub has Xcode 26.6, and the release workflow can now build the IPA there. The look is the same (the glass of iOS 26); it was tried on iOS 27 only.
+
 ## 1.2.0
 
 - New (server): **devices and their confirmation** ([docs/en/devices.md](docs/en/devices.md)). Every application that signs in (the desktop application, the iPhone application, later Android) has a device with a secret token of its own (`X-Linager-Device`, only the hash is kept) and says what it is (`X-Linager-Client`: platform, version of the application and of the OS, model); the server lists them with the last IP taken from the requests. An administrator may turn on the confirmation (`PUT /api/devices/gate`, off after the install): then every new device waits (`approval_pending`; it may only ask who it is and sign out) until an administrator approves it (`/api/devices/{id}/approve`, `deny`, `DELETE`, a name by `PUT`), a refused one cannot sign in, a client with no device cannot sign in at all, and the cookie of a session works only together with the token of its device. It is turned on only from a device that is approved by that very request, with the choice to keep the open sessions or sign everybody else out. The way back for a lost device: `linager server devices list|approve <id>|off` (no restart). Everything goes to the audit log (`device.*`). Migration `00026`. Tests: `TestDevicesConfirmation`, `TestDevicesGateKeepsOrCutsOpenSessions` and the unit tests of `devices_internal_test.go`. The desktop application and the iPhone application get their part in the next stages.

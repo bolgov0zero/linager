@@ -24,7 +24,7 @@ A separate native iPhone application (SwiftUI), not a wrapper around the web. Th
 
 ## Requirements
 
-An iPhone with iOS 27, portrait. A server with the application port (0.10.0-beta.1 or newer). The server has to return `fingerprint_alt` (see below), otherwise the fingerprint cannot be compared by eye.
+An iPhone with iOS 26 or newer (the minimum is 26.0: the glass elements of iOS 26 are needed; it was tried on iOS 27), portrait. A server with the application port (0.10.0-beta.1 or newer). The server has to return `fingerprint_alt` (see below), otherwise the fingerprint cannot be compared by eye.
 
 ## First connection and the fingerprint
 
@@ -51,7 +51,7 @@ make ios-ipa
 
 The file `ios/build/Linager.ipa` is built **without a signature**. Your tool (Sideloadly, AltStore, SideStore) signs and installs it with your Apple ID. Limits of a free Apple ID: the signature lasts 7 days (install again after that), up to three applications. Nothing is published to the App Store or to GitHub.
 
-**From a GitHub release.** Every release of the server comes with a ready file `linager-ios_arm64.ipa` (without a signature, like the local build); its checksum is in `SHA256SUMS` and is signed with the other files (minisign). The job `ios-release.yml` builds it on a macOS runner of GitHub: the tests of the logic, the Rust core of RDP, `make ios-ipa`. The version of the application comes from the tag (`v0.10.0-beta.20` gives `0.10.0`), the build number is the number of the run. The build needs Xcode with the iOS 27 SDK: the job takes the newest Xcode of the runner and, when the SDK is not there, stops with a plain message. A failure of this job does not stop the rest of the release, the IPA is just not in it (you can always build it yourself and attach it with `gh release upload`). The application does not update itself: a new IPA is downloaded and installed over the old one with the same tool (with a free Apple ID the signature lasts 7 days). The confirmation of devices ([devices.md](devices.md)) shows which phones are connected.
+**From a GitHub release.** Every release of the server comes with a ready file `linager-ios_arm64.ipa` (without a signature, like the local build); its checksum is in `SHA256SUMS` and is signed with the other files (minisign). The job `ios-release.yml` builds it on a macOS runner of GitHub: the tests of the logic, the Rust core of RDP, `make ios-ipa`. The version of the application comes from the tag (`v0.10.0-beta.20` gives `0.10.0`), the build number is the number of the run. The build needs Xcode with an SDK no older than the minimum version of the application (iOS 26 now, the runner of GitHub builds with it): the job takes the newest Xcode of the runner and, when the SDK is not there, stops with a plain message. A failure of this job does not stop the rest of the release, the IPA is just not in it (you can always build it yourself and attach it with `gh release upload`). The application does not update itself: a new IPA is downloaded and installed over the old one with the same tool (with a free Apple ID the signature lasts 7 days). The confirmation of devices ([devices.md](devices.md)) shows which phones are connected.
 
 ## Structure
 
