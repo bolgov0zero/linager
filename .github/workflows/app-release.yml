@@ -39,7 +39,7 @@ jobs:
         run: |
           test "$(uname -m)" = arm64
           cd app/bin && unzip -q linager-desktop_macos_arm64.zip -d check && codesign --verify --deep --strict check/Linager.app && file check/Linager.app/Contents/MacOS/linager-app
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-macos
           path: app/bin/linager-desktop_macos_arm64.zip
@@ -69,7 +69,7 @@ jobs:
           $v = $env:VERSION.TrimStart('v')
           go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o bin/linager-app.exe .
           Compress-Archive -Path bin/linager-app.exe -DestinationPath bin/linager-desktop-autoupdate_windows_x64.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-windows
           path: app/bin/linager-desktop-autoupdate_windows_x64.zip
@@ -103,7 +103,7 @@ jobs:
           $p = Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /l*v remove.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content remove.log -Tail 60; exit 1 }
           if (Test-Path $exe) { Write-Error "not removed: $exe"; exit 1 }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.msi.outcome == 'success'
         with:
           name: app-windows-installer
@@ -128,7 +128,7 @@ jobs:
           make -C app build VERSION="${VERSION#v}"
           cp app/build/linux/linager.png app/build/linux/linager.desktop app/build/linux/README.txt app/bin/
           tar -C app/bin -czf app/bin/linager-desktop_linux_x64.tar.gz linager-app linager.png linager.desktop README.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-linux
           path: app/bin/linager-desktop_linux_x64.tar.gz
